@@ -223,8 +223,12 @@ export async function updateVendor(actor: Actor, id: number, input: Partial<Vend
 
 /**
  * Every status change goes through the declared transition table, so the arrow
- * must exist and the caller must hold its permission. Vendors are group-wide
- * rather than site-scoped, so site 0 stands for "no site".
+ * must exist and the caller must hold its permission.
+ *
+ * Vendors are group-wide, so the site is null: holding VENDOR.APPROVE anywhere
+ * is enough. A vendor is not "at" a site, and requiring the permission at one
+ * would mean a Functional Head could approve a vendor only if they happened to
+ * hold a role at whichever site the record was imagined to belong to.
  */
 async function transitionVendor(
   actor: Actor,
@@ -238,7 +242,7 @@ async function transitionVendor(
     if (!current) throw notFound('That vendor no longer exists.');
 
     const from = String(current.status);
-    await assertTransition({ entityType: 'VENDOR', from, to, principal: actor.principal, siteId: 0 }, tx);
+    await assertTransition({ entityType: 'VENDOR', from, to, principal: actor.principal, siteId: null }, tx);
 
     const [vendor] = await tx<Row[]>`
       UPDATE vendors SET

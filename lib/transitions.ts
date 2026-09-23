@@ -22,8 +22,18 @@ export interface TransitionRequest {
   from: string;
   to: string;
   principal: Principal | null;
-  /** Site the record belongs to. Required — permissions are site-scoped. */
-  siteId: number;
+  /**
+   * Site the record belongs to, or null when the entity is not site-scoped.
+   *
+   * Most records belong to a site and the permission must be held THERE. A few
+   * — vendors above all — are group-wide: a Functional Head at any site can
+   * approve a vendor, because a vendor is not "at" a site at all.
+   *
+   * Passing 0 for those was a bug: `rolesAt()` finds no site with id 0 and
+   * falls back to group-wide roles only, so CG_FHEAD was silently refused
+   * while CG_ADM passed. null is the correct way to say "held anywhere".
+   */
+  siteId: number | null;
 }
 
 // (entity_type, from_status, to_status) -> permission_key.

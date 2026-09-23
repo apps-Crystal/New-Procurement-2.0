@@ -170,6 +170,10 @@ h1 { margin: 4px 0 0; font-size: 26px; font-weight: 700; display: flex; align-it
 /* --- Typography helpers ------------------------------------------------------ */
 .mono { font-family: var(--mono); }
 .r { text-align: right; }
+
+/* Line-item rows label each input for a screen reader without a visible label,
+   because a column header a row above is not programmatically the label. */
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 .b { font-weight: 600; }
 
 /* --- Buttons ----------------------------------------------------------------- */

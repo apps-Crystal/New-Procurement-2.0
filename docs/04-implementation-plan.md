@@ -19,7 +19,7 @@ the SSO, session and database modules port across rather than being rewritten.
 
 ---
 
-## Phase 2 — Foundation
+## Phase 2 — Foundation ✅ complete
 - Scaffold Next.js + TypeScript + Tailwind 4; port the prototype's token block
   verbatim into `app/globals.css`.
 - `lib/db.ts` — port from v1.0 (lazy proxy client, `withDbRetry`, pooler-safe).
@@ -45,7 +45,7 @@ on an empty PostgreSQL 15, `audit_log` and `stock_ledger` reject UPDATE/DELETE.
 
 ---
 
-## Phase 3 — Master data
+## Phase 3 — Master data ✅ complete
 Sites, storage locations, item classes, items, item-site settings, budget codes,
 approval bands + levels, user-site-roles, QC checklists, vendors + bank
 maker-checker + categories + sites.
@@ -55,7 +55,7 @@ tests pass; bank maker-checker proven; `vba_one_live` proven.
 
 ---
 
-## Phase 4 — Procurement
+## Phase 4 — Procurement ✅ complete
 MR → stock check → transfer → declaration → PR → approval → quotations →
 comparison → award → PO.
 
@@ -64,14 +64,72 @@ lock proven; payment-terms rule proven; edit lock after approval proven;
 non-lowest award and waiver proven; PO blocked for unapproved vendor and
 without Tally ref.
 
+**Gate met.** `npm run verify:procurement` walks the whole chain against a
+throwaway PostgreSQL with five distinct people, so segregation of duties is
+exercised rather than asserted: 42 checks, all passing. The interesting ones are
+the refusals — self-approval on an MR, a PR and a transfer; an out-of-order
+approval; an edit after approval; a second PO on one PR; a blocked vendor on an
+order; an expired quotation awarded; a non-lowest award with no justification.
+
+Delivered:
+
+| | |
+|---|---|
+| Services | `mr`, `transfers`, `pr`, `quotations`, `po`, `approvals` |
+| API | 24 routes under `/api/mr`, `/api/transfers`, `/api/pr`, `/api/quotations`, `/api/po`, `/api/approvals` |
+| Screens | `/mr`, `/mr/[id]`, `/transfers`, `/transfers/[id]`, `/pr`, `/pr/[id]`, `/po`, `/po/[id]`, `/quotations`, `/approvals` |
+
+Two things surfaced during the phase and are recorded rather than patched over:
+
+- **D-07** — a Functional Head could not approve a vendor, because vendors are
+  group-wide but the permission was checked at site `0`. `TransitionRequest.siteId`
+  is now `number | null`, and `null` means "held anywhere".
+- **`v_pr_totals.taxable` is unrounded.** The view sums `qty(14,3) × rate(14,2)`
+  without rounding, so it arrives at scale 5 while `gst` and `total_incl_gst` are
+  rounded per line. The value is exact; the UI formats it to paise.
+
 ---
 
-## Phase 5 — Receiving
+## Phase 5 — Receiving ✅ complete
 Gate inward → QC → GRN → shortfall.
 
 **Gate** — duplicate challan blocked; vehicle normalisation works; temperature
 rule enforced; QC sum rule and reason rule proven; all three SoD triggers proven;
 GRN approval posts stock through `post_stock_movement()` and is replay-safe.
+
+**Gate met.** `npm run verify:procurement` now walks the whole §36 chain, from
+material request to posted stock, with seven distinct people: 70 checks, all
+passing. Every clause above has its own check, including a separate cold-chain
+consignment built end to end so the temperature rule is proven on real item
+classes rather than asserted.
+
+Delivered:
+
+| | |
+|---|---|
+| Services | `gate-inward`, `qc`, `grn`, `shortfall` |
+| API | 13 routes under `/api/gate-inward`, `/api/qc`, `/api/grn`, `/api/shortfalls` |
+| Screens | `/gate-inward`, `/gate-inward/[id]`, `/qc`, `/qc/[id]`, `/grn`, `/grn/[id]`, `/shortfalls` |
+| Migration | `0004_qc_lines_reinspection.sql` (conflict C-26) |
+
+Three things surfaced during the phase:
+
+- **C-26 — re-inspection was still impossible.** Amendment C-02 fixed
+  `qc_inspections` but left `qc_lines.gate_inward_line_id NOT NULL UNIQUE`, which
+  blocks the child rows a re-inspection needs. The constraint is now composite,
+  `(qc_id, gate_inward_line_id)`. Without it, the only route through would have
+  destroyed the original verdict — undoing C-02 in all but name.
+
+- **A sentinel for uninspected lines.** `qc_lines_sum` must balance from the
+  first insert, so a new line parks the whole counted quantity in `qty_hold`.
+  That is not the same thing as stock somebody held back, and without the
+  distinction every fresh inspection floods the Site Manager's hold queue.
+
+- **Document upload is still outstanding** (a Phase 2 item). The C-11
+  data-logger gate is implemented and will correctly refuse a
+  `requires_data_logger` class until the file is attached — but nothing can
+  attach one yet, so that path is unreachable in the product. No item class in
+  use sets the flag, so nothing is currently blocked.
 
 ---
 

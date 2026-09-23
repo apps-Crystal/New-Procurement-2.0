@@ -23,11 +23,12 @@
  * separate screens ("You cannot approve a PR you raised"), and it is the single
  * most important control in the module.
  */
-import type { Tx } from '@/lib/db';
+import { inTransaction, sql, type Tx } from '@/lib/db';
 import { audit } from '@/lib/audit';
 import { can, type Principal, type RoleCode } from '@/lib/auth/permissions';
 import { badRequest, conflict, forbidden, notFound } from '@/lib/errors';
 import { ROLE_LABELS } from '@/lib/labels';
+import type { Row } from '@/lib/services/masters';
 
 export type ApprovableEntity = 'PR' | 'WRITE_OFF' | 'NON_LOWEST_AWARD' | 'QUOTE_WAIVER';
 
@@ -285,3 +286,119 @@ export function canDecideLevel(principal: Principal, level: ApprovalRow, siteId:
 }
 
 export { can };
+
+// =============================================================================
+// The approvals queue
+// =============================================================================
+
+export interface PendingItem {
+  entityType: ApprovableEntity;
+  entityId: number;
+  levelNo: number;
+  requiredRole: RoleCode;
+  createdAt: string;
+  /** Document number, for the link and the mono column. */
+  reference: string;
+  /** Who raised it — shown so an approver knows whose work they are deciding. */
+  originator: string;
+  siteName: string;
+  /** Value the band routed on, as a string; the UI formats it. */
+  value: string | null;
+  href: string;
+}
+
+/**
+ * Everything the caller can actually act on now.
+ *
+ * `pendingFor` answers "which levels are open for my roles" and deliberately
+ * stops there, because site scoping and the self-approval exclusion need the
+ * owning record, which differs per entity type. This is that caller: it joins
+ * each type to its own table, drops anything at a site the principal does not
+ * hold, and drops anything they raised themselves.
+ *
+ * Without those two filters the queue would offer work that `decide()` will
+ * refuse — which is worse than not offering it, because the refusal arrives
+ * only after the approver has read the whole request.
+ */
+export async function pendingApprovals(principal: Principal): Promise<PendingItem[]> {
+  const rows = await inTransaction(tx => pendingFor(tx, principal));
+  if (rows.length === 0) return [];
+
+  const siteIds = new Set(principal.sites.map(s => s.siteId));
+  const out: PendingItem[] = [];
+
+  const prIds = rows.filter(r => r.entityType === 'PR').map(r => r.entityId);
+  const awardIds = rows
+    .filter(r => r.entityType === 'NON_LOWEST_AWARD' || r.entityType === 'QUOTE_WAIVER')
+    .map(r => r.entityId);
+
+  const prs = prIds.length
+    ? await sql<Row[]>`
+        SELECT p.id, p.pr_no, p.site_id, p.requester_id, s.name AS site_name,
+               u.full_name AS requester_name, t.total_incl_gst
+          FROM purchase_requests p
+          JOIN sites s            ON s.id = p.site_id
+          JOIN app_users u        ON u.id = p.requester_id
+          LEFT JOIN v_pr_totals t ON t.pr_id = p.id
+         WHERE p.id = ANY(${prIds})`
+    : [];
+
+  // An award's site and originator come from the PR behind it, so a buyer
+  // cannot approve their own non-lowest choice either.
+  const awards = awardIds.length
+    ? await sql<Row[]>`
+        SELECT a.id, a.pr_id, a.awarded_by, p.pr_no, p.site_id, s.name AS site_name,
+               u.full_name AS awarded_by_name, q.landed_cost
+          FROM quote_awards a
+          JOIN purchase_requests p ON p.id = a.pr_id
+          JOIN sites s             ON s.id = p.site_id
+          JOIN app_users u         ON u.id = a.awarded_by
+          LEFT JOIN v_quotation_landed_cost q ON q.quotation_id = a.quotation_id
+         WHERE a.id = ANY(${awardIds})`
+    : [];
+
+  for (const r of rows) {
+    if (r.entityType === 'PR') {
+      const pr = prs.find(p => Number(p.id) === r.entityId);
+      if (!pr) continue;
+      if (!principal.groupWide && !siteIds.has(Number(pr.site_id))) continue;
+      if (Number(pr.requester_id) === principal.userId) continue;
+
+      out.push({
+        entityType: 'PR',
+        entityId: r.entityId,
+        levelNo: r.levelNo,
+        requiredRole: r.requiredRole,
+        createdAt: r.createdAt,
+        reference: String(pr.pr_no),
+        originator: String(pr.requester_name),
+        siteName: String(pr.site_name),
+        value: pr.total_incl_gst === null ? null : String(pr.total_incl_gst),
+        href: `/pr/${r.entityId}`,
+      });
+      continue;
+    }
+
+    if (r.entityType === 'NON_LOWEST_AWARD' || r.entityType === 'QUOTE_WAIVER') {
+      const award = awards.find(a => Number(a.id) === r.entityId);
+      if (!award) continue;
+      if (!principal.groupWide && !siteIds.has(Number(award.site_id))) continue;
+      if (Number(award.awarded_by) === principal.userId) continue;
+
+      out.push({
+        entityType: r.entityType,
+        entityId: r.entityId,
+        levelNo: r.levelNo,
+        requiredRole: r.requiredRole,
+        createdAt: r.createdAt,
+        reference: String(award.pr_no),
+        originator: String(award.awarded_by_name),
+        siteName: String(award.site_name),
+        value: award.landed_cost === null ? null : String(award.landed_cost),
+        href: `/pr/${award.pr_id as number}`,
+      });
+    }
+  }
+
+  return out;
+}

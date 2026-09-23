@@ -1,11 +1,13 @@
 /**
  * Enumerations, taken verbatim from section 0 of the SQL schema.
  *
- * In PostgreSQL these were CREATE TYPE … AS ENUM, which made an invalid value
- * impossible. On Sheets they become data validation on the column (a dropdown,
- * with rejection of anything else) plus a service-layer check. Data validation
- * stops a human typing nonsense into the workbook; the service check stops the
- * application writing it.
+ * In the database these are CREATE TYPE … AS ENUM, and that is what makes an
+ * invalid value impossible — not this file. These copies exist so a dropdown can
+ * be built and a bad value refused with a sentence before the round trip, never
+ * as the enforcement. If the two ever disagree, the type wins.
+ *
+ * (Under the retired Sheets backend this file had to carry the enforcement,
+ * because a spreadsheet column has no type. See D-05 and D-06.)
  */
 
 export const ENUMS = {

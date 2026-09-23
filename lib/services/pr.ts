@@ -184,6 +184,37 @@ export async function createPr(actor: Actor, input: PrInput): Promise<Row> {
 }
 
 /** `pr_payment_terms_total` — the six buckets total 100 unless overridden. */
+/**
+ * Read the six percentages off a request body.
+ *
+ * A missing key means zero rather than an error: a supplier paid wholly on
+ * delivery has five zeroes, and making the caller send them adds nothing.
+ * `assertPaymentTerms` then rejects anything not totalling 100, so an omission
+ * that actually matters is still caught — and named.
+ */
+export function parsePaymentTerms(v: unknown): PaymentTerms {
+  if (typeof v !== 'object' || v === null || Array.isArray(v)) {
+    throw badRequest('Payment terms are required.', 'payment_terms');
+  }
+  const raw = v as Record<string, unknown>;
+  const out = {} as Record<string, string>;
+
+  for (const key of PAYMENT_TERMS) {
+    const value = raw[key];
+    if (value === undefined || value === null || value === '') {
+      out[key] = '0';
+      continue;
+    }
+    const text = String(value).trim();
+    if (!/^\d+(\.\d+)?$/.test(text)) {
+      throw badRequest(`${key.replace(/^pay_|_pct$/g, '').replace(/_/g, ' ')} must be a percentage.`, key);
+    }
+    out[key] = text;
+  }
+
+  return out as PaymentTerms;
+}
+
 function assertPaymentTerms(terms: PaymentTerms, override?: string | null) {
   if (override?.trim()) return;
 

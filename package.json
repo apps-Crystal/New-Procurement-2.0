@@ -14,7 +14,8 @@
     "dev:session": "tsx --env-file=.env.local scripts/dev-session.ts",
     "db:create": "node --env-file=.env.local scripts/create-db.mjs",
     "migrate": "node --env-file=.env.local scripts/migrate.mjs",
-    "verify:db": "tsx --env-file=.env.local scripts/verify-db.ts"
+    "verify:db": "tsx --env-file=.env.local scripts/verify-db.ts",
+    "verify:procurement": "tsx --env-file=.env.local scripts/verify-procurement.ts"
   },
   "dependencies": {
     "googleapis": "^181.0.0",

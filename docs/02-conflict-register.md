@@ -466,3 +466,53 @@ edits are rare enough for the cost not to matter.
 This is a deliberate widening of a supplied constraint rather than a
 reinterpretation of it — the trigger's stated intent is kept, its incomplete
 implementation is not.
+
+---
+
+## 🔴 C-26 — QC re-inspection is still impossible, one level down
+
+**Found by** building the re-inspection path in Phase 5. Amendment C-02 was
+necessary but not sufficient.
+
+**Schema** — `qc_lines`:
+
+```sql
+gate_inward_line_id bigint NOT NULL UNIQUE REFERENCES gate_inward_lines(id),
+```
+
+**The problem.** C-02 fixed the parent: `qc_inspections` no longer carries
+`UNIQUE (gate_inward_id)`, so a gate inward can hold one original inspection
+plus a chain of re-inspections. But `qc_lines` carries the identical defect
+against the identical idea. A re-inspection needs its own `qc_lines` rows
+covering the same gate-inward lines as the inspection it follows — that is what
+re-inspecting *is*. The global `UNIQUE` forbids the second set.
+
+So after C-02 the parent row inserted successfully and the child insert failed.
+Re-inspection remained impossible; only the error message moved.
+
+The trap is that the constraint expresses a real rule — a gate-inward line
+should not be inspected twice *on one inspection* — but scopes it to all of
+history rather than to the inspection. Across inspections, inspecting again is
+the entire point.
+
+**Why not work around it in the service.** The only way through without a schema
+change is to detach or overwrite the original inspection's lines. `NOT NULL`
+blocks detaching, and overwriting destroys the original verdict — which is the
+very thing C-02 chose option A to preserve, and which §29 requires. A workaround
+here would quietly undo C-02.
+
+**Rule** — the constraint becomes composite, in `0004_qc_lines_reinspection.sql`:
+
+```sql
+ALTER TABLE qc_lines DROP CONSTRAINT qc_lines_gate_inward_line_id_key;
+ALTER TABLE qc_lines
+  ADD CONSTRAINT qc_lines_inspection_line_uq UNIQUE (qc_id, gate_inward_line_id);
+```
+
+Nothing that mattered is loosened. A duplicate line within one inspection is
+still refused, and `grns.qc_id UNIQUE` still guarantees one GRN per inspection,
+so the GRN attaches to whichever inspection is final.
+
+`shortfall_cases.gate_inward_line_id NOT NULL UNIQUE` is left alone: a shortfall
+is a gate fact, settled once, and is genuinely one per line however many times
+quality is re-judged.

@@ -174,6 +174,67 @@ award. That requires three new enum values and a re-seed of the approval matrix.
 
 ---
 
+## D-07 — Group-wide entities are scoped with `null`, never site `0`
+
+Raised by a defect, not by design: a Functional Head could not approve a vendor.
+The refusal read *"You do not have permission to approve this vendor at this
+site."* — which was true, and meaningless, because a vendor is not at a site.
+
+`transitionVendor()` passed `siteId: 0`. `rolesAt(principal, 0)` looks for a site
+with id `0`, finds none, and falls back to returning **only group-wide roles**
+(`CG_ADM`, `CG_DIR`). `CG_FHEAD` is site-scoped, so the set came back empty and
+the check refused. The fallback is correct; `0` as an argument to it was not.
+
+The bug hid because `CG_ADM` is group-wide, so every path an administrator
+exercised passed. It surfaced only in `verify:procurement`, which walks the chain
+with five *distinct* people — including a Functional Head who is not also an
+administrator. That is the argument for keeping the verification cast separate.
+
+### The rule
+
+`TransitionRequest.siteId` is `number | null`:
+
+| value | meaning |
+|---|---|
+| a site id | the permission must be held **at that site** — the default, and correct for every record carrying a `site_id` |
+| `null` | the entity is **not site-scoped**; holding the permission anywhere is enough |
+| `0` | **never** — it silently degrades to group-wide-only and refuses site-scoped roles |
+
+Only entities with no `site_id` column may pass `null`. Today that is `VENDOR`
+alone; vendor bank accounts already called `can(…, null)` directly and were
+unaffected. Everything else — MR, transfer, PR, PO, GRN, issue, return — belongs
+to a site and keeps the stricter check. A Warehouse Lead at Pune still cannot
+decide Dhulagarh's transfers.
+
+This does not weaken segregation of duties. Who may act is still decided by the
+permission matrix; `vba_maker_checker` still forbids approving one's own
+submission; the self-approval checks in `approvals.ts`, `mr.ts`, `pr.ts` and
+`transfers.ts` are untouched. What changed is only *where* the role must be
+held, for entities that are nowhere.
+
+---
+
+## D-08 — C-26 applied under D-02's amendment principle
+
+Building Phase 5's re-inspection path showed that amendment C-02 was necessary
+but not sufficient: it freed `qc_inspections` and left the identical constraint
+on `qc_lines`. Migration `0004_qc_lines_reinspection.sql` rescopes that one from
+the column to `(qc_id, gate_inward_line_id)`.
+
+This is taken as covered by D-02 rather than raised as a fresh decision, because
+it is the same amendment finishing the job it started — the schema intended
+re-inspection (`is_reinspection_of` exists), and both constraints were blocking
+the intent. The full argument is conflict C-26.
+
+The alternative was a service-level workaround, and it is worth naming why that
+was rejected: the only way through without a schema change is to detach or
+overwrite the original inspection's lines. `NOT NULL` blocks detaching, and
+overwriting destroys the original verdict — which is precisely what C-02 chose
+option A to preserve, and what §29 requires. A workaround here would have quietly
+undone an approved decision.
+
+---
+
 ## Standing rules carried into implementation
 
 1. The schema is authoritative for data and business constraints; the prototype
