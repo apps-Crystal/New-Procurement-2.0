@@ -234,13 +234,50 @@ Two further notes:
 
 ---
 
-## Phase 8 — Accounts
+## Phase 8 — Accounts ✅ complete
 Invoice → three-way match → debit note → credit note → offset → vendor ledger →
 reconciliation.
 
 **Gate** — duplicate invoice blocked; GST mode rule proven; DN single-source
 proven; CN variance blocks closure without override; recon closes only at zero
 difference.
+
+**Gate met.** `npm run verify:procurement` runs 131 checks across the whole
+chain, from material request to a vendor reconciliation confirmed by the vendor.
+Every clause above has its own check.
+
+Delivered:
+
+| | |
+|---|---|
+| Services | `invoices`, `debit-notes`, `reconciliation`, `ledger-accounts` |
+| API | 13 routes under `/api/invoices`, `/api/debit-notes`, `/api/reconciliation` |
+| Screens | `/invoices`, `/invoices/[id]`, `/notes`, `/notes/[id]`, `/reconciliation`, `/reconciliation/[id]` |
+
+Three things worth recording:
+
+- **C-14 settled.** `compute_cn_variance()` flags a credit note more than 2%
+  short of what was debited, and the schema then does nothing with the flag.
+  Reconciliation is now blocked while a flagged note is unaccepted;
+  `accepted_short_by` is the schema's own intended override and setting it
+  requires CG_FHEAD and is audited as an OVERRIDE.
+
+- **C-28 raised.** `vi_tax_mode` stops an invoice carrying both GST modes but
+  has no opinion on which applies. The mode is now derived from the place of
+  supply against the receiving site's state, and a mismatch is refused — the
+  comparison is two joins from the invoice, so no constraint could express it.
+
+- **The two ledger sides are never reconciled by adjustment.** PORTAL rows are
+  written by the app; TALLY rows are imported exactly as supplied. An import
+  that rounded or netted anything on the way in would hide the discrepancy the
+  reconciliation exists to surface — and `recon_zero_to_close` means a run
+  cannot be closed while they differ, with no override.
+
+One bug found by the verification and worth naming, because it was invisible:
+`runReconciliation` read its own findings back through the global client rather
+than the transaction, so it returned the *previous* run's items while the run
+row itself was correct. Caught only by asserting on the item list, not on the
+balance.
 
 ---
 

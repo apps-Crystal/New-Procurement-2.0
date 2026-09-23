@@ -117,6 +117,10 @@ async function main() {
   const assets = await import('../lib/services/assets');
   const damage = await import('../lib/services/damage');
   const rtv = await import('../lib/services/rtv');
+  const invoices = await import('../lib/services/invoices');
+  const debitNotes = await import('../lib/services/debit-notes');
+  const recon = await import('../lib/services/reconciliation');
+  const accountsLedger = await import('../lib/services/ledger-accounts');
   const stock = await import('../lib/services/stock');
 
   try {
@@ -1943,6 +1947,332 @@ async function main() {
       assertEqual(back.find(b => b.bucket === 'DAMAGED_HOLD')?.qty, '1.000', 'and back on cancellation');
     });
 
+
+    // =====================================================================
+    // Accounts — invoice, three-way match, debit note, credit note, recon
+    // =====================================================================
+    let invoiceId = 0;
+
+    // Who actually won the award, and what the goods that arrived are worth at
+    // order rates. Both are read rather than assumed — the award is decided by
+    // the view's rank, so hardcoding a vendor here would be asserting the
+    // outcome of a test that already ran.
+    const { po: billedPo, lines: billedLines } = await poSvc.getPo(poId);
+    const billedVendorId = Number(billedPo.vendor_id);
+    const receivedValue = billedLines
+      .reduce((sum, l) => sum + Number(l.qty_received ?? 0) * Number(l.rate), 0)
+      .toFixed(2);
+    const gstHalf = (Number(receivedValue) * 0.09).toFixed(2);
+    const invoiceTotal = (Number(receivedValue) + Number(gstHalf) * 2).toFixed(2);
+
+    await check('GST mode · an inter-state tax on an intra-state supply is refused', async () => {
+      // Dhulagarh is state 19 and so is Frostline, so this supply never crosses
+      // a state line. IGST would misstate the input tax credit.
+      await rejects(
+        () =>
+          invoices.recordInvoice(ACC, {
+            poId, invoiceNo: 'FR/2026/0001', invoiceDate: '2026-09-23',
+            placeOfSupply: '19', taxableValue: receivedValue, igst: '46692',
+          }),
+        /intra-state supply.*CGST and SGST, not IGST/is,
+        'wrong GST mode',
+      );
+    });
+
+    await check('GST mode · CGST and SGST must be equal', async () => {
+      await rejects(
+        () =>
+          invoices.recordInvoice(ACC, {
+            poId, invoiceNo: 'FR/2026/0001', invoiceDate: '2026-09-23',
+            placeOfSupply: '19', taxableValue: receivedValue, cgst: gstHalf, sgst: '20000',
+          }),
+        /always equal on an intra-state supply/i,
+        'unequal halves',
+      );
+    });
+
+    await check('an invoice is booked, and raises the payable', async () => {
+      const invoice = await invoices.recordInvoice(ACC, {
+        poId, invoiceNo: 'FR/2026/0001', invoiceDate: '2026-09-23',
+        placeOfSupply: '19', taxableValue: receivedValue, cgst: gstHalf, sgst: gstHalf,
+      });
+      invoiceId = Number(invoice.id);
+      assertEqual(invoice.total, invoiceTotal, 'total is generated from its parts');
+      assertEqual(invoice.status, 'INV_RECEIVED', 'received');
+
+      const bal = await inTransaction(tx => accountsLedger.balance(tx, billedVendorId, 'PORTAL'));
+      assertEqual(bal, invoiceTotal, 'the payable went up by the invoice total');
+    });
+
+    await check('vendor_invoices_no_uq · the same invoice cannot be booked twice', async () => {
+      await rejects(
+        () =>
+          invoices.recordInvoice(ACC, {
+            poId, invoiceNo: '  fr/2026/0001  ', invoiceDate: '2026-09-23',
+            placeOfSupply: '19', taxableValue: '100', cgst: '9', sgst: '9',
+          }),
+        /already booked/i,
+        'duplicate invoice',
+      );
+    });
+
+    await check('the three-way match compares the order, the receipts and the bill', async () => {
+      const match = await invoices.threeWayMatch(invoiceId);
+      assertEqual(match.receivedTaxable, receivedValue, 'received at order rates');
+      assertEqual(match.invoiceTaxable, receivedValue, 'billed');
+      assert(match.matches, 'and they agree');
+
+      // Only APPROVED receipts count: the flagged over-receipt is excluded, so
+      // the coil shows the one that was actually received.
+      const coil = match.lines.find(l => l.itemCode === 'CC-EVP-220');
+      assertEqual(coil?.qtyReceived, '1.000', 'the flagged second coil is not counted');
+    });
+
+    await check('an invoice billing more than arrived cannot be matched silently', async () => {
+      const over = await invoices.recordInvoice(ACC, {
+        poId, invoiceNo: 'FR/2026/0002', invoiceDate: '2026-09-23',
+        placeOfSupply: '19',
+        taxableValue: (Number(receivedValue) + 100000).toFixed(2),
+        cgst: '36000', sgst: '36000',
+      });
+
+      await rejects(
+        () => invoices.matchInvoice(ACC, Number(over.id)),
+        /more than the goods.*debit note.*or dispute/is,
+        'over-billed invoice',
+      );
+
+      await invoices.disputeInvoice(ACC, Number(over.id), 'Billed for the flagged over-receipt');
+    });
+
+    await check('the matched invoice is released and paid, net of anything held', async () => {
+      await invoices.matchInvoice(ACC, invoiceId);
+      await invoices.holdInvoice(ACC, invoiceId, '5000.00', 'Pending the damaged logger credit');
+      await invoices.releaseInvoice(FHEAD, invoiceId, 'Released for payment less the hold');
+
+      const paid = await invoices.payInvoice(ACC, invoiceId, 'NEFT/2026/09/8812');
+      assertEqual(paid.status, 'INV_PAID', 'paid');
+
+      const bal = await inTransaction(tx => accountsLedger.balance(tx, billedVendorId, 'PORTAL'));
+      // Everything but the withheld amount has been paid away — plus the
+      // over-billed invoice above, which is disputed but still booked. A
+      // dispute is a flag on an invoice, not an un-booking of it: the vendor
+      // has billed, and the payable says so until it is settled or cancelled.
+      const [disputed] = await sql<{ total: string }[]>`
+        SELECT total::text FROM vendor_invoices WHERE invoice_no = 'FR/2026/0002'`;
+      assertEqual(bal, (5000 + Number(disputed.total)).toFixed(2), 'the held amount and the disputed bill');
+    });
+
+    // =====================================================================
+    // Debit notes
+    // =====================================================================
+    let dnId = 0;
+
+    await check('dn_one_source · a debit note needs exactly one origin', async () => {
+      await rejects(
+        () => debitNotes.createDebitNote(ACC, {}),
+        /exactly one of them/i,
+        'no origin',
+      );
+      await rejects(
+        () => debitNotes.createDebitNote(ACC, { rtvId: damageRtvId, shortfallId: 1 }),
+        /exactly one of them/i,
+        'two origins',
+      );
+    });
+
+    await check('a shortfall still awaiting its balance cannot be debited', async () => {
+      const open = await shortfalls.listShortfalls(SMGR.principal, { decision: 'AWAIT_BALANCE' });
+      await rejects(
+        () => debitNotes.createDebitNote(ACC, { shortfallId: Number(open[0].id) }),
+        /still awaiting the balance.*owes goods, not money/is,
+        'premature debit',
+      );
+    });
+
+    await check('a debit note mirrors the invoice tax, and reduces the payable when issued', async () => {
+      // The shortfall return is against the same order the invoice bills, which
+      // is what lets its tax be mirrored. A return against a different order
+      // would be a different vendor's problem.
+      await rtv.dispatchRtv(RCV, shortfallRtvId, { transporter: 'Sundar Roadways' });
+
+      const dn = await debitNotes.createDebitNote(ACC, {
+        rtvId: shortfallRtvId, vendorInvoiceId: invoiceId,
+      });
+      dnId = Number(dn.id);
+      assert(String(dn.dn_no).startsWith('DN-DHU-'), `numbered at the site: ${dn.dn_no}`);
+
+      const taxable = Number(dn.taxable_value);
+      assert(taxable > 0, 'valued from the return');
+      const expectedCgst = ((taxable / Number(receivedValue)) * Number(gstHalf)).toFixed(2);
+      assertEqual(dn.cgst, expectedCgst, 'CGST mirrored in proportion to the invoice');
+      assertEqual(dn.igst, '0.00', 'and no IGST, matching the invoice');
+
+      const before = await inTransaction(tx => accountsLedger.balance(tx, billedVendorId, 'PORTAL'));
+      await debitNotes.issueDebitNote(ACC, dnId, 'TALLY-DN-0001');
+      const after = await inTransaction(tx => accountsLedger.balance(tx, billedVendorId, 'PORTAL'));
+
+      assertEqual(Number(before) - Number(after), Number(dn.total), 'the payable fell by the note');
+    });
+
+    await check('the same return cannot be debited twice', async () => {
+      await rejects(
+        () => debitNotes.createDebitNote(ACC, { rtvId: shortfallRtvId }),
+        /already been debited as DN-/i,
+        'duplicate debit note',
+      );
+    });
+
+    // =====================================================================
+    // Credit notes and C-14
+    // =====================================================================
+    let creditNoteId = 0;
+
+    await check('a short credit note is flagged by the trigger, not by us', async () => {
+      const { creditNote } = await debitNotes.recordCreditNote(ACC, dnId, {
+        cnNo: 'FR-CN-77', cnDate: '2026-09-23', value: '15000',
+      });
+      creditNoteId = Number(creditNote.id);
+
+      // Well short of what was debited, so the trigger flags it.
+      assert(Number(creditNote.variance_pct) > 2, `variance ${creditNote.variance_pct}%`);
+      assertEqual(creditNote.variance_flagged, true, 'flagged above the 2% tolerance');
+      assertEqual(creditNote.accepted_short_by, null, 'and nobody has accepted it');
+    });
+
+    await check('C-14 · a flagged credit note blocks reconciliation', async () => {
+      await rejects(
+        () => debitNotes.reconcileDebitNote(ACC, dnId, 'TALLY-DN-0001'),
+        /short of the.*above the 2% tolerance.*Functional Head/is,
+        'reconciling while flagged',
+      );
+    });
+
+    await check('C-14 · only a Functional Head may accept the shortfall', async () => {
+      await rejects(
+        () => debitNotes.acceptShortCredit(ACC, creditNoteId, 'Agreed with the vendor on a settlement'),
+        /Functional Head/i,
+        'accounts accepting short',
+      );
+    });
+
+    await check('C-14 · the override unblocks it, and is audited as an override', async () => {
+      const accepted = await debitNotes.acceptShortCredit(
+        FHEAD, creditNoteId,
+        'Vendor disputes the handling damage; settled at 15,000 to keep the supply line',
+      );
+      assert(accepted.accepted_short_by !== null, 'accepted');
+
+      const reconciled = await debitNotes.reconcileDebitNote(ACC, dnId, 'TALLY-DN-0001');
+      assertEqual(reconciled.status, 'DN_RECONCILED', 'now it reconciles');
+
+      const overrides = await sql<{ n: string }[]>`
+        SELECT count(*)::text AS n FROM audit_log
+         WHERE entity_type = 'CREDIT_NOTE' AND action = 'OVERRIDE'`;
+      assertEqual(overrides[0].n, '1', 'recorded as an override, not an ordinary update');
+    });
+
+    await check('dn_reconciled_needs_tally · reconciling needs the voucher reference', async () => {
+      // The logger return, which is closed and so has certainly left.
+      const dn2 = await debitNotes.createDebitNote(ACC, { rtvId: damageRtvId });
+      await debitNotes.issueDebitNote(ACC, Number(dn2.id), 'TALLY-DN-0002');
+      await debitNotes.recordCreditNote(ACC, Number(dn2.id), {
+        cnNo: 'FR-CN-78', cnDate: '2026-09-23', value: String(dn2.total),
+      });
+
+      await rejects(
+        () => debitNotes.reconcileDebitNote(ACC, Number(dn2.id), '   '),
+        /needs the Tally voucher reference/i,
+        'no voucher',
+      );
+    });
+
+    // =====================================================================
+    // Reconciliation
+    // =====================================================================
+    let runId = 0;
+
+    await check('a reconciliation with no Tally side is all one-sided', async () => {
+      const { run, items } = await recon.runReconciliation(ACC, {
+        vendorId: billedVendorId, periodStart: '2026-09-01', periodEnd: '2026-09-30',
+      });
+      runId = Number(run.id);
+
+      assertEqual(run.tally_balance, '0.00', 'nothing imported yet');
+      assert(Number(run.difference) !== 0, 'so the two sides differ');
+      assertEqual(run.status, 'RECON_DIFFERENCE', 'and it says so');
+      assert(items.every(i => i.match_status === 'ONLY_IN_PORTAL'), 'every row sits on one side');
+    });
+
+    await check('recon_zero_to_close · a run with a difference cannot be closed', async () => {
+      await rejects(
+        () => recon.closeReconciliation(ACC, runId),
+        /out by .*cannot be closed away/is,
+        'closing a difference',
+      );
+    });
+
+    await check('the Tally side is imported exactly as supplied', async () => {
+      const portal = await inTransaction(tx => accountsLedger.entries(billedVendorId, 'PORTAL'));
+
+      const { imported } = await recon.importTally(
+        ACC,
+        billedVendorId,
+        portal.map(e => ({
+          entryDate: new Date(e.entry_date as string).toISOString().slice(0, 10),
+          docType: String(e.doc_type) as 'INVOICE',
+          docRef: String(e.doc_ref),
+          amount: String(e.amount),
+        })),
+      );
+      assertEqual(imported, portal.length, 'every row landed');
+
+      // Re-importing the same file adds nothing.
+      const again = await recon.importTally(ACC, billedVendorId, [
+        {
+          entryDate: new Date(portal[0].entry_date as string).toISOString().slice(0, 10),
+          docType: String(portal[0].doc_type) as 'INVOICE',
+          docRef: String(portal[0].doc_ref),
+          amount: String(portal[0].amount),
+        },
+      ]);
+      assertEqual(again.imported, 0, 'nothing duplicated');
+      assertEqual(again.skipped, 1, 'it was recognised as already present');
+    });
+
+    await check('a balanced run matches both sides and closes', async () => {
+      const { run, items } = await recon.runReconciliation(ACC, {
+        vendorId: billedVendorId, periodStart: '2026-09-01', periodEnd: '2026-09-30',
+      });
+      assertEqual(run.difference, '0.00', 'the two sides agree');
+
+      const unpaired = items.filter(i => i.match_status !== 'MATCHED');
+      assertEqual(
+        unpaired.map(i => `${i.match_status}:${i.portal_ref ?? i.tally_ref}`),
+        [],
+        'every row paired up',
+      );
+
+      const closed = await recon.closeReconciliation(ACC, Number(run.id), 'September settled');
+      assertEqual(closed.status, 'RECON_RECONCILED', 'closed');
+    });
+
+    await check('a vendor confirmation that disagrees is a new difference, not agreement', async () => {
+      const runs = await recon.listRuns(ACC.principal, { vendorId: billedVendorId });
+      const closed = runs.find(r => r.status === 'RECON_RECONCILED')!;
+
+      await rejects(
+        () => recon.confirmReconciliation(ACC, Number(closed.id), '99999'),
+        /fresh difference.*reopen the run/is,
+        'disagreeing confirmation',
+      );
+
+      const confirmed = await recon.confirmReconciliation(
+        ACC, Number(closed.id), String(closed.portal_balance),
+      );
+      assertEqual(confirmed.status, 'RECON_CONFIRMED_BY_VENDOR', 'confirmed');
+    });
+
     await check('the whole chain is in the audit trail', async () => {
       const rows = await sql<{ entity_type: string; action: string }[]>`
         SELECT entity_type, action FROM audit_log ORDER BY id`;
@@ -1951,6 +2281,7 @@ async function main() {
         'MR', 'TRANSFER', 'PR', 'QUOTATION', 'QUOTE_AWARD', 'PO', 'VENDOR',
         'GATE_INWARD', 'QC_LINE', 'GRN', 'SHORTFALL',
         'STOCK', 'STOCK_ISSUE', 'ASSET_UNIT', 'DAMAGE', 'RTV',
+        'INVOICE', 'DEBIT_NOTE', 'CREDIT_NOTE', 'RECON',
       ]) {
         assert(rows.some(r => r.entity_type === entity), `${entity} is missing from the audit trail`);
       }

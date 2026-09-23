@@ -568,3 +568,42 @@ here through the source index, and a second copy of that fact could only go
 stale.
 
 Nothing in the supplied schema is changed. A missing piece is added.
+
+---
+
+## 🟠 C-28 — `vi_tax_mode` stops both GST modes, but not the wrong one
+
+**Found by** building invoice booking in Phase 8.
+
+**Schema** — `vendor_invoices` and `debit_notes` both carry:
+
+```sql
+CHECK ((igst = 0) OR (cgst = 0 AND sgst = 0))
+```
+
+**The gap.** That prevents an invoice carrying IGST *and* CGST/SGST at once,
+which is right. It has no opinion on which of the two applies — so an invoice
+for an intra-state supply carrying IGST passes the check, and so does an
+inter-state supply carrying CGST and SGST.
+
+Which one applies is not a matter of judgement: an intra-state supply carries
+CGST and SGST, anything crossing a state line carries IGST. The comparison is
+between `vendor_invoices.place_of_supply` and the receiving site's
+`sites.state_code`, both of which the database holds — but no constraint can
+express it, because the site is two joins away through the purchase order.
+
+Getting it wrong misstates the input tax credit, and neither the vendor who
+typed the invoice nor the clerk booking it is the right authority on it.
+
+**Rule** — app-enforced in `lib/services/invoices.ts`:
+
+- the mode is derived by comparing the place of supply with the site's state;
+- an invoice carrying the wrong one is refused, naming both states;
+- on an intra-state supply CGST and SGST must be equal, which the schema also
+  does not say;
+- the booking form shows which mode applies once the order is chosen, and only
+  asks for those fields.
+
+Debit notes do not repeat the derivation: their GST mirrors the invoice they
+relate to, proportionally, because the credit has to reverse the tax that was
+actually charged rather than the tax that should have been.

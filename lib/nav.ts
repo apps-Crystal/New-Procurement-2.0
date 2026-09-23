@@ -75,9 +75,9 @@ export const NAV: NavGroup[] = [
   {
     label: 'Accounts',
     items: [
-      { href: '/invoices', label: 'Vendor invoices', permission: 'INVOICE.VIEW' , comingIn: 'Phase 8' },
-      { href: '/notes', label: 'Debit & credit notes', permission: 'DEBIT_NOTE.VIEW' , comingIn: 'Phase 8' },
-      { href: '/reconciliation', label: 'Vendor reconciliation', permission: 'RECON.VIEW' , comingIn: 'Phase 8' },
+      { href: '/invoices', label: 'Vendor invoices', permission: 'INVOICE.VIEW' },
+      { href: '/notes', label: 'Debit & credit notes', permission: 'DEBIT_NOTE.VIEW' },
+      { href: '/reconciliation', label: 'Vendor reconciliation', permission: 'RECON.VIEW' },
     ],
   },
   {
