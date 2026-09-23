@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Damaged and missing stock</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>body{margin:0;background:#F3F2EE}a{color:#0B5F63}a:hover{color:#08484B}</style>
+</helmet>
+<div style="width: 1440px; height: 960px; display: flex; font-family: 'IBM Plex Sans', system-ui, sans-serif; color: #18202B; background: #F3F2EE;">
+<dc-import name="Sidebar" active="Damage" hint-size="240px,960px"></dc-import>
+<main style="width: 1200px; height: 960px; box-sizing: border-box; padding: 26px 32px; display: flex; flex-direction: column; gap: 16px;">
+
+<header style="display: flex; justify-content: space-between; align-items: flex-end;">
+<div style="display: flex; flex-direction: column; gap: 4px;">
+<div style="font-size: 13px; color: #5B6270;">Inventory / Damaged &amp; missing</div>
+<h1 style="margin: 0; font-size: 26px; font-weight: 700;">Damaged and missing stock</h1>
+</div>
+<button type="button" style="height: 44px; padding: 0 18px; border-radius: 8px; border: none; background: #0B5F63; color: #FFFFFF; font-family: inherit; font-size: 14px; font-weight: 600;">Report damage</button>
+</header>
+
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px;">
+<sc-for list="{{kpis}}" as="k" hint-placeholder-count="4">
+<div style="background: #FFFFFF; border: 1px solid #DAD8D0; border-radius: 10px; padding: 12px 16px; display: flex; flex-direction: column; gap: 4px;"><div style="font-size: 12px; color: #5B6270; text-transform: uppercase; letter-spacing: 0.8px;">{{k.l}}</div><div style="font-size: 22px; font-weight: 700; font-family: 'IBM Plex Mono', monospace; color: {{k.c}};">{{k.v}}</div></div>
+</sc-for>
+</div>
+
+<div style="display: flex; gap: 16px; flex-grow: 1; min-height: 0;">
+<aside aria-label="Open cases" style="width: 340px; flex-shrink: 0; background: #FFFFFF; border: 1px solid #DAD8D0; border-radius: 10px; display: flex; flex-direction: column; overflow: hidden;">
+<div style="padding: 14px 16px; border-bottom: 1px solid #E6E4DD; font-weight: 600; font-size: 15px;">Cases · Dhulagarh</div>
+<sc-for list="{{cases}}" as="c" hint-placeholder-count="4">
+<button type="button" onClick="{{c.pick}}" aria-pressed="{{c.pressed}}" style="{{c.style}}">
+<span style="display: flex; justify-content: space-between; width: 100%;"><span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600;">{{c.id}}</span><span style="font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; {{c.chip}}">{{c.status}}</span></span>
+<span style="font-size: 14px; font-weight: 600; text-align: left;">{{c.item}}</span>
+<span style="font-size: 12px; color: #5B6270; text-align: left;">{{c.type}}</span>
+</button>
+</sc-for>
+</aside>
+
+<sc-if value="{{isDamage}}" hint-placeholder-val="{{ true }}">
+<section aria-label="Damage case" style="flex-grow: 1; background: #FFFFFF; border: 1px solid #DAD8D0; border-radius: 10px; padding: 18px 20px; display: flex; flex-direction: column; gap: 14px;">
+<div style="display: flex; justify-content: space-between; align-items: flex-start;">
+<div style="display: flex; flex-direction: column; gap: 3px;"><div style="font-size: 18px; font-weight: 700;">Evaporator coil 22 kW · 1 Nos</div><div style="font-size: 13px; color: #5B6270;">DMG-Dhulagarh-Sep2026/0005 · asset tag EVP-DHU-0112 · reported 21 Sep by Storekeeper</div></div>
+<span style="padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; background: #FBEFD5; color: #7A4B00;">DAMAGED_HOLD · quarantined</span>
+</div>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px;">
+<div style="height: 110px; border-radius: 8px; background: #ECEBE6; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #454B55; text-align: center; padding: 8px;">[Photo · bent fins, lower header]</div>
+<div style="height: 110px; border-radius: 8px; background: #ECEBE6; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #454B55; text-align: center; padding: 8px;">[Photo · packaging on arrival at rack]</div>
+<div style="display: flex; flex-direction: column; gap: 6px; font-size: 13px;">
+<div style="display: flex; justify-content: space-between;"><span style="color: #5B6270;">Cause</span><span>Handling · rack shift</span></div>
+<div style="display: flex; justify-content: space-between;"><span style="color: #5B6270;">Location</span><span>Rack C-04</span></div>
+<div style="display: flex; justify-content: space-between;"><span style="color: #5B6270;">Book value</span><span style="font-family: 'IBM Plex Mono', monospace;">₹ 1,82,000</span></div>
+<div style="display: flex; justify-content: space-between;"><span style="color: #5B6270;">Stock check</span><span>Excluded from availability</span></div>
+</div>
+</div>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;">
+<div style="border: 1px solid #E6E4DD; border-radius: 8px; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px;"><div style="font-size: 12px; color: #5B6270;">Warranty — from source GRN-Dhulagarh-Mar2026/0009</div><div style="font-weight: 600; color: #1B5E3B;">In warranty until 14 Mar 2027</div><div style="font-size: 12px; color: #5B6270;">Vendor: Frostline Refrigeration · 12 months</div></div>
+<div style="border: 1px solid #E6E4DD; border-radius: 8px; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px;"><div style="font-size: 12px; color: #5B6270;">Joint inspection</div><div style="font-weight: 600;">Site Manager ✓ · QA/QC Inspector ✓</div><div style="font-size: 12px; color: #5B6270;">Neither is the reporter · 22 Sep</div></div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 8px;">
+<div style="font-weight: 600; font-size: 15px;">Decision</div>
+<div role="radiogroup" aria-label="Decision" style="display: flex; gap: 10px;">
+<sc-for list="{{decisions}}" as="d" hint-placeholder-count="3">
+<button type="button" role="radio" aria-checked="{{d.checked}}" onClick="{{d.pick}}" style="{{d.style}}"><span style="font-weight: 600; font-size: 14px;">{{d.t}}</span><span style="font-size: 12px; opacity: 0.85;">{{d.s}}</span></button>
+</sc-for>
+</div>
+<div style="font-size: 13px; font-weight: 600; {{decColor}}">{{decMsg}}</div>
+</div>
+<div style="margin-top: auto; display: flex; justify-content: flex-end; gap: 10px;">
+<a href="Returns.dc.html" style="height: 44px; box-sizing: border-box; display: flex; align-items: center; padding: 0 18px; border-radius: 8px; background: #0B5F63; color: #FFFFFF; text-decoration: none; font-weight: 600; font-size: 14px;">{{decCta}}</a>
+</div>
+</section>
+</sc-if>
+
+<sc-if value="{{isShort}}" hint-placeholder-val="{{ false }}">
+<section aria-label="Shortfall case" style="flex-grow: 1; background: #FFFFFF; border: 1px solid #DAD8D0; border-radius: 10px; padding: 18px 20px; display: flex; flex-direction: column; gap: 14px;">
+<div style="display: flex; justify-content: space-between; align-items: flex-start;">
+<div style="display: flex; flex-direction: column; gap: 3px;"><div style="font-size: 18px; font-weight: 700;">Temperature data logger · 3 Nos missing</div><div style="font-size: 13px; color: #5B6270;">SHT-Dhulagarh-Sep2026/0003 · raised at gate inward GI-…/0058 · Northern Polymers &amp; Packaging</div></div>
+<span style="padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; background: #E3ECF7; color: #1D4A80;">Awaiting decision</span>
+</div>
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px;">
+<div style="background: #F8F7F3; border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 4px;"><div style="font-size: 12px; color: #5B6270;">Ordered (PO)</div><div style="font-family: 'IBM Plex Mono', monospace; font-size: 20px; font-weight: 700;">25</div></div>
+<div style="background: #F8F7F3; border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 4px;"><div style="font-size: 12px; color: #5B6270;">Per challan</div><div style="font-family: 'IBM Plex Mono', monospace; font-size: 20px; font-weight: 700;">25</div></div>
+<div style="background: #F8F7F3; border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 4px;"><div style="font-size: 12px; color: #5B6270;">Counted and accepted</div><div style="font-family: 'IBM Plex Mono', monospace; font-size: 20px; font-weight: 700; color: #1B5E3B;">22</div></div>
+<div style="background: #FBE3E1; border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 4px;"><div style="font-size: 12px; color: #9A1C12;">Missing</div><div style="font-family: 'IBM Plex Mono', monospace; font-size: 20px; font-weight: 700; color: #9A1C12;">3</div></div>
+</div>
+<div style="font-size: 13px; color: #454B55;">Missing quantity never entered stock, so there is nothing to reverse. The vendor invoice bills 25; payment for 3 is held until this case closes.</div>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;">
+<button type="button" style="text-align: left; border: 2px solid #0B5F63; border-radius: 10px; background: #FFFFFF; padding: 14px 16px; font-family: inherit; display: flex; flex-direction: column; gap: 6px; cursor: pointer;"><span style="font-weight: 700; font-size: 15px; color: #18202B;">Await balance delivery</span><span style="font-size: 13px; color: #454B55;">PO stays PO_PARTIALLY_RECEIVED. The next delivery of 3 gets its own gate inward, QC and GRN. Chased on the daily digest after 7 days.</span></button>
+<button type="button" style="text-align: left; border: 1px solid #CFCCC2; border-radius: 10px; background: #FFFFFF; padding: 14px 16px; font-family: inherit; display: flex; flex-direction: column; gap: 6px; cursor: pointer;"><span style="font-weight: 700; font-size: 15px; color: #18202B;">Short-close the balance</span><span style="font-size: 13px; color: #454B55;">Line closed at 22. If the invoice bills 25, a debit note for 3 is raised automatically and matched against the vendor credit note.</span></button>
+</div>
+<div style="margin-top: auto; display: flex; justify-content: space-between; align-items: center;">
+<div style="font-size: 12px; color: #5B6270;">Vendor was notified at gate inward with the counted quantity.</div>
+<button type="button" style="height: 44px; padding: 0 18px; border-radius: 8px; border: none; background: #0B5F63; color: #FFFFFF; font-family: inherit; font-size: 14px; font-weight: 600;">Confirm decision</button>
+</div>
+</section>
+</sc-if>
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":960}}'>
+class Component extends DCLogic {
+  constructor(p) { super(p); this.state = { sel: 0, dec: 1 }; }
+  renderVals() {
+    const CH = { amber: 'background:#FBEFD5;color:#7A4B00;', blue: 'background:#E3ECF7;color:#1D4A80;', grey: 'background:#ECEBE6;color:#454B55;', red: 'background:#FBE3E1;color:#9A1C12;' };
+    const C = [
+      { id: 'DMG-…/0005', item: 'Evaporator coil 22 kW · 1', type: 'Damaged in storage', status: 'Hold', chip: CH.amber, kind: 'damage' },
+      { id: 'SHT-…/0003', item: 'Temperature data logger · 3', type: 'Missing at receipt · GRN-…/0022', status: 'Open', chip: CH.blue, kind: 'short' },
+      { id: 'DMG-…/0004', item: 'PUF panel 100 mm · 12 sqm', type: 'Water ingress · write-off pending approval', status: 'Approval', chip: CH.red, kind: 'damage' },
+      { id: 'DMG-…/0002', item: 'HDPE pallet · 34', type: 'Handling damage · written off', status: 'Closed', chip: CH.grey, kind: 'damage' }
+    ];
+    const sel = this.state.sel;
+    const D = [
+      { t: 'Internal repair', s: 'Status → UNDER_REPAIR', msg: 'Service request raised against this case; asset returns to AVAILABLE after QA verifies the repair.', cta: 'Raise repair request' },
+      { t: 'Vendor warranty claim', s: 'In warranty · return to vendor', msg: 'A purchase return is drafted from this case. Stock is reversed from the source GRN on dispatch.', cta: 'Create purchase return' },
+      { t: 'Write-off', s: '₹1.82 lakh · Head of Operations band', msg: 'Band ₹25,000–2 lakh: Warehouse Lead and Head of Operations approve. Loss is posted to Accounts with this case reference.', cta: 'Send for write-off approval' }
+    ];
+    const dec = this.state.dec;
+    return {
+      cases: C.map((c, i) => ({
+        id: c.id, item: c.item, type: c.type, status: c.status, chip: c.chip,
+        pressed: i === sel ? 'true' : 'false',
+        pick: () => this.setState({ sel: i }),
+        style: 'display:flex;flex-direction:column;gap:5px;align-items:flex-start;padding:12px 16px;border:none;border-bottom:1px solid #EFEDE7;font-family:inherit;color:#18202B;cursor:pointer;text-align:left;' +
+          (i === sel ? 'background:#E6F0EF;' : 'background:#FFFFFF;')
+      })),
+      isDamage: C[sel].kind === 'damage', isShort: C[sel].kind === 'short',
+      decisions: D.map((d, i) => ({
+        t: d.t, s: d.s, checked: i === dec ? 'true' : 'false', pick: () => this.setState({ dec: i }),
+        style: 'flex-grow:1;display:flex;flex-direction:column;gap:4px;align-items:flex-start;padding:12px 14px;border-radius:10px;font-family:inherit;cursor:pointer;text-align:left;' +
+          (i === dec ? 'background:#0B5F63;color:#FFFFFF;border:1px solid #0B5F63;' : 'background:#FFFFFF;color:#18202B;border:1px solid #CFCCC2;')
+      })),
+      decMsg: D[dec].msg, decCta: D[dec].cta, decColor: 'color:#454B55;',
+      kpis: [
+        { l: 'Damaged hold', v: 2, c: '#7A4B00' },
+        { l: 'Missing at receipt', v: 1, c: '#1D4A80' },
+        { l: 'Under warranty', v: 1, c: '#1B5E3B' },
+        { l: 'Written off this month', v: '₹ 73,100', c: '#9A1C12' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Gate inward</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>body{margin:0;background:#F3F2EE}a{color:#0B5F63}a:hover{color:#08484B}</style>
+</helmet>
+<div style="width: 1440px; height: 960px; display: flex; font-family: 'IBM Plex Sans', system-ui, sans-serif; color: #18202B; background: #F3F2EE;">
+<dc-import name="Sidebar" active="GateInward" hint-size="240px,960px"></dc-import>
+<main style="width: 1200px; height: 960px; box-sizing: border-box; padding: 26px 32px; display: flex; flex-direction: column; gap: 16px;">
+
+<header style="display: flex; justify-content: space-between; align-items: flex-end;">
+<div style="display: flex; flex-direction: column; gap: 4px;">
+<div style="font-size: 13px; color: #5B6270;">Receiving / Gate inward / New entry</div>
+<div style="display: flex; align-items: center; gap: 12px;">
+<h1 style="margin: 0; font-size: 26px; font-weight: 700;">Gate inward</h1>
+<span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #454B55;">GI-Dhulagarh-Sep2026/0058</span>
+<span style="padding: 3px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; background: #E3ECF7; color: #1D4A80;">INWARD_RECEIVED</span>
+</div>
+</div>
+<div style="font-size: 13px; color: #454B55;">Arrival logged <b style="font-family: 'IBM Plex Mono', monospace;">26 Sep 2026 · 09:14</b> (server time)</div>
+</header>
+
+<div style="display: flex; gap: 16px; flex-grow: 1; min-height: 0;">
+<aside aria-label="Expected deliveries" style="width: 300px; flex-shrink: 0; background: #FFFFFF; border: 1px solid #DAD8D0; border-radius: 10px; display: flex; flex-direction: column; overflow: hidden;">
+<div style="padding: 14px 16px; border-bottom: 1px solid #E6E4DD; font-weight: 600; font-size: 15px;">Expected at Dhulagarh</div>
+<sc-for list="{{expected}}" as="e" hint-placeholder-count="4">
+<div style="padding: 12px 16px; border-bottom: 1px solid #EFEDE7; display: flex; flex-direction: column; gap: 4px; {{e.bg}}">
+<div style="display: flex; justify-content: space-between;"><span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600;">{{e.po}}</span><span style="font-size: 12px; font-weight: 600; {{e.dueColor}}">{{e.due}}</span></div>
+<div style="font-size: 14px; font-weight: 600;">{{e.vendor}}</div>
+<div style="font-size: 12px; color: #5B6270;">{{e.note}}</div>
+</div>
+</sc-for>
+<div style="margin-top: auto; padding: 12px 16px; font-size: 12px; color: #5B6270; border-top: 1px solid #E6E4DD;">Only POs with outstanding quantity are listed.</div>
+</aside>
+
+<div style="flex-grow: 1; display: flex; flex-direction: column; gap: 16px;">
+<section aria-label="Vehicle and documents" style="background: #FFFFFF; border: 1px solid #DAD8D0; border-radius: 10px; padding: 16px 18px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px;">
+<div style="grid-column: span 4; display: flex; justify-content: space-between;"><div style="font-weight: 600; font-size: 15px;">PO-Dhulagarh-Sep2026/0014 · Northern Polymers &amp; Packaging</div><div style="font-size: 12px; color: #5B6270;">Partial deliveries allowed</div></div>
+<div style="display: flex; flex-direction: column; gap: 6px;"><label for="gi-veh" style="font-size: 12px; color: #5B6270;">Vehicle number</label><input id="gi-veh" type="text" value="WB 11 C 4821" style="height: 44px; box-sizing: border-box; border: 1px solid #CFCCC2; border-radius: 8px; padding: 0 12px; font-family: 'IBM Plex Mono', monospace; font-size: 14px;"></div>
+<div style="display: flex; flex-direction: column; gap: 6px;"><label for="gi-lr" style="font-size: 12px; color: #5B6270;">Transporter / LR no.</label><input id="gi-lr" type="text" value="[LR NUMBER]" style="height: 44px; box-sizing: border-box; border: 1px solid #CFCCC2; border-radius: 8px; padding: 0 12px; font-family: inherit; font-size: 14px;"></div>
+<div style="display: flex; flex-direction: column; gap: 6px;"><label for="gi-seal" style="font-size: 12px; color: #5B6270;">Seal number</label><input id="gi-seal" type="text" value="[SEAL NO.]" style="height: 44px; box-sizing: border-box; border: 1px solid #CFCCC2; border-radius: 8px; padding: 0 12px; font-family: inherit; font-size: 14px;"></div>
+<div style="display: flex; flex-direction: column; gap: 6px;"><label for="gi-dc" style="font-size: 12px; color: #5B6270;">Delivery challan no.</label><input id="gi-dc" type="text" value="NPP/DC/5521" style="height: 44px; box-sizing: border-box; border: 1px solid #CFCCC2; border-radius: 8px; padding: 0 12px; font-family: 'IBM Plex Mono', monospace; font-size: 14px;"></div>
+<div style="grid-column: span 4; display: flex; gap: 10px;">
+<span style="padding: 8px 12px; border-radius: 8px; background: #E0F1E7; color: #1B5E3B; font-size: 13px; font-weight: 600;">Challan uploaded · NPP_DC_5521.pdf</span>
+<span style="padding: 8px 12px; border-radius: 8px; background: #F8F7F3; color: #454B55; font-size: 13px; border: 1px solid #E6E4DD;">Invoice · can follow later</span>
+</div>
+</section>
+
+<section aria-label="Cold chain" style="background: #FFFFFF; border: 1px solid #DAD8D0; border-radius: 10px; padding: 16px 18px; display: flex; gap: 18px; align-items: center;">
+<div style="display: flex; flex-direction: column; gap: 4px; width: 230px;"><div style="font-weight: 600; font-size: 15px;">Cold-chain check</div><div style="font-size: 12px; color: #5B6270;">Required: line 4 is a frozen item class</div></div>
+<div style="display: flex; flex-direction: column; gap: 4px;"><div style="font-size: 12px; color: #5B6270;">Reefer set point</div><div style="font-family: 'IBM Plex Mono', monospace; font-size: 18px; font-weight: 600;">−18.0 °C</div></div>
+<div style="display: flex; flex-direction: column; gap: 4px;"><div style="font-size: 12px; color: #5B6270;">Actual at opening</div><div style="font-family: 'IBM Plex Mono', monospace; font-size: 18px; font-weight: 600; color: {{tempColor}};">{{actual}}</div></div>
+<div style="display: flex; flex-direction: column; gap: 4px;"><div style="font-size: 12px; color: #5B6270;">Tolerance</div><div style="font-family: 'IBM Plex Mono', monospace; font-size: 18px; font-weight: 600;">−20 to −15 °C</div></div>
+<div style="margin-left: auto; padding: 10px 14px; border-radius: 8px; font-size: 13px; font-weight: 600; max-width: 260px; {{tempChip}}">{{tempMsg}}</div>
+</section>
+
+<section aria-label="Delivered quantities" style="background: #FFFFFF; border: 1px solid #DAD8D0; border-radius: 10px; overflow: hidden;">
+<div style="display: grid; grid-template-columns: 1.6fr 110px 110px 120px 1.2fr; gap: 10px; padding: 10px 18px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.6px; color: #5B6270; background: #F8F7F3;"><div>Item</div><div style="text-align: right;">Outstanding</div><div style="text-align: right;">Per challan</div><div style="text-align: right;">Counted</div><div>Gate note</div></div>
+<sc-for list="{{lines}}" as="l" hint-placeholder-count="4">
+<div style="display: grid; grid-template-columns: 1.6fr 110px 110px 120px 1.2fr; gap: 10px; padding: 11px 18px; font-size: 13px; border-top: 1px solid #EFEDE7; align-items: center;">
+<div><b>{{l.name}}</b> <span style="color: #5B6270;">· {{l.uom}}</span></div>
+<div style="text-align: right; font-family: 'IBM Plex Mono', monospace;">{{l.out}}</div>
+<div style="text-align: right; font-family: 'IBM Plex Mono', monospace;">{{l.dc}}</div>
+<div style="text-align: right;"><label for="cnt-{{$index}}" style="position: absolute; left: -9999px;">Counted quantity for {{l.name}}</label><input id="cnt-{{$index}}" type="text" value="{{l.count}}" style="width: 90px; height: 36px; box-sizing: border-box; border: 1px solid #CFCCC2; border-radius: 6px; padding: 0 8px; text-align: right; font-family: 'IBM Plex Mono', monospace; font-size: 13px;"></div>
+<div style="font-size: 12px; font-weight: 600; {{l.noteColor}}">{{l.note}}</div>
+</div>
+</sc-for>
+</section>
+
+<div style="display: flex; justify-content: space-between; align-items: center;">
+<button type="button" style="height: 44px; padding: 0 18px; border-radius: 8px; border: 1px solid #CFCCC2; background: #FFFFFF; color: #9A1C12; font-family: inherit; font-size: 14px; font-weight: 600;">Reject at gate</button>
+<a href="QC.dc.html" style="height: 44px; box-sizing: border-box; display: flex; align-items: center; padding: 0 18px; border-radius: 8px; background: #0B5F63; color: #FFFFFF; text-decoration: none; font-weight: 600; font-size: 14px;">Send to QA/QC inspection</a>
+</div>
+</div>
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"showBreach":{"editor":"boolean","default":false},"$preview":{"width":1440,"height":960}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const breach = this.props.showBreach ?? false;
+    const muted = 'color:#5B6270;';
+    return {
+      actual: breach ? '−13.6 °C' : '−17.4 °C',
+      tempColor: breach ? '#9A1C12' : '#1B5E3B',
+      tempChip: breach ? 'background:#FBE3E1;color:#9A1C12;' : 'background:#E0F1E7;color:#1B5E3B;',
+      tempMsg: breach ? 'Out of tolerance — every line goes to conditional hold' : 'Within tolerance · data logger file attached',
+      expected: [
+        { po: 'PO-…/0014', vendor: 'Northern Polymers & Packaging', note: '4 lines · selected', due: 'Due today', dueColor: 'color:#1B5E3B;', bg: 'background:#E6F0EF;' },
+        { po: 'PO-…/0011', vendor: 'Kaveri Insulation', note: 'Balance of partial delivery', due: '2 days late', dueColor: 'color:#9A1C12;', bg: '' },
+        { po: 'PO-…/0019', vendor: 'Arctic Cool Engineers', note: '3 lines · refrigeration spares', due: '06 Oct', dueColor: muted, bg: '' },
+        { po: 'PO-…/0017', vendor: 'Sentinel Instruments', note: 'Data loggers', due: '09 Oct', dueColor: muted, bg: '' }
+      ],
+      lines: [
+        { name: 'HDPE pallet 1200 × 1000', uom: 'Nos', out: 500, dc: 500, count: 500, note: 'Matches challan', noteColor: 'color:#1B5E3B;' },
+        { name: 'PUF panel 100 mm', uom: 'sqm', out: 300, dc: 300, count: 300, note: 'Matches challan', noteColor: 'color:#1B5E3B;' },
+        { name: 'Temperature data logger', uom: 'Nos', out: 25, dc: 25, count: 22, note: 'Short by 3 against challan', noteColor: 'color:#9A1C12;' },
+        { name: 'Gel ice pack 2 kg, frozen', uom: 'Nos', out: 1000, dc: 1000, count: 1000, note: 'Cold-chain item', noteColor: 'color:#1D4A80;' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

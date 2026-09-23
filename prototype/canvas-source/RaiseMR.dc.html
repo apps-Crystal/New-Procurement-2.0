@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Raise material request</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>body{margin:0;background:#F3F2EE}a{color:#0B5F63}a:hover{color:#08484B}</style>
+</helmet>
+<div style="width: 1440px; height: 960px; display: flex; font-family: 'IBM Plex Sans', system-ui, sans-serif; color: #18202B; background: #F3F2EE;">
+<dc-import name="Sidebar" active="RaiseMR" hint-size="240px,960px"></dc-import>
+<main style="width: 1200px; height: 960px; box-sizing: border-box; padding: 26px 32px; display: flex; flex-direction: column; gap: 16px;">
+
+<header style="display: flex; justify-content: space-between; align-items: flex-end;">
+<div style="display: flex; flex-direction: column; gap: 4px;">
+<div style="font-size: 13px; color: #5B6270;">Procurement / Material requests / New</div>
+<div style="display: flex; align-items: center; gap: 12px;">
+<h1 style="margin: 0; font-size: 26px; font-weight: 700;">New material request</h1>
+<span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #454B55;">MR-Dhulagarh-Sep2026/0047</span>
+<span style="padding: 3px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; background: #E3ECF7; color: #1D4A80;">MR_STOCK_PARTIAL</span>
+</div>
+</div>
+<div style="display: flex; gap: 10px;">
+<button type="button" style="height: 44px; padding: 0 18px; border-radius: 8px; border: 1px solid #CFCCC2; background: #FFFFFF; font-family: inherit; font-size: 14px; font-weight: 600; color: #18202B;">Save draft</button>
+<a href="RaisePR.dc.html" style="height: 44px; box-sizing: border-box; display: flex; align-items: center; padding: 0 18px; border-radius: 8px; background: #0B5F63; color: #FFFFFF; text-decoration: none; font-weight: 600; font-size: 14px;">Submit for approval</a>
+</div>
+</header>
+
+<section aria-label="Request header" style="background: #FFFFFF; border: 1px solid #DAD8D0; border-radius: 10px; padding: 16px 18px; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px;">
+<div style="display: flex; flex-direction: column; gap: 6px;"><label for="mr-site" style="font-size: 12px; color: #5B6270;">Requesting site</label><select id="mr-site" style="height: 44px; border: 1px solid #CFCCC2; border-radius: 8px; padding: 0 10px; font-family: inherit; font-size: 14px; background: #FFFFFF;"><option>Dhulagarh</option></select></div>
+<div style="display: flex; flex-direction: column; gap: 6px;"><label for="mr-cat" style="font-size: 12px; color: #5B6270;">Category</label><select id="mr-cat" style="height: 44px; border: 1px solid #CFCCC2; border-radius: 8px; padding: 0 10px; font-family: inherit; font-size: 14px; background: #FFFFFF;"><option>Maintenance Capex</option></select></div>
+<div style="display: flex; flex-direction: column; gap: 6px;"><label for="mr-date" style="font-size: 12px; color: #5B6270;">Required by</label><input id="mr-date" type="text" value="06 Oct 2026" style="height: 44px; box-sizing: border-box; border: 1px solid #CFCCC2; border-radius: 8px; padding: 0 12px; font-family: inherit; font-size: 14px;"></div>
+<div style="display: flex; flex-direction: column; gap: 6px;"><label for="mr-urg" style="font-size: 12px; color: #5B6270;">Urgency</label><select id="mr-urg" style="height: 44px; border: 1px solid #CFCCC2; border-radius: 8px; padding: 0 10px; font-family: inherit; font-size: 14px; background: #FFFFFF;"><option>Planned (7–14 days)</option></select></div>
+<div style="display: flex; flex-direction: column; gap: 6px;"><label for="mr-bud" style="font-size: 12px; color: #5B6270;">Budget code</label><select id="mr-bud" style="height: 44px; border: 1px solid #CFCCC2; border-radius: 8px; padding: 0 10px; font-family: inherit; font-size: 14px; background: #FFFFFF;"><option>[BUDGET CODE] · FY26-27</option></select></div>
+</section>
+
+<section aria-label="Lines and stock check" style="background: #FFFFFF; border: 1px solid #DAD8D0; border-radius: 10px; overflow: hidden;">
+<div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; border-bottom: 1px solid #E6E4DD;">
+<div style="font-weight: 600; font-size: 15px;">Line items · group-wide stock check</div>
+<div style="font-size: 12px; color: #5B6270;">Checked across 12 sites · counts only surplus above each site's reorder level</div>
+</div>
+<div style="display: grid; grid-template-columns: 1.5fr 70px 1.6fr 90px 90px 1.1fr; gap: 10px; padding: 10px 18px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.6px; color: #5B6270; background: #F8F7F3; border-bottom: 1px solid #E6E4DD;">
+<div>Item</div><div style="text-align: right;">Qty</div><div>Found at other sites</div><div style="text-align: right;">Transfer</div><div style="text-align: right;">Purchase</div><div>Outcome</div>
+</div>
+<sc-for list="{{lines}}" as="l" hint-placeholder-count="4">
+<div style="display: grid; grid-template-columns: 1.5fr 70px 1.6fr 90px 90px 1.1fr; gap: 10px; padding: 13px 18px; font-size: 13px; border-bottom: 1px solid #EFEDE7; align-items: center;">
+<div style="display: flex; flex-direction: column; gap: 2px;"><div style="font-weight: 600;">{{l.name}}</div><div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #5B6270;">{{l.code}}</div></div>
+<div style="text-align: right; font-family: 'IBM Plex Mono', monospace; font-weight: 600;">{{l.qty}}</div>
+<div style="color: #454B55;">{{l.found}}</div>
+<div style="text-align: right; font-family: 'IBM Plex Mono', monospace; color: #1B5E3B; font-weight: 600;">{{l.transfer}}</div>
+<div style="text-align: right; font-family: 'IBM Plex Mono', monospace; color: #9A1C12; font-weight: 600;">{{l.buy}}</div>
+<div><span style="display: inline-block; padding: 3px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; {{l.chip}}">{{l.outcome}}</span></div>
+</div>
+</sc-for>
+<div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; background: #F8F7F3;">
+<div style="font-size: 13px; color: #454B55;">Transfer requests go to the holding site's Warehouse Lead. Only the purchase balance moves to a Purchase Request, and it is locked.</div>
+<div style="display: flex; gap: 18px; font-size: 13px;"><div>Transfer <b style="font-family: 'IBM Plex Mono', monospace; color: #1B5E3B;">15</b></div><div>Purchase <b style="font-family: 'IBM Plex Mono', monospace; color: #9A1C12;">5</b></div></div>
+</div>
+</section>
+
+<section aria-label="Declaration" style="background: #FFFFFF; border: 1px solid #DAD8D0; border-radius: 10px; padding: 16px 18px; display: grid; grid-template-columns: 1.4fr 1fr; gap: 18px;">
+<div style="display: flex; flex-direction: column; gap: 6px;">
+<label for="mr-impact" style="font-size: 12px; color: #5B6270;">Business impact — what stops or degrades if this is not procured (min. 40 characters)</label>
+<textarea id="mr-impact" style="height: 112px; box-sizing: border-box; border: 1px solid #CFCCC2; border-radius: 8px; padding: 10px 12px; font-family: inherit; font-size: 14px; resize: none;">Freezer room 3 is running on one evaporator after a coil failure; a second failure would force product transfer to Dankuni. Compressor and refrigerant are for the scheduled overhaul of chiller 2.</textarea>
+<div style="font-size: 12px; color: #1B5E3B;">Meets the 40-character minimum</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 10px;">
+<div style="font-size: 12px; color: #5B6270;">Site allocation (must total 100%)</div>
+<div style="display: flex; gap: 10px; align-items: center;"><div style="flex-grow: 1; font-size: 14px;">Dhulagarh — Freezer block</div><div style="font-family: 'IBM Plex Mono', monospace; font-size: 14px;">70%</div></div>
+<div style="display: flex; gap: 10px; align-items: center;"><div style="flex-grow: 1; font-size: 14px;">Dhulagarh — Chiller plant</div><div style="font-family: 'IBM Plex Mono', monospace; font-size: 14px;">30%</div></div>
+<div style="height: 1px; background: #E6E4DD;"></div>
+<div style="display: flex; gap: 10px; align-items: center;"><input id="mr-decl" type="checkbox" checked="" style="width: 20px; height: 20px;"><label for="mr-decl" style="font-size: 13px; color: #454B55;">I declare this need is genuine and not met by group stock. Recorded with my Crystal Core identity and timestamp.</label></div>
+</div>
+</section>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":960}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const CH = { green: 'background:#E0F1E7;color:#1B5E3B;', amber: 'background:#FBEFD5;color:#7A4B00;', red: 'background:#FBE3E1;color:#9A1C12;' };
+    return {
+      lines: [
+        { name: 'Evaporator coil 22 kW', code: 'CC-EVP-220', qty: 3, found: 'Pune · 2 surplus', transfer: 2, buy: 1, outcome: 'Partial — transfer + buy', chip: CH.amber },
+        { name: 'Scroll compressor 15 HP', code: 'CC-CMP-15', qty: 2, found: 'None above reorder level', transfer: 0, buy: 2, outcome: 'Purchase', chip: CH.red },
+        { name: 'Temperature data logger', code: 'CC-DL-01', qty: 10, found: 'Noida · 15 surplus', transfer: 10, buy: 0, outcome: 'Met by transfer', chip: CH.green },
+        { name: 'Refrigerant R-404A, 10 kg', code: 'CC-RFG-404', qty: 5, found: 'Pune · 3 · Taloja · 2', transfer: 3, buy: 2, outcome: 'Partial — transfer + buy', chip: CH.amber }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

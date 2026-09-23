@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Stock ledger</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>body{margin:0;background:#F3F2EE}a{color:#0B5F63}a:hover{color:#08484B}</style>
+</helmet>
+<div style="width: 1440px; height: 960px; display: flex; font-family: 'IBM Plex Sans', system-ui, sans-serif; color: #18202B; background: #F3F2EE;">
+<dc-import name="Sidebar" active="StockLedger" hint-size="240px,960px"></dc-import>
+<main style="width: 1200px; height: 960px; box-sizing: border-box; padding: 26px 32px; display: flex; flex-direction: column; gap: 16px;">
+
+<header style="display: flex; justify-content: space-between; align-items: flex-end;">
+<div style="display: flex; flex-direction: column; gap: 4px;">
+<div style="font-size: 13px; color: #5B6270;">Inventory / Stock ledger</div>
+<h1 style="margin: 0; font-size: 26px; font-weight: 700;">Stock ledger</h1>
+</div>
+<button type="button" style="height: 44px; padding: 0 18px; border-radius: 8px; border: 1px solid #CFCCC2; background: #FFFFFF; font-family: inherit; font-size: 14px; font-weight: 600; color: #18202B;">Export CSV</button>
+</header>
+
+<section aria-label="Filters" style="background: #FFFFFF; border: 1px solid #DAD8D0; border-radius: 10px; padding: 14px 18px; display: flex; gap: 14px; align-items: flex-end;">
+<div style="display: flex; flex-direction: column; gap: 4px;"><label for="sl-site" style="font-size: 12px; color: #5B6270;">Site</label><select id="sl-site" style="height: 44px; width: 160px; border: 1px solid #CFCCC2; border-radius: 8px; padding: 0 10px; font-family: inherit; font-size: 14px; background: #FFFFFF;"><option>Dhulagarh</option></select></div>
+<div style="display: flex; flex-direction: column; gap: 4px;"><div style="font-size: 12px; color: #5B6270;">Item</div>
+<div role="radiogroup" aria-label="Item" style="display: flex; gap: 6px;">
+<sc-for list="{{items}}" as="i" hint-placeholder-count="2">
+<button type="button" role="radio" aria-checked="{{i.checked}}" onClick="{{i.pick}}" style="{{i.style}}">{{i.name}}</button>
+</sc-for>
+</div></div>
+<div style="display: flex; flex-direction: column; gap: 4px;"><label for="sl-period" style="font-size: 12px; color: #5B6270;">Period</label><select id="sl-period" style="height: 44px; width: 170px; border: 1px solid #CFCCC2; border-radius: 8px; padding: 0 10px; font-family: inherit; font-size: 14px; background: #FFFFFF;"><option>01 – 30 Sep 2026</option></select></div>
+<div style="display: flex; flex-direction: column; gap: 4px;"><label for="sl-type" style="font-size: 12px; color: #5B6270;">Movement</label><select id="sl-type" style="height: 44px; width: 170px; border: 1px solid #CFCCC2; border-radius: 8px; padding: 0 10px; font-family: inherit; font-size: 14px; background: #FFFFFF;"><option>All movements</option></select></div>
+</section>
+
+<div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px;">
+<sc-for list="{{summary}}" as="s" hint-placeholder-count="5">
+<div style="background: #FFFFFF; border: 1px solid #DAD8D0; border-radius: 10px; padding: 12px 16px; display: flex; flex-direction: column; gap: 4px;"><div style="font-size: 12px; color: #5B6270; text-transform: uppercase; letter-spacing: 0.8px;">{{s.k}}</div><div style="font-size: 22px; font-weight: 700; font-family: 'IBM Plex Mono', monospace; color: {{s.c}};">{{s.v}}</div></div>
+</sc-for>
+</div>
+
+<section aria-label="Ledger entries" style="background: #FFFFFF; border: 1px solid #DAD8D0; border-radius: 10px; overflow: hidden; flex-grow: 1;">
+<div style="display: grid; grid-template-columns: 100px 130px 170px 1.3fr 70px 70px 90px 90px 110px; gap: 10px; padding: 10px 18px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.6px; color: #5B6270; background: #F8F7F3; border-bottom: 1px solid #E6E4DD;"><div>Date</div><div>Entry</div><div>Movement</div><div>Source document</div><div style="text-align: right;">In</div><div style="text-align: right;">Out</div><div style="text-align: right;">Available</div><div style="text-align: right;">On hand</div><div>By</div></div>
+<sc-for list="{{rows}}" as="r" hint-placeholder-count="6">
+<div style="display: grid; grid-template-columns: 100px 130px 170px 1.3fr 70px 70px 90px 90px 110px; gap: 10px; padding: 11px 18px; font-size: 13px; border-bottom: 1px solid #EFEDE7; align-items: center;">
+<div style="color: #454B55;">{{r.date}}</div>
+<div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px;">{{r.id}}</div>
+<div><span style="display: inline-block; padding: 3px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; {{r.chip}}">{{r.type}}</span></div>
+<div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #0B5F63;">{{r.src}}</div>
+<div style="text-align: right; font-family: 'IBM Plex Mono', monospace; color: #1B5E3B; font-weight: 600;">{{r.inq}}</div>
+<div style="text-align: right; font-family: 'IBM Plex Mono', monospace; color: #9A1C12; font-weight: 600;">{{r.outq}}</div>
+<div style="text-align: right; font-family: 'IBM Plex Mono', monospace; font-weight: 600;">{{r.avail}}</div>
+<div style="text-align: right; font-family: 'IBM Plex Mono', monospace; color: #454B55;">{{r.onhand}}</div>
+<div style="font-size: 12px; color: #454B55;">{{r.by}}</div>
+</div>
+</sc-for>
+<div style="padding: 12px 18px; font-size: 12px; color: #5B6270;">Append-only. Entries are never edited or deleted — a correction is a new reversing entry that references the original. Bucket moves (quarantine, reservation) change Available without changing On hand.</div>
+</section>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":960}}'>
+class Component extends DCLogic {
+  constructor(p) { super(p); this.state = { item: 0 }; }
+  renderVals() {
+    const f = (n) => n.toLocaleString('en-IN');
+    const CH = {
+      rec: 'background:#E0F1E7;color:#1B5E3B;', out: 'background:#FBE3E1;color:#9A1C12;', move: 'background:#E3ECF7;color:#1D4A80;',
+      hold: 'background:#FBEFD5;color:#7A4B00;', open: 'background:#ECEBE6;color:#454B55;'
+    };
+    // [date, id, type, chip, source, in, out, dAvail, dOnHand, by]
+    const DATA = [
+      { name: 'HDPE pallet 1200 × 1000', open: 874, rows: [
+        ['05 Sep', 'SL-DHU-104702', 'Issue to operations', 'out', 'ISS-Dhulagarh-Sep2026/0031', 0, 20, -20, -20, 'Storekeeper'],
+        ['12 Sep', 'SL-DHU-104761', 'Damage quarantine', 'hold', 'DMG-Dhulagarh-Sep2026/0002', 0, 0, -34, 0, 'Storekeeper'],
+        ['18 Sep', 'SL-DHU-104805', 'Write-off', 'out', 'DMG-Dhulagarh-Sep2026/0002', 0, 34, 0, -34, 'Warehouse Lead'],
+        ['26 Sep', 'SL-DHU-104881', 'GRN receipt', 'rec', 'GRN-Dhulagarh-Sep2026/0022', 480, 0, 480, 480, 'Site Manager'],
+        ['27 Sep', 'SL-DHU-104897', 'Transfer out', 'move', 'TRF-Dhulagarh-Sep2026/0009 → Kheda', 0, 100, -100, -100, 'Warehouse Lead']
+      ] },
+      { name: 'Evaporator coil 22 kW', open: 3, rows: [
+        ['08 Sep', 'SL-DHU-104718', 'Issue to maintenance', 'out', 'ISS-Dhulagarh-Sep2026/0034', 0, 1, -1, -1, 'Storekeeper'],
+        ['14 Sep', 'SL-DHU-104770', 'Transfer in', 'move', 'TRF-Pune-Sep2026/0003', 1, 0, 1, 1, 'Site Receiver'],
+        ['21 Sep', 'SL-DHU-104829', 'Damage quarantine', 'hold', 'DMG-Dhulagarh-Sep2026/0005', 0, 0, -1, 0, 'Storekeeper'],
+        ['27 Sep', 'SL-DHU-104902', 'Return reversal', 'out', 'RTV-Dhulagarh-Sep2026/0005 · ref GRN-…Mar2026/0009', 0, 1, 0, -1, 'Site Receiver'],
+        ['29 Sep', 'SL-DHU-104921', 'Transfer in', 'move', 'TRF-Pune-Sep2026/0007 · for MR-…/0047', 2, 0, 2, 2, 'Site Receiver']
+      ] }
+    ];
+    const it = DATA[this.state.item];
+    let a = it.open, h = it.open, tin = 0, tout = 0;
+    const rows = [{ date: '01 Sep', id: '—', type: 'Opening balance', chip: CH.open, src: '—', inq: '', outq: '', avail: f(it.open), onhand: f(it.open), by: 'System' }];
+    it.rows.forEach(r => {
+      a += r[7]; h += r[8]; tin += r[5]; tout += r[6];
+      rows.push({ date: r[0], id: r[1], type: r[2], chip: CH[r[3]], src: r[4], inq: r[5] ? '+' + f(r[5]) : '', outq: r[6] ? '−' + f(r[6]) : '', avail: f(a), onhand: f(h), by: r[9] });
+    });
+    const on = 'height:44px;padding:0 14px;border-radius:8px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;background:#18202B;color:#FFFFFF;border:1px solid #18202B;';
+    const off = 'height:44px;padding:0 14px;border-radius:8px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;background:#FFFFFF;color:#18202B;border:1px solid #CFCCC2;';
+    return {
+      items: DATA.map((d, i) => ({ name: d.name, checked: i === this.state.item ? 'true' : 'false', style: i === this.state.item ? on : off, pick: () => this.setState({ item: i }) })),
+      rows,
+      summary: [
+        { k: 'Opening', v: f(it.open), c: '#18202B' },
+        { k: 'Received in', v: '+' + f(tin), c: '#1B5E3B' },
+        { k: 'Issued / out', v: '−' + f(tout), c: '#9A1C12' },
+        { k: 'Closing on hand', v: f(h), c: '#18202B' },
+        { k: 'Closing available', v: f(a), c: '#0B5F63' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

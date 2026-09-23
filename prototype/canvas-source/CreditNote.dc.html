@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Debit and credit notes</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>body{margin:0;background:#F3F2EE}a{color:#0B5F63}a:hover{color:#08484B}</style>
+</helmet>
+<div style="width: 1440px; height: 960px; display: flex; font-family: 'IBM Plex Sans', system-ui, sans-serif; color: #18202B; background: #F3F2EE;">
+<dc-import name="Sidebar" active="CreditNote" hint-size="240px,960px"></dc-import>
+<main style="width: 1200px; height: 960px; box-sizing: border-box; padding: 26px 32px; display: flex; flex-direction: column; gap: 16px;">
+
+<header style="display: flex; justify-content: space-between; align-items: flex-end;">
+<div style="display: flex; flex-direction: column; gap: 4px;">
+<div style="font-size: 13px; color: #5B6270;">Accounts / Debit &amp; credit notes</div>
+<h1 style="margin: 0; font-size: 26px; font-weight: 700;">Debit and credit notes</h1>
+</div>
+<div style="display: flex; gap: 10px;">
+<span style="padding: 6px 12px; border-radius: 999px; font-size: 13px; font-weight: 600; background: #FBEFD5; color: #7A4B00;">₹ {{pendingValue}} awaiting recovery</span>
+</div>
+</header>
+
+<div style="display: flex; gap: 16px; flex-grow: 1; min-height: 0;">
+<aside aria-label="Debit note queue" style="width: 330px; flex-shrink: 0; background: #FFFFFF; border: 1px solid #DAD8D0; border-radius: 10px; display: flex; flex-direction: column; overflow: hidden;">
+<div style="padding: 14px 16px; border-bottom: 1px solid #E6E4DD; font-weight: 600; font-size: 15px;">Queue · created on return dispatch</div>
+<sc-for list="{{queue}}" as="q" hint-placeholder-count="4">
+<button type="button" onClick="{{q.pick}}" aria-pressed="{{q.pressed}}" style="{{q.style}}">
+<span style="display: flex; justify-content: space-between; width: 100%;"><span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600;">{{q.id}}</span><span style="font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; {{q.chip}}">{{q.status}}</span></span>
+<span style="font-size: 14px; font-weight: 600; text-align: left;">{{q.vendor}}</span>
+<span style="display: flex; justify-content: space-between; width: 100%; font-size: 12px; color: #5B6270;"><span>{{q.src}}</span><span style="font-family: 'IBM Plex Mono', monospace; color: #18202B;">₹ {{q.value}}</span></span>
+<span style="font-size: 12px; font-weight: 600; text-align: left; {{q.ageColor}}">{{q.age}}</span>
+</button>
+</sc-for>
+</aside>
+
+<div style="flex-grow: 1; display: flex; flex-direction: column; gap: 14px;">
+<section aria-label="Debit note detail" style="background: #FFFFFF; border: 1px solid #DAD8D0; border-radius: 10px; padding: 18px 20px; display: flex; flex-direction: column; gap: 14px;">
+<div style="display: flex; justify-content: space-between; align-items: flex-start;">
+<div style="display: flex; flex-direction: column; gap: 3px;"><div style="font-size: 18px; font-weight: 700;">{{d.id}} · {{d.vendor}}</div><div style="font-size: 13px; color: #5B6270;">{{d.what}}</div></div>
+<span style="padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; background: #E3ECF7; color: #1D4A80;">{{d.code}}</span>
+</div>
+<div style="display: flex; gap: 8px; flex-wrap: wrap;">
+<sc-for list="{{d.refs}}" as="r" hint-placeholder-count="4">
+<span style="padding: 5px 10px; border-radius: 6px; background: #F8F7F3; border: 1px solid #E6E4DD; font-size: 12px;"><span style="color: #5B6270;">{{r.k}}</span> <span style="font-family: 'IBM Plex Mono', monospace;">{{r.v}}</span></span>
+</sc-for>
+</div>
+<ol aria-label="Debit note progress" style="list-style: none; margin: 0; padding: 0; display: flex; gap: 6px;">
+<sc-for list="{{d.steps}}" as="s" hint-placeholder-count="4">
+<li style="flex-grow: 1; display: flex; flex-direction: column; gap: 6px;"><div style="height: 6px; border-radius: 3px; {{s.bar}}"></div><div style="font-size: 12px; font-weight: 600; {{s.txt}}">{{s.label}}</div></li>
+</sc-for>
+</ol>
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+<div style="border: 1px solid #E6E4DD; border-radius: 8px; padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; font-size: 13px;">
+<div style="font-size: 12px; color: #5B6270;">GST treatment · mirrors {{d.invoice}}</div>
+<sc-for list="{{d.tax}}" as="t" hint-placeholder-count="4">
+<div style="display: flex; justify-content: space-between; font-weight: {{t.w}};"><span>{{t.k}}</span><span style="font-family: 'IBM Plex Mono', monospace;">{{t.v}}</span></div>
+</sc-for>
+</div>
+<div style="border: 1px solid #E6E4DD; border-radius: 8px; padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; font-size: 13px;">
+<div style="font-size: 12px; color: #5B6270;">Vendor credit note</div>
+<div style="display: flex; justify-content: space-between;"><span>Number</span><span style="font-family: 'IBM Plex Mono', monospace;">{{d.cnNo}}</span></div>
+<div style="display: flex; justify-content: space-between;"><span>Value</span><span style="font-family: 'IBM Plex Mono', monospace;">{{d.cnVal}}</span></div>
+<div style="display: flex; justify-content: space-between;"><span>Variance vs debit note</span><span style="font-family: 'IBM Plex Mono', monospace; font-weight: 600; {{d.varColor}}">{{d.variance}}</span></div>
+<div style="font-size: 12px; color: #5B6270;">Above 2% is flagged and blocks closure</div>
+</div>
+</div>
+</section>
+
+<section aria-label="Action" style="background: #FFFFFF; border: 1px solid #DAD8D0; border-radius: 10px; padding: 16px 20px; display: flex; flex-direction: column; gap: 12px;">
+<div style="font-weight: 600; font-size: 15px;">{{d.actTitle}}</div>
+<div style="font-size: 13px; color: #454B55;">{{d.actText}}</div>
+<sc-if value="{{d.showCnForm}}" hint-placeholder-val="{{ false }}">
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px;">
+<div style="display: flex; flex-direction: column; gap: 4px;"><label for="cn-no" style="font-size: 12px; color: #5B6270;">Credit note number</label><input id="cn-no" type="text" value="NPP/CN/118" style="height: 44px; box-sizing: border-box; border: 1px solid #CFCCC2; border-radius: 8px; padding: 0 12px; font-family: 'IBM Plex Mono', monospace; font-size: 14px;"></div>
+<div style="display: flex; flex-direction: column; gap: 4px;"><label for="cn-date" style="font-size: 12px; color: #5B6270;">Date</label><input id="cn-date" type="text" value="30 Sep 2026" style="height: 44px; box-sizing: border-box; border: 1px solid #CFCCC2; border-radius: 8px; padding: 0 12px; font-family: inherit; font-size: 14px;"></div>
+<div style="display: flex; flex-direction: column; gap: 4px;"><label for="cn-val" style="font-size: 12px; color: #5B6270;">Value incl. GST</label><input id="cn-val" type="text" value="50,740" style="height: 44px; box-sizing: border-box; border: 1px solid #CFCCC2; border-radius: 8px; padding: 0 12px; font-family: 'IBM Plex Mono', monospace; font-size: 14px;"></div>
+</div>
+</sc-if>
+<div style="display: flex; gap: 10px; justify-content: flex-end;">
+<sc-if value="{{d.showAlt}}" hint-placeholder-val="{{ false }}">
+<button type="button" onClick="{{alt}}" style="height: 44px; padding: 0 16px; border-radius: 8px; border: 1px solid #CFCCC2; background: #FFFFFF; font-family: inherit; font-size: 14px; font-weight: 600; color: #18202B; cursor: pointer;">{{d.altLabel}}</button>
+</sc-if>
+<button type="button" onClick="{{act}}" style="height: 44px; padding: 0 18px; border-radius: 8px; border: none; background: {{d.actBg}}; color: #FFFFFF; font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer;">{{d.actLabel}}</button>
+</div>
+</section>
+<div style="display: flex; justify-content: flex-end;"><a href="VendorRecon.dc.html" style="font-size: 14px; font-weight: 600;">Open vendor reconciliation →</a></div>
+</div>
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":960}}'>
+class Component extends DCLogic {
+  constructor(p) { super(p); this.state = { sel: 0, stage: [0, 1, 2, 4], route: ['', '', '', 'Matched'] }; }
+  renderVals() {
+    const f = (n) => n.toLocaleString('en-IN');
+    const N = [
+      { id: 'DN-Dhulagarh-Sep2026/0004', vendor: 'Northern Polymers & Packaging', src: 'RTV-…/0006 · 20 pallets', what: '20 HDPE pallets rejected at QC and returned for credit', taxable: 43000, intra: true, invoice: 'NPP/INV/2291', rtv: 'RTV-…/0006', po: 'PO-…/0014', grn: 'GRN-…/0022', cn: 'NPP/CN/118', cnVal: 50740, age: 'Dispatched today', ageColor: 'color:#1B5E3B;' },
+      { id: 'DN-Dhulagarh-Sep2026/0003', vendor: 'Coldpack Supplies', src: 'RTV-…/0003 · 150 gel packs', what: '150 gel ice packs returned after a reefer temperature breach', taxable: 14250, intra: true, invoice: 'CPS/INV/0871', rtv: 'RTV-…/0003', po: 'PO-…/0009', grn: 'GRN-…/0017', cn: 'CPS/CN/044', cnVal: 16815, age: '9 days open', ageColor: 'color:#5B6270;' },
+      { id: 'DN-Dhulagarh-Sep2026/0002', vendor: 'Sentinel Instruments', src: 'RTV-…/0002 · 5 loggers', what: '5 data loggers failed calibration and were returned for credit', taxable: 17000, intra: false, invoice: 'SI/2026/5530', rtv: 'RTV-…/0002', po: 'PO-…/0006', grn: 'GRN-…/0012', cn: 'SI/CN/2026/19', cnVal: 19240, age: '17 days open · amber', ageColor: 'color:#7A4B00;' },
+      { id: 'DN-Dhulagarh-Aug2026/0001', vendor: 'Kaveri Insulation', src: 'RTV-…/0001 · 18 sqm', what: 'PUF panels rejected at QC', taxable: 33300, intra: true, invoice: 'KI/INV/3312', rtv: 'RTV-…/0001', po: 'PO-…/0003', grn: 'GRN-…/0008', cn: 'KI/CN/077', cnVal: 39294, age: 'Closed', ageColor: 'color:#5B6270;' }
+    ];
+    const sel = this.state.sel, stage = this.state.stage, route = this.state.route;
+    const total = (n) => Math.round(n.taxable * 1.18);
+    const statusOf = (s, r) => ['DEBIT_NOTE_PENDING', 'DEBIT_NOTE_ISSUED', 'CREDIT_NOTE_RECEIVED', r === 'Adjusted' ? 'DN_ADJUSTED' : 'CREDIT_NOTE_RECEIVED', 'DN_RECONCILED'][s];
+    const CH = ['background:#FBEFD5;color:#7A4B00;', 'background:#E3ECF7;color:#1D4A80;', 'background:#E3ECF7;color:#1D4A80;', 'background:#E3ECF7;color:#1D4A80;', 'background:#E0F1E7;color:#1B5E3B;'];
+    const short = ['Pending', 'Issued', 'CN received', 'Adjusted', 'Reconciled'];
+    const n = N[sel], s = stage[sel], t = total(n);
+    const variance = s >= 2 ? Math.abs(t - n.cnVal) / t * 100 : null;
+    const flagged = variance !== null && variance > 2;
+    const tax = n.intra
+      ? [{ k: 'Taxable value', v: f(n.taxable), w: '400' }, { k: 'CGST 9%', v: f(Math.round(n.taxable * 0.09)), w: '400' }, { k: 'SGST 9%', v: f(Math.round(n.taxable * 0.09)), w: '400' }, { k: 'Debit note total', v: '₹ ' + f(t), w: '700' }]
+      : [{ k: 'Taxable value', v: f(n.taxable), w: '400' }, { k: 'IGST 18% · inter-state', v: f(Math.round(n.taxable * 0.18)), w: '400' }, { k: 'Debit note total', v: '₹ ' + f(t), w: '700' }];
+    const labels = ['Pending', 'Issued · posted to Tally', 'Credit note received', 'Reconciled'];
+    const prog = s >= 4 ? 3 : Math.min(s, 2);
+    let d = {
+      id: n.id, vendor: n.vendor, what: n.what, code: statusOf(s, route[sel]), invoice: n.invoice, tax,
+      refs: [{ k: 'Return', v: n.rtv }, { k: 'PO', v: n.po }, { k: 'GRN', v: n.grn }, { k: 'Invoice', v: n.invoice }, { k: 'Tally voucher', v: s >= 1 ? 'DN/DHU/26-27/0' + (40 + sel) : 'on issue' }],
+      steps: labels.map((l, i) => ({ label: l, bar: i <= prog ? 'background:#0B5F63;' : 'background:#E6E4DD;', txt: i <= prog ? 'color:#18202B;' : 'color:#5B6270;' })),
+      cnNo: s >= 2 ? n.cn : '—', cnVal: s >= 2 ? '₹ ' + f(n.cnVal) : '—',
+      variance: variance === null ? '—' : variance.toFixed(1) + '%',
+      varColor: flagged ? 'color:#9A1C12;' : 'color:#1B5E3B;',
+      showCnForm: false, showAlt: false, altLabel: '', actBg: '#0B5F63'
+    };
+    if (s === 0) Object.assign(d, { actTitle: 'Issue debit note', actText: 'Generates the debit note PDF with the GST treatment above, posts it to Tally under the DN/DHU series and emails the vendor with the Purchase Return Note attached.', actLabel: 'Issue and post to Tally' });
+    if (s === 1) Object.assign(d, { actTitle: 'Settle with the vendor', actText: 'Record the vendor credit note when it arrives, or offset this amount against their open invoice in Bill Control now.', showCnForm: sel === 0, actLabel: 'Record credit note', showAlt: true, altLabel: 'Offset against ' + n.invoice });
+    if (s === 2 && !flagged) Object.assign(d, { actTitle: 'Reconcile', actText: 'Credit note matches within tolerance. Reconciling updates the vendor ledger in Tally and closes the linked return.', actLabel: 'Reconcile and close' });
+    if (s === 2 && flagged) Object.assign(d, { actTitle: 'Variance flagged — cannot close', actText: 'The vendor credited ₹ ' + f(n.cnVal) + ' against ₹ ' + f(t) + '. Ask for a revised credit note, or accept the short credit with Head of Finance approval.', actLabel: 'Request revised credit note', showAlt: true, altLabel: 'Accept with approval', actBg: '#9A1C12' });
+    if (s === 3) Object.assign(d, { actTitle: 'Offset recorded', actText: 'Payable on ' + n.invoice + ' reduced in Bill Control. Reconcile to update the vendor ledger and close the return.', actLabel: 'Reconcile and close' });
+    if (s === 4) Object.assign(d, { actTitle: 'Reconciled', actText: 'Vendor ledger updated in Tally. The linked return is closed.', actLabel: 'Closed', actBg: '#8A909B' });
+    const setStage = (v, r) => { const a = stage.slice(), b = route.slice(); a[sel] = v; if (r) b[sel] = r; this.setState({ stage: a, route: b }); };
+    const pendingValue = N.reduce((sum, x, i) => sum + (stage[i] < 4 ? total(x) : 0), 0);
+    return {
+      d, pendingValue: f(pendingValue),
+      queue: N.map((x, i) => ({
+        id: x.id.replace('Dhulagarh-', '').replace('Sep2026', 'Sep26').replace('Aug2026', 'Aug26'),
+        vendor: x.vendor, src: x.src, value: f(total(x)), age: x.age, ageColor: x.ageColor,
+        status: short[stage[i]], chip: CH[stage[i]],
+        pressed: i === sel ? 'true' : 'false', pick: () => this.setState({ sel: i }),
+        style: 'display:flex;flex-direction:column;gap:5px;align-items:flex-start;padding:12px 16px;border:none;border-bottom:1px solid #EFEDE7;font-family:inherit;color:#18202B;cursor:pointer;text-align:left;' + (i === sel ? 'background:#E6F0EF;' : 'background:#FFFFFF;')
+      })),
+      act: () => {
+        if (s === 0) setStage(1);
+        else if (s === 1) setStage(2, 'Matched');
+        else if (s === 2 && !flagged) setStage(4);
+        else if (s === 3) setStage(4);
+      },
+      alt: () => {
+        if (s === 1) setStage(3, 'Adjusted');
+        else if (s === 2 && flagged) setStage(4);
+      }
+    };
+  }
+}
+</script>
+</body>
+</html>

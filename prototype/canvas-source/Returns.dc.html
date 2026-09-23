@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Purchase returns</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>body{margin:0;background:#F3F2EE}a{color:#0B5F63}a:hover{color:#08484B}</style>
+</helmet>
+<div style="width: 1440px; height: 960px; display: flex; font-family: 'IBM Plex Sans', system-ui, sans-serif; color: #18202B; background: #F3F2EE;">
+<dc-import name="Sidebar" active="Returns" hint-size="240px,960px"></dc-import>
+<main style="width: 1200px; height: 960px; box-sizing: border-box; padding: 26px 32px; display: flex; flex-direction: column; gap: 16px;">
+
+<header style="display: flex; justify-content: space-between; align-items: flex-end;">
+<div style="display: flex; flex-direction: column; gap: 4px;">
+<div style="font-size: 13px; color: #5B6270;">Receiving / Purchase returns</div>
+<h1 style="margin: 0; font-size: 26px; font-weight: 700;">Purchase returns</h1>
+</div>
+<div style="font-size: 13px; color: #454B55;">Dispatch due within 7 days of rejection · vendor acknowledgement within 15</div>
+</header>
+
+<div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px;">
+<sc-for list="{{columns}}" as="col" hint-placeholder-count="5">
+<div style="background: #FFFFFF; border: 1px solid #DAD8D0; border-radius: 10px; padding: 10px; display: flex; flex-direction: column; gap: 8px; min-height: 180px;">
+<div style="display: flex; justify-content: space-between; padding: 2px 4px;"><span style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: #454B55;">{{col.name}}</span><span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #5B6270;">{{col.count}}</span></div>
+<sc-for list="{{col.cards}}" as="c" hint-placeholder-count="1">
+<button type="button" onClick="{{c.pick}}" aria-pressed="{{c.pressed}}" style="{{c.style}}">
+<span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600;">{{c.id}}</span>
+<span style="font-size: 13px; font-weight: 600; text-align: left;">{{c.item}}</span>
+<span style="font-size: 12px; color: #5B6270; text-align: left;">{{c.src}}</span>
+</button>
+</sc-for>
+</div>
+</sc-for>
+</div>
+
+<div style="display: flex; gap: 16px; flex-grow: 1; min-height: 0;">
+<section aria-label="Return detail" style="flex-grow: 1; background: #FFFFFF; border: 1px solid #DAD8D0; border-radius: 10px; padding: 18px 20px; display: flex; flex-direction: column; gap: 14px;">
+<div style="display: flex; justify-content: space-between; align-items: flex-start;">
+<div style="display: flex; flex-direction: column; gap: 3px;"><div style="font-size: 18px; font-weight: 700;">{{d.title}}</div><div style="font-size: 13px; color: #5B6270;">{{d.sub}}</div></div>
+<span style="padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; background: #E3ECF7; color: #1D4A80;">{{d.code}}</span>
+</div>
+<ol aria-label="Return progress" style="list-style: none; margin: 0; padding: 0; display: flex; gap: 6px;">
+<sc-for list="{{d.steps}}" as="s" hint-placeholder-count="5">
+<li style="flex-grow: 1; display: flex; flex-direction: column; gap: 6px;"><div style="height: 6px; border-radius: 3px; {{s.bar}}"></div><div style="font-size: 12px; font-weight: 600; {{s.txt}}">{{s.label}}</div></li>
+</sc-for>
+</ol>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; font-size: 13px;">
+<div style="background: #F8F7F3; border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 4px;"><div style="font-size: 12px; color: #5B6270;">Source</div><div style="font-weight: 600;">{{d.source}}</div><div style="font-size: 12px; color: #5B6270;">{{d.sourceRef}}</div></div>
+<div style="background: #F8F7F3; border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 4px;"><div style="font-size: 12px; color: #5B6270;">Return basis</div><div style="font-weight: 600;">{{d.basis}}</div><div style="font-size: 12px; color: #5B6270;">{{d.basisNote}}</div></div>
+<div style="background: #F8F7F3; border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 4px;"><div style="font-size: 12px; color: #5B6270;">Return value incl. GST</div><div style="font-weight: 700; font-family: 'IBM Plex Mono', monospace; font-size: 16px;">₹ {{d.value}}</div><div style="font-size: 12px; color: #5B6270;">{{d.valueNote}}</div></div>
+</div>
+<div style="border: 1px solid #E6E4DD; border-radius: 8px; padding: 12px 14px; display: flex; gap: 12px; align-items: center;">
+<div style="font-size: 12px; color: #5B6270; width: 110px;">Stock impact</div>
+<div style="font-size: 13px; flex-grow: 1;">{{d.stock}}</div>
+<span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; padding: 3px 8px; border-radius: 6px; background: #F8F7F3;">{{d.ledger}}</span>
+</div>
+<div style="display: flex; gap: 10px;">
+<button type="button" style="height: 44px; padding: 0 16px; border-radius: 8px; border: 1px solid #CFCCC2; background: #FFFFFF; font-family: inherit; font-size: 14px; font-weight: 600; color: #18202B;">Purchase Return Note (PDF)</button>
+<button type="button" style="height: 44px; padding: 0 16px; border-radius: 8px; border: 1px solid #CFCCC2; background: #FFFFFF; font-family: inherit; font-size: 14px; font-weight: 600; color: #18202B;">Return gate pass</button>
+<button type="button" onClick="{{advance}}" style="margin-left: auto; height: 44px; padding: 0 18px; border-radius: 8px; border: none; background: {{actBg}}; color: #FFFFFF; font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer;">{{actLabel}}</button>
+</div>
+<div style="font-size: 12px; color: #5B6270;">The person who raised a return cannot approve it. Dispatch captures transporter, LR and e-way bill where the value requires one.</div>
+</section>
+
+<aside aria-label="Debit note" style="width: 340px; flex-shrink: 0; background: #FFFFFF; border: 1px solid #DAD8D0; border-radius: 10px; padding: 16px 18px; display: flex; flex-direction: column; gap: 12px;">
+<div style="font-weight: 600; font-size: 15px;">Accounts · value recovery</div>
+<div style="font-size: 13px; color: #454B55;">{{d.dnIntro}}</div>
+<sc-for list="{{d.dn}}" as="n" hint-placeholder-count="4">
+<div style="display: flex; gap: 10px; align-items: flex-start;">
+<div style="width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; {{n.dot}}">{{n.mark}}</div>
+<div style="display: flex; flex-direction: column; gap: 2px;"><div style="font-size: 13px; font-weight: 600;">{{n.t}}</div><div style="font-size: 12px; color: #5B6270;">{{n.s}}</div></div>
+</div>
+</sc-for>
+<div style="margin-top: auto; background: #F8F7F3; border-radius: 8px; padding: 12px; font-size: 12px; color: #454B55;">Three-way match nets this off: the vendor invoice cannot be released for returned quantity.</div>
+<a href="CreditNote.dc.html" style="height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 8px; border: 1px solid #0B5F63; color: #0B5F63; text-decoration: none; font-weight: 600; font-size: 14px;">Open in debit &amp; credit notes</a>
+</aside>
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":960}}'>
+class Component extends DCLogic {
+  constructor(p) { super(p); this.state = { sel: '0006', stage: { '0006': 0, '0005': 1 } }; }
+  renderVals() {
+    const f = (n) => n.toLocaleString('en-IN');
+    const sel = this.state.sel;
+    const st = this.state.stage;
+    const stages = ['Draft', 'Approved', 'Dispatched', 'Acknowledged', 'Closed'];
+    const codes = ['RTV_DRAFT', 'RTV_APPROVED', 'RTV_DISPATCHED', 'RTV_ACKNOWLEDGED', 'RTV_CLOSED'];
+    const acts = ['Approve return', 'Dispatch goods', 'Record vendor acknowledgement', 'Close return', 'Closed'];
+    const all = [
+      { id: '0006', item: 'HDPE pallet · 20', src: 'QC rejection', stage: st['0006'] },
+      { id: '0005', item: 'Evaporator coil · 1', src: 'Warranty damage', stage: st['0005'] },
+      { id: '0003', item: 'Gel ice pack · 150', src: 'Temperature breach', stage: 2 },
+      { id: '0002', item: 'Data logger · 5', src: 'Calibration fail', stage: 3 },
+      { id: '0001', item: 'PUF panel · 18 sqm', src: 'QC rejection', stage: 4 }
+    ];
+    const pickable = { '0006': 1, '0005': 1 };
+    const columns = stages.map((name, si) => {
+      const cards = all.filter(c => c.stage === si).map(c => ({
+        id: 'RTV-…/' + c.id, item: c.item, src: c.src,
+        pressed: c.id === sel ? 'true' : 'false',
+        pick: () => { if (pickable[c.id]) this.setState({ sel: c.id }); },
+        style: 'display:flex;flex-direction:column;gap:4px;align-items:flex-start;padding:10px;border-radius:8px;font-family:inherit;color:#18202B;cursor:pointer;text-align:left;' +
+          (c.id === sel ? 'background:#E6F0EF;border:2px solid #0B5F63;' : 'background:#F8F7F3;border:1px solid #E6E4DD;')
+      }));
+      return { name, count: cards.length, cards };
+    });
+    const s = st[sel];
+    const done = 'background:#1B5E3B;color:#FFFFFF;', now = 'background:#0B5F63;color:#FFFFFF;', todo = 'background:#ECEBE6;color:#5B6270;';
+    const steps = stages.map((label, i) => ({ label, bar: i <= s ? 'background:#0B5F63;' : 'background:#E6E4DD;', txt: i <= s ? 'color:#18202B;' : 'color:#5B6270;' }));
+    let d;
+    if (sel === '0006') {
+      const base = 20 * 2150, gst = Math.round(base * 0.18);
+      const dnCreated = s >= 2;
+      d = {
+        title: 'HDPE pallet 1200 × 1000 · 20 Nos', sub: 'RTV-Dhulagarh-Sep2026/0006 · Northern Polymers & Packaging · auto-drafted from QC', code: codes[s], steps,
+        source: 'QC rejection', sourceRef: 'QC-…/0055 · cracked deck boards · 3 photos', basis: 'Credit', basisNote: 'No replacement requested',
+        value: f(base + gst), valueNote: '20 × ₹2,150 + 18% GST',
+        stock: 'None — rejected quantity never entered stock, so nothing is reversed.', ledger: 'no entry',
+        dnIntro: dnCreated ? 'Pending debit note created on dispatch, linked to RTV, PO, GRN and vendor.' : 'A debit note is created automatically when the goods are dispatched.',
+        dn: [
+          { t: 'Debit note created', s: dnCreated ? 'DN-Dhulagarh-Sep2026/0004 · DEBIT_NOTE_PENDING' : 'On dispatch', mark: dnCreated ? '✓' : '1', dot: dnCreated ? done : todo },
+          { t: 'Issued to vendor', s: 'GST mirrors invoice NPP/INV/2291 · posted to Tally', mark: s >= 3 ? '✓' : '2', dot: s >= 3 ? done : (dnCreated ? now : todo) },
+          { t: 'Vendor credit note matched', s: 'Variance above 2% is flagged', mark: s >= 4 ? '✓' : '3', dot: s >= 4 ? done : todo },
+          { t: 'Reconciled', s: 'Vendor ledger updated · RTV closes', mark: s >= 4 ? '✓' : '4', dot: s >= 4 ? done : todo }
+        ]
+      };
+    } else {
+      const base = 182000, gst = Math.round(base * 0.18);
+      const posted = s >= 2;
+      d = {
+        title: 'Evaporator coil 22 kW · 1 Nos', sub: 'RTV-Dhulagarh-Sep2026/0005 · Frostline Refrigeration · from damage case DMG-…/0005', code: codes[s], steps,
+        source: 'Warehouse damage', sourceRef: 'DMG-…/0005 · in warranty to 14 Mar 2027', basis: 'Free-of-cost replacement', basisNote: 'Warranty claim · replacement re-enters gate inward',
+        value: f(base + gst), valueNote: 'At source GRN rate · held for recovery',
+        stock: posted ? 'Reversed on dispatch against the original receipt; the replacement will post as a new GRN.' : 'Will reverse −1 on dispatch, referencing GRN-Dhulagarh-Mar2026/0009.',
+        ledger: posted ? 'SL-DHU-104902 · −1' : 'on dispatch',
+        dnIntro: 'No debit note while a free replacement is expected. If it does not arrive within 30 days, the return converts to a credit claim.',
+        dn: [
+          { t: 'Replacement awaited', s: 'Linked to PO of the original supply', mark: '1', dot: posted ? now : todo },
+          { t: 'Replacement received', s: 'Gate inward → QC → GRN, flagged as replacement', mark: '2', dot: todo },
+          { t: 'Return closed', s: 'Or converted to debit note after 30 days', mark: '3', dot: todo }
+        ]
+      };
+    }
+    return {
+      columns, d,
+      actLabel: acts[s], actBg: s >= 4 ? '#8A909B' : '#0B5F63',
+      advance: () => { if (s < 4) { const n = Object.assign({}, st); n[sel] = s + 1; this.setState({ stage: n }); } }
+    };
+  }
+}
+</script>
+</body>
+</html>

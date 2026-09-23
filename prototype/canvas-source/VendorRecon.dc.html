@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Vendor reconciliation</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>body{margin:0;background:#F3F2EE}a{color:#0B5F63}a:hover{color:#08484B}</style>
+</helmet>
+<div style="width: 1440px; height: 960px; display: flex; font-family: 'IBM Plex Sans', system-ui, sans-serif; color: #18202B; background: #F3F2EE;">
+<dc-import name="Sidebar" active="VendorRecon" hint-size="240px,960px"></dc-import>
+<main style="width: 1200px; height: 960px; box-sizing: border-box; padding: 26px 32px; display: flex; flex-direction: column; gap: 16px;">
+
+<header style="display: flex; justify-content: space-between; align-items: flex-end;">
+<div style="display: flex; flex-direction: column; gap: 4px;">
+<div style="font-size: 13px; color: #5B6270;">Accounts / Vendor reconciliation · September 2026</div>
+<h1 style="margin: 0; font-size: 26px; font-weight: 700;">Vendor reconciliation</h1>
+</div>
+<div style="display: flex; gap: 10px;">
+<button type="button" style="height: 44px; padding: 0 18px; border-radius: 8px; border: 1px solid #CFCCC2; background: #FFFFFF; font-family: inherit; font-size: 14px; font-weight: 600; color: #18202B;">Send statement to vendor</button>
+<button type="button" onClick="{{reconcile}}" style="height: 44px; padding: 0 18px; border-radius: 8px; border: none; background: {{recBg}}; color: #FFFFFF; font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer;">{{recLabel}}</button>
+</div>
+</header>
+
+<div role="radiogroup" aria-label="Vendor" style="display: flex; gap: 8px;">
+<sc-for list="{{vendors}}" as="v" hint-placeholder-count="2">
+<button type="button" role="radio" aria-checked="{{v.checked}}" onClick="{{v.pick}}" style="{{v.style}}">{{v.name}}</button>
+</sc-for>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px;">
+<sc-for list="{{cards}}" as="c" hint-placeholder-count="4">
+<div style="background: #FFFFFF; border: 1px solid #DAD8D0; border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 4px;"><div style="font-size: 12px; color: #5B6270; text-transform: uppercase; letter-spacing: 0.8px;">{{c.k}}</div><div style="font-size: 22px; font-weight: 700; font-family: 'IBM Plex Mono', monospace; color: {{c.c}};">{{c.v}}</div><div style="font-size: 12px; color: #5B6270;">{{c.n}}</div></div>
+</sc-for>
+</div>
+
+<section aria-label="Statement" style="background: #FFFFFF; border: 1px solid #DAD8D0; border-radius: 10px; overflow: hidden; flex-grow: 1;">
+<div style="display: grid; grid-template-columns: 80px 160px 1.2fr 120px 120px 120px 150px; gap: 10px; padding: 10px 18px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.6px; color: #5B6270; background: #F8F7F3; border-bottom: 1px solid #E6E4DD;"><div>Date</div><div>Document</div><div>Reference</div><div style="text-align: right;">Portal ₹</div><div style="text-align: right;">Tally ₹</div><div style="text-align: right;">Balance ₹</div><div>Match</div></div>
+<sc-for list="{{rows}}" as="r" hint-placeholder-count="7">
+<div style="display: grid; grid-template-columns: 80px 160px 1.2fr 120px 120px 120px 150px; gap: 10px; padding: 11px 18px; font-size: 13px; border-bottom: 1px solid #EFEDE7; align-items: center; {{r.bg}}">
+<div style="color: #454B55;">{{r.date}}</div>
+<div style="font-weight: 600;">{{r.doc}}</div>
+<div style="display: flex; flex-direction: column; gap: 2px;"><span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px;">{{r.ref}}</span><span style="font-size: 12px; color: #5B6270;">{{r.note}}</span></div>
+<div style="text-align: right; font-family: 'IBM Plex Mono', monospace;">{{r.portal}}</div>
+<div style="text-align: right; font-family: 'IBM Plex Mono', monospace;">{{r.tally}}</div>
+<div style="text-align: right; font-family: 'IBM Plex Mono', monospace; font-weight: 600;">{{r.bal}}</div>
+<div style="display: flex; flex-direction: column; gap: 4px; align-items: flex-start;"><span style="padding: 3px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; {{r.chip}}">{{r.match}}</span>
+<sc-if value="{{r.canMap}}" hint-placeholder-val="{{ false }}"><button type="button" onClick="{{mapAdvance}}" style="height: 30px; padding: 0 10px; border-radius: 6px; border: 1px solid #0B5F63; background: #FFFFFF; color: #0B5F63; font-family: inherit; font-size: 12px; font-weight: 600; cursor: pointer;">Map to PO-…/0014</button></sc-if>
+</div>
+</div>
+</sc-for>
+<div style="padding: 12px 18px; font-size: 12px; color: #5B6270;">Cr raises what we owe; Dr reduces it. Held amounts stay in the balance but cannot be released for payment until their return or shortfall case closes.</div>
+</section>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":960}}'>
+class Component extends DCLogic {
+  constructor(p) { super(p); this.state = { v: 0, mapped: false, done: [false, false] }; }
+  renderVals() {
+    const f = (n) => n.toLocaleString('en-IN');
+    const CH = { ok: 'background:#E0F1E7;color:#1B5E3B;', miss: 'background:#FBE3E1;color:#9A1C12;', open: 'background:#FBEFD5;color:#7A4B00;', info: 'background:#E3ECF7;color:#1D4A80;' };
+    const v = this.state.v, mapped = this.state.mapped;
+    // [date, doc, ref, note, portalAmt(+Cr/-Dr or null), tallyAmt, match, chipKey, canMap]
+    const NP = [
+      ['01 Sep', 'Opening balance', '—', 'Brought forward', 120000, 120000, 'Matched', 'ok'],
+      ['10 Sep', 'Payment', '[UTR]', 'Against PO-…/0008', -120000, -120000, 'Matched', 'ok'],
+      ['26 Sep', 'Invoice', 'NPP/INV/2291', '₹62,776 held · 20 returned, 3 short', 2135800, 2135800, 'Matched', 'ok'],
+      ['28 Sep', 'Debit note', 'DN-…/0004', 'RTV-…/0006 · 20 pallets', -50740, -50740, 'Matched', 'ok'],
+      ['29 Sep', 'Advance payment', '[UTR]', mapped ? 'Mapped to PO-…/0014' : 'Posted in Tally, not linked in portal', mapped ? -200000 : null, -200000, mapped ? 'Matched' : 'Only in Tally', mapped ? 'ok' : 'miss', !mapped],
+      ['30 Sep', 'Credit note', 'NPP/CN/118', 'Matches DN-…/0004 · no second posting', null, null, 'Matched to DN', 'info'],
+      ['—', 'Open item', 'SHT-…/0003', '3 loggers short · ₹12,036 held', null, null, 'Awaiting decision', 'open']
+    ];
+    const FR = [
+      ['01 Sep', 'Opening balance', '—', 'Brought forward', 0, 0, 'Matched', 'ok'],
+      ['04 Sep', 'Invoice', 'FR/INV/1166', 'Evaporator coil · GRN-…/0014', 214760, 214760, 'Matched', 'ok'],
+      ['20 Sep', 'Payment', '[UTR]', 'Released after three-way match', -214760, -214760, 'Matched', 'ok'],
+      ['—', 'Open item', 'RTV-…/0005', 'Warranty return · replacement awaited, no value', null, null, 'No ledger effect', 'info']
+    ];
+    const data = v === 0 ? NP : FR;
+    let pb = 0, tb = 0;
+    const rows = data.map(r => {
+      if (r[4] !== null) pb += r[4];
+      if (r[5] !== null) tb += r[5];
+      const fmt = (x) => x === null ? '—' : (x < 0 ? f(-x) + ' Dr' : f(x) + ' Cr');
+      return { date: r[0], doc: r[1], ref: r[2], note: r[3], portal: fmt(r[4]), tally: fmt(r[5]), bal: f(pb) + ' Cr', match: r[6], chip: CH[r[7]], canMap: !!r[8], bg: r[7] === 'miss' ? 'background:#FDF4F3;' : '' };
+    });
+    const diff = pb - tb;
+    const held = v === 0 ? 12036 : 0;
+    const done = this.state.done[v];
+    const on = 'height:44px;padding:0 16px;border-radius:8px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;background:#18202B;color:#FFFFFF;border:1px solid #18202B;';
+    const off = 'height:44px;padding:0 16px;border-radius:8px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;background:#FFFFFF;color:#18202B;border:1px solid #CFCCC2;';
+    return {
+      rows,
+      vendors: ['Northern Polymers & Packaging', 'Frostline Refrigeration'].map((n, i) => ({ name: n, checked: i === v ? 'true' : 'false', style: i === v ? on : off, pick: () => this.setState({ v: i }) })),
+      cards: [
+        { k: 'Portal balance', v: '₹ ' + f(pb), n: 'Payable per portal records', c: '#18202B' },
+        { k: 'Tally ledger', v: '₹ ' + f(tb), n: 'Payable per books', c: '#18202B' },
+        { k: 'Difference', v: '₹ ' + f(Math.abs(diff)), n: diff === 0 ? 'Fully explained' : '1 unmatched entry', c: diff === 0 ? '#1B5E3B' : '#9A1C12' },
+        { k: 'Held from payment', v: '₹ ' + f(held), n: held ? 'Open shortfall case' : 'Nothing held', c: held ? '#7A4B00' : '#1B5E3B' }
+      ],
+      mapAdvance: () => this.setState({ mapped: true }),
+      recLabel: done ? 'Reconciled for September' : (diff === 0 ? 'Mark reconciled' : 'Resolve difference first'),
+      recBg: done ? '#1B5E3B' : (diff === 0 ? '#0B5F63' : '#8A909B'),
+      reconcile: () => { if (diff === 0 && !done) { const d = this.state.done.slice(); d[v] = true; this.setState({ done: d }); } }
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Goods receipt note</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>body{margin:0;background:#F3F2EE}a{color:#0B5F63}a:hover{color:#08484B}</style>
+</helmet>
+<div style="width: 1440px; height: 960px; display: flex; font-family: 'IBM Plex Sans', system-ui, sans-serif; color: #18202B; background: #F3F2EE;">
+<dc-import name="Sidebar" active="GRN" hint-size="240px,960px"></dc-import>
+<main style="width: 1200px; height: 960px; box-sizing: border-box; padding: 26px 32px; display: flex; flex-direction: column; gap: 16px;">
+
+<header style="display: flex; justify-content: space-between; align-items: flex-end;">
+<div style="display: flex; flex-direction: column; gap: 4px;">
+<div style="font-size: 13px; color: #5B6270;">Receiving / Goods receipt / from QC-Dhulagarh-Sep2026/0055</div>
+<div style="display: flex; align-items: center; gap: 12px;">
+<h1 style="margin: 0; font-size: 26px; font-weight: 700;">Goods receipt note</h1>
+<span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #454B55;">GRN-Dhulagarh-Sep2026/0022</span>
+<span style="padding: 3px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; {{statusChip}}">{{status}}</span>
+</div>
+</div>
+<div style="font-size: 13px; color: #454B55;">PO-Dhulagarh-Sep2026/0014 · Northern Polymers &amp; Packaging</div>
+</header>
+
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px;">
+<div style="background: #FFFFFF; border: 1px solid #DAD8D0; border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 4px;"><div style="font-size: 12px; color: #5B6270; text-transform: uppercase; letter-spacing: 0.8px;">Posted to GRN</div><div style="font-size: 15px; font-weight: 600;">4 lines · accepted qty only</div><div style="font-size: 12px; color: #5B6270;">Rejected quantity never appears here</div></div>
+<a href="Returns.dc.html" style="background: #FFFFFF; border: 1px solid #DAD8D0; border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; text-decoration: none; color: #18202B;"><div style="font-size: 12px; color: #9A1C12; text-transform: uppercase; letter-spacing: 0.8px;">Rejected → return</div><div style="font-size: 15px; font-weight: 600;">20 pallets · RTV-…/0006 drafted</div><div style="font-size: 12px; color: #0B5F63;">Open purchase return</div></a>
+<a href="Damage.dc.html" style="background: #FFFFFF; border: 1px solid #DAD8D0; border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; text-decoration: none; color: #18202B;"><div style="font-size: 12px; color: #7A4B00; text-transform: uppercase; letter-spacing: 0.8px;">Short supplied</div><div style="font-size: 15px; font-weight: 600;">3 data loggers missing</div><div style="font-size: 12px; color: #0B5F63;">Open shortfall case</div></a>
+<div style="background: #FFFFFF; border: 1px solid #DAD8D0; border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 4px;"><div style="font-size: 12px; color: #1D4A80; text-transform: uppercase; letter-spacing: 0.8px;">Concession</div><div style="font-size: 15px; font-weight: 600;">12 sqm PUF accepted</div><div style="font-size: 12px; color: #5B6270;">Authority: Site Manager</div></div>
+</div>
+
+<section aria-label="Stock-in preview" style="background: #FFFFFF; border: 1px solid #DAD8D0; border-radius: 10px; overflow: hidden;">
+<div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; border-bottom: 1px solid #E6E4DD;"><div style="font-weight: 600; font-size: 15px;">Stock-in to Dhulagarh · posts on approval</div><div style="font-size: 12px; color: #5B6270;">One Stock_Ledger entry per line · idempotent on retry</div></div>
+<div style="display: grid; grid-template-columns: 1.5fr 90px 90px 90px 90px 1.3fr 150px; gap: 10px; padding: 10px 18px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.6px; color: #5B6270; background: #F8F7F3;"><div>Item</div><div style="text-align: right;">Accepted</div><div style="text-align: right;">Before</div><div style="text-align: right;">After</div><div>Status</div><div>Asset tags</div><div>Ledger entry</div></div>
+<sc-for list="{{lines}}" as="l" hint-placeholder-count="4">
+<div style="display: grid; grid-template-columns: 1.5fr 90px 90px 90px 90px 1.3fr 150px; gap: 10px; padding: 11px 18px; font-size: 13px; border-top: 1px solid #EFEDE7; align-items: center;">
+<div><b>{{l.name}}</b> <span style="color: #5B6270;">· {{l.uom}}</span></div>
+<div style="text-align: right; font-family: 'IBM Plex Mono', monospace; font-weight: 600; color: #1B5E3B;">+{{l.acc}}</div>
+<div style="text-align: right; font-family: 'IBM Plex Mono', monospace; color: #454B55;">{{l.before}}</div>
+<div style="text-align: right; font-family: 'IBM Plex Mono', monospace; font-weight: 600;">{{l.after}}</div>
+<div><span style="padding: 3px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; background: #E0F1E7; color: #1B5E3B;">AVAILABLE</span></div>
+<div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #454B55;">{{l.tags}}</div>
+<div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; {{l.ledgerColor}}">{{l.ledger}}</div>
+</div>
+</sc-for>
+</section>
+
+<div style="display: flex; gap: 16px; flex-grow: 1; min-height: 0;">
+<section aria-label="Three-way match" style="flex-grow: 1; background: #FFFFFF; border: 1px solid #DAD8D0; border-radius: 10px; padding: 16px 18px; display: flex; flex-direction: column; gap: 12px;">
+<div style="font-weight: 600; font-size: 15px;">Handoff to Accounts · three-way match</div>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px;">
+<div style="border: 1px solid #E6E4DD; border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 4px;"><div style="font-size: 12px; color: #5B6270;">Purchase order</div><div style="font-weight: 600;">PO-…/0014</div><div style="font-size: 12px; color: #1B5E3B;">Rates and quantities</div></div>
+<div style="border: 1px solid #E6E4DD; border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 4px;"><div style="font-size: 12px; color: #5B6270;">This GRN</div><div style="font-weight: 600;">Accepted qty</div><div style="font-size: 12px; color: {{grnColor}};">{{grnNote}}</div></div>
+<div style="border: 1px solid #E6E4DD; border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 4px;"><div style="font-size: 12px; color: #5B6270;">Vendor invoice</div><div style="font-weight: 600;">NPP/INV/2291</div><div style="font-size: 12px; color: #7A4B00;">Bills 25 loggers + 500 pallets — excess held</div></div>
+</div>
+<div style="font-size: 13px; color: #454B55;">Accounts can release payment only for accepted quantity. The 20 returned pallets and 3 missing loggers are held against the invoice until the debit note or balance delivery settles them.</div>
+</section>
+
+<aside aria-label="GRN approval" style="width: 330px; flex-shrink: 0; background: #FFFFFF; border: 1px solid #DAD8D0; border-radius: 10px; padding: 16px 18px; display: flex; flex-direction: column; gap: 12px;">
+<div style="font-weight: 600; font-size: 15px;">Approval</div>
+<div style="font-size: 13px; color: #454B55;">Approver cannot be the receiver or the inspector on this record.</div>
+<sc-if value="{{pending}}" hint-placeholder-val="{{ true }}">
+<div style="display: flex; flex-direction: column; gap: 10px;">
+<button type="button" onClick="{{approve}}" style="height: 48px; border-radius: 8px; border: none; background: #0B5F63; color: #FFFFFF; font-family: inherit; font-size: 15px; font-weight: 600; cursor: pointer;">Approve GRN and post stock</button>
+<div style="display: flex; gap: 10px;">
+<button type="button" style="flex-grow: 1; height: 44px; border-radius: 8px; border: 1px solid #CFCCC2; background: #FFFFFF; color: #7A4B00; font-family: inherit; font-size: 14px; font-weight: 600;">Flag</button>
+<button type="button" style="flex-grow: 1; height: 44px; border-radius: 8px; border: 1px solid #CFCCC2; background: #FFFFFF; color: #9A1C12; font-family: inherit; font-size: 14px; font-weight: 600;">Reject</button>
+</div>
+<div style="font-size: 12px; color: #5B6270;">Flagged GRNs are held and do not count toward PO received quantity.</div>
+</div>
+</sc-if>
+<sc-if value="{{approved}}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; flex-direction: column; gap: 8px; font-size: 13px;">
+<div style="background: #E0F1E7; color: #1B5E3B; border-radius: 8px; padding: 12px; font-weight: 600;">Approved · 4 ledger entries posted</div>
+<div>PO status: <b>PO_PARTIALLY_RECEIVED</b> — 3 loggers and 20 pallets outstanding</div>
+<div>Bill Control notified with accepted quantity and value.</div>
+<a href="Returns.dc.html" style="margin-top: 6px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 8px; border: 1px solid #0B5F63; color: #0B5F63; text-decoration: none; font-weight: 600; font-size: 14px;">Go to purchase return</a>
+</div>
+</sc-if>
+</aside>
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":960}}'>
+class Component extends DCLogic {
+  constructor(p) { super(p); this.state = { ok: false }; }
+  renderVals() {
+    const ok = this.state.ok;
+    const L = [
+      ['HDPE pallet 1200 × 1000', 'Nos', 480, 820, '—', 'SL-DHU-104881'],
+      ['PUF panel 100 mm', 'sqm', 300, 340, '—', 'SL-DHU-104882'],
+      ['Temperature data logger', 'Nos', 22, 18, 'DL-DHU-0419 … 0440', 'SL-DHU-104883'],
+      ['Gel ice pack 2 kg, frozen', 'Nos', 1000, 2400, '—', 'SL-DHU-104884']
+    ];
+    return {
+      approved: ok, pending: !ok,
+      status: ok ? 'GRN_APPROVED' : 'GRN_DRAFT',
+      statusChip: ok ? 'background:#E0F1E7;color:#1B5E3B;' : 'background:#FBEFD5;color:#7A4B00;',
+      grnColor: ok ? '#1B5E3B' : '#7A4B00', grnNote: ok ? 'Approved' : 'Awaiting approval',
+      lines: L.map(l => ({ name: l[0], uom: l[1], acc: l[2], before: l[3].toLocaleString('en-IN'), after: (l[3] + l[2]).toLocaleString('en-IN'), tags: l[4], ledger: ok ? l[5] : 'pending', ledgerColor: ok ? 'color:#1B5E3B;' : 'color:#5B6270;' })),
+      approve: () => this.setState({ ok: true })
+    };
+  }
+}
+</script>
+</body>
+</html>

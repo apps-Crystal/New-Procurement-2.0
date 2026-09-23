@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Quote comparison</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>body{margin:0;background:#F3F2EE}a{color:#0B5F63}a:hover{color:#08484B}</style>
+</helmet>
+<div style="width: 1440px; height: 960px; display: flex; font-family: 'IBM Plex Sans', system-ui, sans-serif; color: #18202B; background: #F3F2EE;">
+<dc-import name="Sidebar" active="Compare" hint-size="240px,960px"></dc-import>
+<main style="width: 1200px; height: 960px; box-sizing: border-box; padding: 26px 32px; display: flex; flex-direction: column; gap: 16px;">
+
+<header style="display: flex; justify-content: space-between; align-items: flex-end;">
+<div style="display: flex; flex-direction: column; gap: 4px;">
+<div style="font-size: 13px; color: #5B6270;">Procurement / Quote comparison / PR-Dhulagarh-Sep2026/0031</div>
+<h1 style="margin: 0; font-size: 26px; font-weight: 700;">Comparison statement</h1>
+</div>
+<button type="button" style="height: 44px; padding: 0 18px; border-radius: 8px; border: 1px solid #CFCCC2; background: #FFFFFF; font-family: inherit; font-size: 14px; font-weight: 600; color: #18202B;">Download statement PDF</button>
+</header>
+
+<section aria-label="Comparison matrix" style="background: #FFFFFF; border: 1px solid #DAD8D0; border-radius: 10px; overflow: hidden;">
+<div style="display: flex; flex-direction: column; font-size: 13px;">
+<div style="display: grid; grid-template-columns: 1.3fr repeat(3, minmax(0, 1fr));">
+<div style="padding: 14px 18px; background: #F8F7F3; font-size: 11px; text-transform: uppercase; letter-spacing: 0.6px; color: #5B6270; display: flex; align-items: flex-end;">Landed cost, ₹</div>
+<sc-for list="{{vendors}}" as="v" hint-placeholder-count="3">
+<div style="padding: 14px 18px; background: {{v.headBg}}; display: flex; flex-direction: column; gap: 6px; border-left: 1px solid #E6E4DD;">
+<div style="display: flex; justify-content: space-between; align-items: center;"><span style="font-weight: 700; font-size: 14px;">{{v.name}}</span><span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 999px; {{v.rankChip}}">{{v.rank}}</span></div>
+<span style="font-size: 12px; color: #5B6270;">{{v.ref}}</span>
+</div>
+</sc-for>
+</div>
+<sc-for list="{{rows}}" as="r" hint-placeholder-count="7">
+<div style="display: grid; grid-template-columns: 1.3fr repeat(3, minmax(0, 1fr)); border-top: 1px solid #EFEDE7;">
+<div style="padding: 11px 18px; font-weight: {{r.weight}}; background: {{r.bg}};">{{r.label}}</div>
+<sc-for list="{{r.cells}}" as="c" hint-placeholder-count="3">
+<div style="padding: 11px 18px; border-left: 1px solid #EFEDE7; text-align: right; font-family: 'IBM Plex Mono', monospace; font-weight: {{r.weight}}; background: {{c.bg}}; color: {{c.color}};">{{c.v}}</div>
+</sc-for>
+</div>
+</sc-for>
+</div>
+</section>
+
+<div style="display: flex; gap: 16px;">
+<section aria-label="Award" style="flex-grow: 1; background: #FFFFFF; border: 1px solid #DAD8D0; border-radius: 10px; padding: 16px 18px; display: flex; flex-direction: column; gap: 12px;">
+<div style="font-weight: 600; font-size: 15px;">Award decision</div>
+<div role="radiogroup" aria-label="Awarded vendor" style="display: flex; gap: 10px;">
+<sc-for list="{{vendors}}" as="v" hint-placeholder-count="3">
+<button type="button" role="radio" aria-checked="{{v.checked}}" onClick="{{v.pick}}" style="{{v.btn}}">{{v.name}} · {{v.rank}}</button>
+</sc-for>
+</div>
+<sc-if value="{{nonLowest}}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; flex-direction: column; gap: 8px; background: #FBEFD5; border-radius: 8px; padding: 12px 14px;">
+<div style="font-size: 13px; font-weight: 600; color: #7A4B00;">Not the lowest quote — ₹ {{variance}} above L1. Justification and one extra approval level are required.</div>
+<label for="just-code" style="font-size: 12px; color: #7A4B00;">Reason code</label>
+<select id="just-code" style="height: 44px; border: 1px solid #D8C08A; border-radius: 8px; padding: 0 10px; font-family: inherit; font-size: 14px; background: #FFFFFF;"><option>Quality history — lower QC rejection rate</option><option>Delivery reliability</option><option>Longer warranty</option><option>Technical compliance</option></select>
+<label for="just-text" style="font-size: 12px; color: #7A4B00;">Remark</label>
+<textarea id="just-text" style="height: 60px; box-sizing: border-box; border: 1px solid #D8C08A; border-radius: 8px; padding: 8px 10px; font-family: inherit; font-size: 14px; resize: none;">L1 vendor rejected 6.8% of receipts over 12 months against 1.2% for this vendor; premium is under 0.1% of order value.</textarea>
+<div style="font-size: 12px; color: #7A4B00;">Routes to Head of Supply Chain before the PO can be issued.</div>
+</div>
+</sc-if>
+<sc-if value="{{lowest}}" hint-placeholder-val="{{ true }}">
+<div style="background: #E0F1E7; color: #1B5E3B; border-radius: 8px; padding: 12px 14px; font-size: 13px; font-weight: 600;">Lowest landed cost selected — no additional approval needed.</div>
+</sc-if>
+<div style="display: flex; justify-content: space-between; align-items: center;">
+<div style="font-size: 13px; color: #454B55;">Losing quotations are archived against the PR, not deleted.</div>
+<a href="PO.dc.html" style="height: 44px; box-sizing: border-box; display: flex; align-items: center; padding: 0 18px; border-radius: 8px; background: #0B5F63; color: #FFFFFF; text-decoration: none; font-weight: 600; font-size: 14px;">Award and create PO</a>
+</div>
+</section>
+
+<section aria-label="Vendor scorecard" style="width: 380px; flex-shrink: 0; background: #FFFFFF; border: 1px solid #DAD8D0; border-radius: 10px; padding: 16px 18px; display: flex; flex-direction: column; gap: 10px;">
+<div style="font-weight: 600; font-size: 15px;">Vendor scorecard · last 12 months</div>
+<div style="font-size: 12px; color: #5B6270;">Computed from GRN, QC and return records</div>
+<div style="display: grid; grid-template-columns: 1fr 70px 70px 70px; gap: 8px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #5B6270;"><div></div><div style="text-align: right;">Frost.</div><div style="text-align: right;">Arctic</div><div style="text-align: right;">Polar</div></div>
+<sc-for list="{{score}}" as="s" hint-placeholder-count="4">
+<div style="display: grid; grid-template-columns: 1fr 70px 70px 70px; gap: 8px; font-size: 13px; padding: 6px 0; border-top: 1px solid #EFEDE7;"><div>{{s.k}}</div><div style="text-align: right; font-family: 'IBM Plex Mono', monospace;">{{s.a}}</div><div style="text-align: right; font-family: 'IBM Plex Mono', monospace;">{{s.b}}</div><div style="text-align: right; font-family: 'IBM Plex Mono', monospace;">{{s.c}}</div></div>
+</sc-for>
+</section>
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":960}}'>
+class Component extends DCLogic {
+  constructor(p) { super(p); this.state = { award: 1 }; }
+  renderVals() {
+    const f = (n) => n.toLocaleString('en-IN');
+    const qty = [1, 2, 2];
+    const V = [
+      { name: 'Frostline', ref: 'FR/Q/2026/381', rates: [184000, 236000, 9800], freight: 6000 },
+      { name: 'Arctic Cool', ref: 'ACE-2609-17', rates: [179500, 241000, 9400], freight: 0 },
+      { name: 'Polar Tech', ref: 'PTI/RFQ/0922', rates: [188000, 233500, 10200], freight: 9500 }
+    ];
+    V.forEach(v => { v.lines = v.rates.map((r, i) => r * qty[i]); v.sub = v.lines.reduce((a, b) => a + b, 0); v.gst = Math.round(v.sub * 0.18); v.landed = v.sub + v.gst + v.freight; });
+    const order = V.map((v, i) => i).sort((a, b) => V[a].landed - V[b].landed);
+    const rankOf = (i) => 'L' + (order.indexOf(i) + 1);
+    const lowIdx = order[0];
+    const aw = this.state.award;
+    const minOf = (arr) => Math.min.apply(null, arr);
+    const cellRow = (label, vals, opts) => {
+      const m = minOf(vals);
+      return {
+        label, weight: opts && opts.bold ? '700' : '400', bg: opts && opts.bold ? '#F8F7F3' : '#FFFFFF',
+        cells: vals.map((x, i) => ({ v: f(x), bg: (opts && opts.hl && x === m) ? '#E0F1E7' : ((opts && opts.bold) ? '#F8F7F3' : '#FFFFFF'), color: (opts && opts.hl && x === m) ? '#1B5E3B' : '#18202B' }))
+      };
+    };
+    const rows = [
+      cellRow('Evaporator coil 22 kW × 1', V.map(v => v.lines[0]), { hl: true }),
+      cellRow('Scroll compressor 15 HP × 2', V.map(v => v.lines[1]), { hl: true }),
+      cellRow('Refrigerant R-404A × 2', V.map(v => v.lines[2]), { hl: true }),
+      cellRow('Sub-total', V.map(v => v.sub), {}),
+      cellRow('GST 18%', V.map(v => v.gst), {}),
+      cellRow('Freight', V.map(v => v.freight), {}),
+      cellRow('Landed cost', V.map(v => v.landed), { bold: true, hl: true })
+    ];
+    return {
+      rows,
+      vendors: V.map((v, i) => ({
+        name: v.name, ref: v.ref, rank: rankOf(i),
+        rankChip: i === lowIdx ? 'background:#E0F1E7;color:#1B5E3B;' : 'background:#ECEBE6;color:#454B55;',
+        headBg: i === aw ? '#E6F0EF' : '#F8F7F3',
+        checked: i === aw ? 'true' : 'false',
+        pick: () => this.setState({ award: i }),
+        btn: 'height:44px;padding:0 16px;border-radius:8px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;' +
+          (i === aw ? 'background:#0B5F63;color:#FFFFFF;border:1px solid #0B5F63;' : 'background:#FFFFFF;color:#18202B;border:1px solid #CFCCC2;')
+      })),
+      nonLowest: aw !== lowIdx, lowest: aw === lowIdx,
+      variance: f(V[aw].landed - V[lowIdx].landed),
+      score: [
+        { k: 'QC rejection rate', a: '1.2%', b: '6.8%', c: '2.4%' },
+        { k: 'On-time delivery', a: '94%', b: '71%', c: '88%' },
+        { k: 'Returns raised', a: '1', b: '6', c: '2' },
+        { k: 'Warranty offered', a: '18 m', b: '12 m', c: '24 m' },
+        { k: 'Longest lead time', a: '14 d', b: '12 d', c: '15 d' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

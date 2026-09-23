@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>QA/QC inspection</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>body{margin:0;background:#F3F2EE}a{color:#0B5F63}a:hover{color:#08484B}</style>
+</helmet>
+<div style="width: 1440px; height: 960px; display: flex; font-family: 'IBM Plex Sans', system-ui, sans-serif; color: #18202B; background: #F3F2EE;">
+<dc-import name="Sidebar" active="QC" hint-size="240px,960px"></dc-import>
+<main style="width: 1200px; height: 960px; box-sizing: border-box; padding: 26px 32px; display: flex; flex-direction: column; gap: 16px;">
+
+<header style="display: flex; justify-content: space-between; align-items: flex-end;">
+<div style="display: flex; flex-direction: column; gap: 4px;">
+<div style="font-size: 13px; color: #5B6270;">Receiving / QA/QC inspection / GI-Dhulagarh-Sep2026/0058</div>
+<div style="display: flex; align-items: center; gap: 12px;">
+<h1 style="margin: 0; font-size: 26px; font-weight: 700;">QA/QC inspection</h1>
+<span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #454B55;">QC-Dhulagarh-Sep2026/0055</span>
+<span style="padding: 3px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; background: #FBEFD5; color: #7A4B00;">QC_IN_PROGRESS</span>
+</div>
+</div>
+<div style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #1B5E3B; font-weight: 600;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1B5E3B" stroke-width="2.4" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>SLA 48 h ambient · 4 h cold-chain — 1 h 12 m elapsed</div>
+</header>
+
+<section aria-label="Line verdicts" style="background: #FFFFFF; border: 1px solid #DAD8D0; border-radius: 10px; overflow: hidden;">
+<div style="display: grid; grid-template-columns: 1.4fr 80px 90px 80px 90px 1.4fr 110px 100px; gap: 10px; padding: 10px 18px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.6px; color: #5B6270; background: #F8F7F3;"><div>Item</div><div style="text-align: right;">Delivered</div><div style="text-align: right;">Accepted</div><div style="text-align: right;">Hold</div><div style="text-align: right;">Rejected</div><div>Reason</div><div>Checklist</div><div>Sum check</div></div>
+<sc-for list="{{lines}}" as="l" hint-placeholder-count="4">
+<div style="display: grid; grid-template-columns: 1.4fr 80px 90px 80px 90px 1.4fr 110px 100px; gap: 10px; padding: 12px 18px; font-size: 13px; border-top: 1px solid #EFEDE7; align-items: center;">
+<div style="display: flex; flex-direction: column; gap: 2px;"><b>{{l.name}}</b><span style="font-size: 12px; color: #5B6270;">{{l.cls}}</span></div>
+<div style="text-align: right; font-family: 'IBM Plex Mono', monospace;">{{l.del}}</div>
+<div style="text-align: right; font-family: 'IBM Plex Mono', monospace; font-weight: 600; color: #1B5E3B;">{{l.acc}}</div>
+<div style="text-align: right; font-family: 'IBM Plex Mono', monospace; font-weight: 600; color: #7A4B00;">{{l.hold}}</div>
+<div style="text-align: right; font-family: 'IBM Plex Mono', monospace; font-weight: 600; color: #9A1C12;">{{l.rej}}</div>
+<div style="color: #454B55;">{{l.reason}}</div>
+<div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px;">{{l.check}}</div>
+<div><span style="padding: 3px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; background: #E0F1E7; color: #1B5E3B;">Balanced</span></div>
+</div>
+</sc-for>
+</section>
+
+<div style="display: flex; gap: 16px; flex-grow: 1; min-height: 0;">
+<section aria-label="Evidence" style="flex-grow: 1; background: #FFFFFF; border: 1px solid #DAD8D0; border-radius: 10px; padding: 16px 18px; display: flex; flex-direction: column; gap: 12px;">
+<div style="display: flex; justify-content: space-between;"><div style="font-weight: 600; font-size: 15px;">Evidence · HDPE pallet — 20 rejected</div><div style="font-size: 12px; color: #5B6270;">At least one photo required for any hold or rejection</div></div>
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px;">
+<div style="height: 120px; border-radius: 8px; background: #ECEBE6; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #454B55; text-align: center; padding: 8px;">[Photo · cracked deck boards, stack A]</div>
+<div style="height: 120px; border-radius: 8px; background: #ECEBE6; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #454B55; text-align: center; padding: 8px;">[Photo · stack B close-up]</div>
+<div style="height: 120px; border-radius: 8px; background: #ECEBE6; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #454B55; text-align: center; padding: 8px;">[Photo · batch label]</div>
+<button type="button" style="height: 120px; border-radius: 8px; border: 1px dashed #A9A597; background: #FFFFFF; font-family: inherit; font-size: 14px; font-weight: 600; color: #454B55;">+ Capture photo</button>
+</div>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 18px; font-size: 13px;">
+<sc-for list="{{checklist}}" as="c" hint-placeholder-count="6">
+<div style="display: flex; justify-content: space-between; border-bottom: 1px solid #EFEDE7; padding: 6px 0;"><span>{{c.k}}</span><span style="font-weight: 600; {{c.color}}">{{c.v}}</span></div>
+</sc-for>
+</div>
+<div style="font-size: 12px; color: #5B6270;">Checklist version HDPE-PAL v3 · stamped on the verdict</div>
+</section>
+
+<aside aria-label="Hold decision and segregation" style="width: 350px; flex-shrink: 0; display: flex; flex-direction: column; gap: 14px;">
+<section style="background: #FFFFFF; border: 1px solid #DAD8D0; border-radius: 10px; padding: 16px 18px; display: flex; flex-direction: column; gap: 10px;">
+<div style="font-weight: 600; font-size: 15px;">Conditional hold · PUF panel, 12 sqm</div>
+<div style="font-size: 13px; color: #454B55;">Thickness 102 mm against 100 ± 1 mm. Site Manager decides — accept under concession or reject.</div>
+<div style="display: flex; gap: 10px;">
+<button type="button" onClick="{{concede}}" aria-pressed="{{concPressed}}" style="{{concStyle}}">Accept under concession</button>
+<button type="button" onClick="{{reject}}" aria-pressed="{{rejPressed}}" style="{{rejStyle}}">Reject</button>
+</div>
+<div style="font-size: 13px; font-weight: 600; {{holdColor}}">{{holdMsg}}</div>
+</section>
+<section style="background: #FFFFFF; border: 1px solid #DAD8D0; border-radius: 10px; padding: 16px 18px; display: flex; flex-direction: column; gap: 8px; font-size: 13px;">
+<div style="font-weight: 600; font-size: 15px;">Who did what</div>
+<div style="display: flex; justify-content: space-between;"><span style="color: #5B6270;">Gate inward</span><span>Site Receiver · SR</span></div>
+<div style="display: flex; justify-content: space-between;"><span style="color: #5B6270;">Inspection</span><span>QA/QC Inspector · QI</span></div>
+<div style="display: flex; justify-content: space-between;"><span style="color: #5B6270;">GRN approval</span><span>Site Manager · SM</span></div>
+<div style="font-size: 12px; color: #1B5E3B;">Three different user IDs — segregation satisfied</div>
+</section>
+<a href="GRN.dc.html" style="height: 48px; display: flex; align-items: center; justify-content: center; border-radius: 8px; background: #0B5F63; color: #FFFFFF; text-decoration: none; font-weight: 600; font-size: 15px;">Submit verdict</a>
+<div style="font-size: 12px; color: #5B6270;">Rejected quantity auto-drafts a purchase return. The verdict cannot be edited after submission.</div>
+</aside>
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":960}}'>
+class Component extends DCLogic {
+  constructor(p) { super(p); this.state = { hold: null }; }
+  renderVals() {
+    const h = this.state.hold;
+    const on = 'flex-grow:1;height:44px;border-radius:8px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;background:#0B5F63;color:#FFFFFF;border:1px solid #0B5F63;';
+    const off = 'flex-grow:1;height:44px;border-radius:8px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;background:#FFFFFF;color:#18202B;border:1px solid #CFCCC2;';
+    const ok = 'color:#1B5E3B;', bad = 'color:#9A1C12;';
+    return {
+      lines: [
+        { name: 'HDPE pallet 1200 × 1000', cls: 'Ambient · Nos', del: 500, acc: 480, hold: 0, rej: 20, reason: 'Physical damage — cracked deck boards', check: '6 / 7 pass' },
+        { name: 'PUF panel 100 mm', cls: 'Ambient · sqm', del: 300, acc: 288, hold: 12, rej: 0, reason: 'Dimension deviation — 102 mm', check: '7 / 8 pass' },
+        { name: 'Temperature data logger', cls: 'Instrument · Nos', del: 22, acc: 22, hold: 0, rej: 0, reason: 'Short 3 recorded at gate', check: '5 / 5 pass' },
+        { name: 'Gel ice pack 2 kg, frozen', cls: 'Cold chain · Nos', del: 1000, acc: 1000, hold: 0, rej: 0, reason: '—', check: '6 / 6 pass' }
+      ],
+      checklist: [
+        { k: 'Dimensions within spec', v: 'Pass', color: ok }, { k: 'Load rating marked', v: 'Pass', color: ok },
+        { k: 'Deck boards intact', v: 'Fail · 20 Nos', color: bad }, { k: 'Food-grade certificate', v: 'Pass', color: ok },
+        { k: 'Colour and batch match', v: 'Pass', color: ok }, { k: 'Quantity matches challan', v: 'Pass', color: ok }
+      ],
+      concede: () => this.setState({ hold: 'c' }), reject: () => this.setState({ hold: 'r' }),
+      concStyle: h === 'c' ? on : off, rejStyle: h === 'r' ? on : off,
+      concPressed: h === 'c' ? 'true' : 'false', rejPressed: h === 'r' ? 'true' : 'false',
+      holdMsg: h === 'c' ? '12 sqm moves to accepted · concession recorded against your ID' : (h === 'r' ? '12 sqm moves to rejected · added to the purchase return' : 'Undecided — escalates to Head of Operations after 72 h'),
+      holdColor: h === 'c' ? ok : (h === 'r' ? bad : 'color:#7A4B00;')
+    };
+  }
+}
+</script>
+</body>
+</html>

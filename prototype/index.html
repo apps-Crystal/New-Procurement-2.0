@@ -1,0 +1,826 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Crystal · Assets & Procurement</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F3F2EE;--surface:#FFFFFF;--surface-2:#F8F7F3;--line:#DAD8D0;--line-2:#EFEDE7;
+  --ink:#18202B;--ink-2:#454B55;--muted:#5B6270;--input:#CFCCC2;
+  --accent:#0B5F63;--accent-ink:#FFFFFF;--accent-text:#0B5F63;--accent-soft:#E6F0EF;
+  --ok-bg:#E0F1E7;--ok:#1B5E3B;--warn-bg:#FBEFD5;--warn:#7A4B00;--bad-bg:#FBE3E1;--bad:#9A1C12;
+  --info-bg:#E3ECF7;--info:#1D4A80;--neutral-bg:#ECEBE6;--disabled:#8A909B;
+  --nav-bg:#18202B;--nav-ink:#D5D9E1;--nav-muted:#A7AFBD;--nav-line:#2C3544;
+  --sans:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#12161D;--surface:#1A2029;--surface-2:#212833;--line:#2E3642;--line-2:#262D38;
+    --ink:#E7EAF0;--ink-2:#B7BFCC;--muted:#9AA3B2;--input:#3A4350;
+    --accent:#0F7A7D;--accent-ink:#FFFFFF;--accent-text:#62C7C9;--accent-soft:#16302F;
+    --ok-bg:#173826;--ok:#7FD3A2;--warn-bg:#3A2C10;--warn:#F0C46A;--bad-bg:#3D1A17;--bad:#F29B91;
+    --info-bg:#16283F;--info:#8DB8F0;--neutral-bg:#2A313C;--disabled:#4E5664;
+    --nav-bg:#0C1016;--nav-ink:#D5D9E1;--nav-muted:#8C95A5;--nav-line:#222A35;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#12161D;--surface:#1A2029;--surface-2:#212833;--line:#2E3642;--line-2:#262D38;
+  --ink:#E7EAF0;--ink-2:#B7BFCC;--muted:#9AA3B2;--input:#3A4350;
+  --accent:#0F7A7D;--accent-ink:#FFFFFF;--accent-text:#62C7C9;--accent-soft:#16302F;
+  --ok-bg:#173826;--ok:#7FD3A2;--warn-bg:#3A2C10;--warn:#F0C46A;--bad-bg:#3D1A17;--bad:#F29B91;
+  --info-bg:#16283F;--info:#8DB8F0;--neutral-bg:#2A313C;--disabled:#4E5664;
+  --nav-bg:#0C1016;--nav-ink:#D5D9E1;--nav-muted:#8C95A5;--nav-line:#222A35;
+}
+html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;min-height:100%;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.45}
+button,input,select,textarea{font:inherit;color:inherit}
+a{color:var(--accent-text)}
+:focus-visible{outline:2px solid var(--accent-text);outline-offset:2px}
+.app{display:flex;min-height:100vh}
+.side{width:240px;flex-shrink:0;background:var(--nav-bg);color:var(--nav-ink);padding:20px 14px;display:flex;flex-direction:column;gap:12px;position:sticky;top:0;height:100vh;overflow-y:auto}
+.brand{display:flex;align-items:center;gap:10px;padding:0 8px 14px;border-bottom:1px solid var(--nav-line)}
+.brand-mark{width:34px;height:34px;border-radius:8px;background:#0B5F63;display:flex;align-items:center;justify-content:center}
+.brand b{display:block;font-size:15px}.brand small{color:var(--nav-muted);font-size:12px}
+.nav-group{display:flex;flex-direction:column;gap:2px}
+.nav-label{font-size:11px;letter-spacing:.06em;color:var(--nav-muted);padding:0 10px 4px}
+.nav-link{display:block;text-decoration:none;color:var(--nav-ink);padding:8px 10px;border-radius:7px;font-size:14px}
+.nav-link:hover{background:rgba(255,255,255,.06)}
+.nav-link[aria-current="page"]{background:#0B5F63;color:#fff;font-weight:600}
+.nav-foot{margin-top:auto;padding:12px 10px;border-top:1px solid var(--nav-line);font-size:12px;color:var(--nav-muted)}
+.nav-foot b{display:block;color:var(--nav-ink);font-size:13px;font-weight:500}
+.theme-btn{margin-top:8px;background:transparent;border:1px solid var(--nav-line);color:var(--nav-ink);border-radius:6px;padding:6px 10px;cursor:pointer;min-height:32px}
+.topbar{display:none}
+main{flex:1;min-width:0;padding:26px 32px 40px;display:flex;flex-direction:column;gap:16px}
+.head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap}
+.crumb{font-size:13px;color:var(--muted)}
+h1{margin:4px 0 0;font-size:26px;font-weight:700;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.docno{font-family:var(--mono);font-size:13px;color:var(--ink-2);font-weight:400}
+.row{display:flex;gap:16px}.row-wrap{flex-wrap:wrap}.grow{flex:1;min-width:0}
+.col{display:flex;flex-direction:column;gap:14px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px}
+.pad{padding:16px 18px}
+.card-h{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid var(--line-2)}
+.card-h h2,.h2{margin:0;font-size:15px;font-weight:600}
+.sub{font-size:12px;color:var(--muted)}
+.note{font-size:13px;color:var(--ink-2)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.kpi{padding:14px 16px;display:flex;flex-direction:column;gap:4px}
+.kpi .k{font-size:12px;color:var(--muted)}
+.kpi .v{font-size:24px;font-weight:700;font-family:var(--mono)}
+.mono{font-family:var(--mono)}.r{text-align:right}.b{font-weight:600}
+.btn{min-height:44px;padding:0 18px;border-radius:8px;border:1px solid var(--input);background:var(--surface);font-weight:600;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;text-decoration:none;color:var(--ink);white-space:nowrap}
+.btn:hover{border-color:var(--ink-2)}
+.btn-primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn-primary:hover{filter:brightness(1.08);border-color:var(--accent)}
+.btn-danger{color:var(--bad)}.btn-warn{color:var(--warn)}
+.btn[disabled],.btn[aria-disabled="true"]{background:var(--disabled);border-color:var(--disabled);color:#fff;cursor:not-allowed;filter:none}
+.btn-sm{min-height:32px;padding:0 10px;font-size:12px;border-radius:6px}
+.seg{display:flex;gap:8px;flex-wrap:wrap}
+.seg .btn[aria-pressed="true"],.seg .btn[aria-checked="true"]{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+.chip{display:inline-block;padding:3px 9px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap}
+.ok{background:var(--ok-bg);color:var(--ok)}.warn{background:var(--warn-bg);color:var(--warn)}.bad{background:var(--bad-bg);color:var(--bad)}.info{background:var(--info-bg);color:var(--info)}.neutral{background:var(--neutral-bg);color:var(--ink-2)}
+.t-ok{color:var(--ok)}.t-warn{color:var(--warn)}.t-bad{color:var(--bad)}.t-info{color:var(--info)}.t-muted{color:var(--muted)}
+.tbl{overflow-x:auto}
+.tr{display:grid;gap:10px;padding:11px 18px;border-bottom:1px solid var(--line-2);align-items:center;min-width:760px}
+.th{font-size:11px;letter-spacing:.04em;color:var(--muted);background:var(--surface-2);padding-top:10px;padding-bottom:10px}
+.tfoot{background:var(--surface-2);border-bottom:none}
+.field{display:flex;flex-direction:column;gap:6px;min-width:0}
+.field label,.lbl{font-size:12px;color:var(--muted)}
+.inp,select.inp,textarea.inp{height:44px;border:1px solid var(--input);border-radius:8px;padding:0 12px;background:var(--surface);width:100%}
+textarea.inp{height:auto;min-height:96px;padding:10px 12px;resize:vertical}
+.inp-sm{height:36px;border:1px solid var(--input);border-radius:6px;padding:0 8px;background:var(--surface);width:100%;max-width:120px;text-align:right;font-family:var(--mono);font-size:13px}
+.inp[aria-invalid="true"],.inp-sm[aria-invalid="true"]{border-color:var(--bad);background:var(--bad-bg)}
+.readonly{height:44px;display:flex;align-items:center;padding:0 12px;border-radius:8px;background:var(--surface-2)}
+.grid{display:grid;gap:12px}
+.g2{grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}.g3{grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}.g4{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}.g5{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+.tile{background:var(--surface-2);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:4px}
+.box{border:1px solid var(--line-2);border-radius:8px;padding:12px 14px;display:flex;flex-direction:column;gap:4px}
+.banner{border-radius:10px;padding:12px 16px;font-size:13px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.list-btn{display:flex;flex-direction:column;gap:5px;align-items:flex-start;padding:12px 16px;border:none;border-bottom:1px solid var(--line-2);background:var(--surface);cursor:pointer;text-align:left;width:100%}
+.list-btn[aria-pressed="true"]{background:var(--accent-soft)}
+.list-btn .top{display:flex;justify-content:space-between;width:100%;gap:8px}
+.pick{display:flex;flex-direction:column;gap:6px;align-items:flex-start;padding:14px 16px;border-radius:10px;background:var(--surface);border:1px solid var(--line);cursor:pointer;text-align:left;min-height:100px;width:100%}
+.pick[aria-pressed="true"],.pick[aria-checked="true"]{border:2px solid var(--accent-text);padding:13px 15px}
+.pick.sel-solid[aria-checked="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.steps{list-style:none;margin:0;padding:14px 18px;display:flex;gap:8px;flex-wrap:wrap}
+.steps li{flex:1;min-width:130px;display:flex;align-items:center;gap:10px}
+.dot{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0}
+.d-done{background:var(--ok);color:var(--surface)}.d-now{background:var(--accent);color:var(--accent-ink)}.d-todo{background:var(--neutral-bg);color:var(--muted)}
+.bars{list-style:none;margin:0;padding:0;display:flex;gap:6px}
+.bars li{flex:1;display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:600}
+.bars .bar{height:6px;border-radius:3px;background:var(--line-2)}
+.bars .on .bar{background:var(--accent)}.bars li:not(.on){color:var(--muted)}
+.meter{height:6px;background:var(--line-2);border-radius:3px;overflow:hidden}.meter i{display:block;height:6px;background:var(--bad)}
+.ph{border-radius:8px;background:var(--neutral-bg);display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--ink-2);text-align:center;padding:8px;min-height:110px}
+.kanban{display:grid;grid-template-columns:repeat(5,minmax(170px,1fr));gap:10px;overflow-x:auto}
+.kcol{padding:10px;display:flex;flex-direction:column;gap:8px;min-height:170px}
+.kcard{display:flex;flex-direction:column;gap:4px;align-items:flex-start;padding:10px;border-radius:8px;background:var(--surface-2);border:1px solid var(--line-2);cursor:pointer;text-align:left;width:100%}
+.kcard[aria-pressed="true"]{background:var(--accent-soft);border:2px solid var(--accent-text);padding:9px}
+.kcard[disabled]{cursor:default;opacity:.85}
+.doc{padding:26px 30px;display:flex;flex-direction:column;gap:18px}
+.doc-head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid var(--ink);padding-bottom:14px;gap:16px;flex-wrap:wrap}
+.sr{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+#toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%) translateY(20px);background:var(--ink);color:var(--bg);padding:12px 18px;border-radius:8px;font-size:14px;font-weight:500;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;max-width:min(560px,90vw);z-index:50}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+@media (prefers-reduced-motion: reduce){#toast{transition:none}}
+@media (max-width: 900px){
+  .side{position:fixed;left:0;top:0;bottom:0;z-index:40;transform:translateX(-100%);transition:transform .2s;padding-top:calc(20px + env(safe-area-inset-top,0px))}
+  .side.open{transform:none}
+  .topbar{display:flex;position:sticky;top:0;z-index:30;align-items:center;gap:12px;padding:10px 16px;padding-top:calc(10px + env(safe-area-inset-top,0px));background:var(--nav-bg);color:var(--nav-ink)}
+  .topbar button{background:transparent;border:1px solid var(--nav-line);color:var(--nav-ink);border-radius:8px;min-height:44px;min-width:44px;cursor:pointer}
+  .app{flex-direction:column}
+  main{padding:18px 16px 32px}
+  .row{flex-direction:column}
+  .side-w{width:auto!important}
+}
+</style>
+</head>
+<body>
+<div class="topbar"><button type="button" data-act="menu" aria-label="Open navigation" aria-controls="nav"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button><b>Crystal · Assets &amp; Procurement</b></div>
+<div class="app">
+  <nav id="nav" class="side" aria-label="Main navigation"></nav>
+  <main id="view" tabindex="-1"></main>
+</div>
+<div id="toast" role="status" aria-live="polite"></div>
+<script>
+(function(){
+'use strict';
+const f = n => Number(n).toLocaleString('en-IN');
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const chip = (t, k) => `<span class="chip ${k}">${t}</span>`;
+const lockIcon = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
+
+/* ---------------- routes ---------------- */
+const NAV = [
+  ['Inventory', [['main','Warehouse stock'],['ledger','Stock ledger'],['damage','Damaged & missing']]],
+  ['Procurement', [['mr','Material requests'],['raisepr','Raise purchase request'],['pr','PR approval'],['quotes','Vendor quotations'],['compare','Quote comparison'],['po','Purchase orders']]],
+  ['Receiving', [['gate','Gate inward'],['qc','QA/QC inspection'],['grn','Goods receipt (GRN)'],['returns','Purchase returns']]],
+  ['Accounts', [['notes','Debit & credit notes'],['recon','Vendor reconciliation']]]
+];
+const TITLES = {}; NAV.forEach(g => g[1].forEach(([k, t]) => TITLES[k] = t));
+
+/* ---------------- shared state ---------------- */
+const S = {
+  site: 'Dhulagarh',
+  mrImpact: 'Freezer room 3 is running on one evaporator after a coil failure; a second failure would force product transfer to Dankuni. Compressor and refrigerant are for the scheduled overhaul of chiller 2.',
+  mrDecl: true, mrSubmitted: false,
+  prRates: [182000, 238000, 9600], prChargeable: false, prTerms: [20, 0, 0, 70, 0, 10], prSubmitted: false,
+  prDecision: null, prRemarks: 'Approved. Get at least three quotations; prefer vendors with low QC rejection history.',
+  quoteSel: 1,
+  quotes: [
+    { name: 'Frostline Refrigeration', short: 'Frostline', ref: 'FR/Q/2026/381', date: '24 Sep 2026', valid: '24 Oct 2026', rates: [184000, 236000, 9800], freight: 6000, terms: '30% advance, 70% on delivery', warranty: '18 months', lead: ['10 days','14 days','3 days'], make: ['Frostline','Copeland','Honeywell'], file: 'FR_Q_381.pdf' },
+    { name: 'Arctic Cool Engineers', short: 'Arctic Cool', ref: 'ACE-2609-17', date: '25 Sep 2026', valid: '10 Oct 2026', rates: [179500, 241000, 9400], freight: 0, terms: '100% within 30 days of delivery', warranty: '12 months', lead: ['7 days','12 days','2 days'], make: ['Kirloskar','Danfoss','SRF'], file: 'ACE_2609_17.pdf' },
+    { name: 'Polar Tech Industries', short: 'Polar Tech', ref: 'PTI/RFQ/0922', date: '25 Sep 2026', valid: '25 Nov 2026', rates: [188000, 233500, 10200], freight: 9500, terms: '50% advance, 50% on delivery', warranty: '24 months', lead: ['15 days','10 days','4 days'], make: ['Polar','Copeland','Chemours'], file: 'PTI_0922.pdf' }
+  ],
+  award: null, justification: 'L1 vendor rejected 6.8% of receipts over 12 months against 1.2% for this vendor; premium is under 0.1% of order value.',
+  awarded: null, tallyRef: '', poIssued: false,
+  gateCounts: [500, 300, 22, 1000], gateTemp: '-17.4', gateSubmitted: false, gateRejected: false,
+  qc: [{ acc: 480, hold: 0, rej: 20, reason: 'Physical damage' }, { acc: 288, hold: 12, rej: 0, reason: 'Dimension deviation' }, { acc: 22, hold: 0, rej: 0, reason: '' }, { acc: 1000, hold: 0, rej: 0, reason: '' }],
+  holdDecision: null, qcSubmitted: false,
+  grnApproved: false, grnFlagged: false,
+  dmgSel: 0, dmgDec: 1, shortDec: 'await', shortConfirmed: false,
+  rtvSel: '0006', rtvStage: { '0006': 0, '0005': 1 },
+  dnSel: '0004', dnStage: { '0004': 0, '0003': 1, '0002': 2, '0001': 4 }, dnRoute: {}, cnVal: '50740', cnNo: 'NPP/CN/118',
+  ledgerItem: 0,
+  reconV: 0, reconMapped: false, reconDone: [false, false]
+};
+
+/* reference data for the receiving flow */
+const RCV = [
+  { name: 'HDPE pallet 1200 × 1000', uom: 'Nos', cls: 'Ambient · Nos', out: 500, dc: 500, rate: 2150, before: 820, reasons: ['Physical damage', 'Dimension deviation', 'Documentation missing'] },
+  { name: 'PUF panel 100 mm', uom: 'sqm', cls: 'Ambient · sqm', out: 300, dc: 300, rate: 1850, before: 340, reasons: ['Dimension deviation', 'Physical damage', 'Documentation missing'] },
+  { name: 'Temperature data logger', uom: 'Nos', cls: 'Instrument · Nos', out: 25, dc: 25, rate: 3400, before: 18, reasons: ['Calibration failure', 'Physical damage', 'Short supply'] },
+  { name: 'Gel ice pack 2 kg, frozen', uom: 'Nos', cls: 'Cold chain · Nos', out: 1000, dc: 1000, rate: 95, before: 2400, reasons: ['Temperature breach', 'Physical damage', 'Expiry or shelf life'] }
+];
+const PR_LINES = [['Evaporator coil 22 kW', 'CC-EVP-220', 1], ['Scroll compressor 15 HP', 'CC-CMP-15', 2], ['Refrigerant R-404A, 10 kg', 'CC-RFG-404', 2]];
+
+/* derived values */
+const tempBreach = () => { const t = parseFloat(S.gateTemp); return isNaN(t) || t < -20 || t > -15; };
+const qcDelivered = i => Number(S.gateCounts[i]) || 0;
+const qcBalanced = i => { const q = S.qc[i]; return q.acc + q.hold + q.rej === qcDelivered(i); };
+const qcAllBalanced = () => S.qc.every((q, i) => qcBalanced(i));
+const anyHold = () => S.qc.some(q => q.hold > 0);
+const holdQty = () => S.qc.reduce((t, q) => t + q.hold, 0);
+const grnAccepted = i => S.qc[i].acc + (S.holdDecision === 'c' ? S.qc[i].hold : 0);
+const rtvLines = () => S.qc.map((q, i) => ({ i, qty: q.rej + (S.holdDecision === 'r' ? q.hold : 0) })).filter(x => x.qty > 0);
+const rtvTaxable = () => rtvLines().reduce((t, x) => t + x.qty * RCV[x.i].rate, 0);
+const shortQty = () => Math.max(0, RCV[2].dc - (Number(S.gateCounts[2]) || 0));
+const prGoods = () => PR_LINES.reduce((t, l, i) => t + Math.round(l[2] * (Number(S.prRates[i]) || 0) * 1.18), 0);
+const prTotal = () => prGoods() + (S.prChargeable ? 5310 : 0);
+const termsSum = () => S.prTerms.reduce((a, b) => a + (Number(b) || 0), 0);
+const band = t => t <= 100000 ? { label: 'Up to ₹1 lakh', route: 'Site Manager' } : t <= 1000000 ? { label: '₹1–10 lakh', route: 'Site Manager, then Functional Head' } : { label: 'Above ₹10 lakh', route: 'Site Manager, Functional Head, then Director' };
+const quoteQty = [1, 2, 2];
+const landed = v => { const sub = v.rates.reduce((t, r, i) => t + (Number(r) || 0) * quoteQty[i], 0); const gst = Math.round(sub * 0.18); return { lines: v.rates.map((r, i) => (Number(r) || 0) * quoteQty[i]), sub, gst, total: sub + gst + (Number(v.freight) || 0) }; };
+const ranks = () => S.quotes.map((v, i) => ({ i, t: landed(v).total })).sort((a, b) => a.t - b.t).map(x => x.i);
+const awardIdx = () => S.award === null ? ranks()[0] : S.award;
+
+/* ---------------- building blocks ---------------- */
+function head(crumb, title, extra, right) {
+  return `<header class="head"><div><div class="crumb">${crumb}</div><h1>${title}${extra || ''}</h1></div>${right ? `<div class="seg" style="align-items:center">${right}</div>` : ''}</header>`;
+}
+function table(cols, headers, rows, foot) {
+  const h = `<div class="tr th" style="grid-template-columns:${cols}">${headers.map(x => `<div class="${x[1] ? 'r' : ''}">${x[0]}</div>`).join('')}</div>`;
+  const body = rows.map(r => `<div class="tr" style="grid-template-columns:${cols}">${r.join('')}</div>`).join('');
+  return `<div class="tbl">${h}${body}${foot || ''}</div>`;
+}
+const steps = list => `<ol class="steps card" aria-label="Progress">${list.map(s => `<li><span class="dot d-${s.st}">${s.st === 'done' ? '✓' : s.n}</span><span><span class="b" style="display:block;font-size:13px">${s.label}</span><span class="sub">${s.sub}</span></span></li>`).join('')}</ol>`;
+const bars = (labels, upto) => `<ol class="bars" aria-label="Progress">${labels.map((l, i) => `<li class="${i <= upto ? 'on' : ''}"><span class="bar"></span>${l}</li>`).join('')}</ol>`;
+
+/* ---------------- screens ---------------- */
+const SCREENS = {};
+
+SCREENS.main = () => {
+  const base = [
+    ['CC-EVP-220','Evaporator coil 22 kW','Nos','Asset',1,0,1,4],['CC-CMP-15','Scroll compressor 15 HP','Nos','Asset',0,2,0,3],
+    ['PU-PNL-100','PUF panel 100 mm','sqm','Ambient',40,0,12,200],['CC-DL-01','Temperature data logger','Nos','Cold chain',2,0,0,25],
+    ['EL-VFD-75','VFD drive 7.5 kW','Nos','Asset',0,0,0,4],['CC-RFG-404','Refrigerant R-404A, 10 kg','Cyl','Consumable',0,0,0,12],
+    ['DR-SLD-01','Insulated sliding door set','Set','Asset',1,0,1,2],['PL-HDPE-12','HDPE pallet 1200 × 1000','Nos','Ambient',120,0,34,600]
+  ];
+  const avail = { Dhulagarh: [2,1,340,18,6,9,3,820], Taloja: [5,0,180,30,3,14,2,410], Noida: [3,2,420,40,5,11,4,950], Pune: [6,3,260,22,2,15,1,700] };
+  const now = JSON.parse(JSON.stringify(avail));
+  if (S.grnApproved) { now.Dhulagarh[7] += grnAccepted(0); now.Dhulagarh[2] += grnAccepted(1); now.Dhulagarh[3] += grnAccepted(2); }
+  const rows = base.map((b, i) => {
+    const a = now[S.site][i];
+    const st = a < b[7] ? ['Below reorder','bad'] : a < b[7] * 1.25 ? ['Near reorder','warn'] : ['Healthy','ok'];
+    return { b, a, st };
+  });
+  const others = Object.keys(now).filter(s => s !== S.site);
+  const low = rows.filter(r => r.st[0] === 'Below reorder').map(r => {
+    const idx = base.indexOf(r.b);
+    const best = others.map(s => ({ s, x: now[s][idx] - base[idx][7] })).filter(x => x.x > 0).sort((p, q) => q.x - p.x)[0];
+    return { ...r, pct: Math.max(6, Math.round(r.a / r.b[7] * 100)), hint: best ? `Surplus of ${best.x} ${r.b[2]} at ${best.s} — transfer before buying` : 'No surplus at other sites — purchase required' };
+  });
+  const cols = '110px 1.6fr 90px 64px 64px 64px 72px 64px 110px';
+  return head('Inventory / Warehouse stock', 'Warehouse stock', '', `<a class="btn btn-primary" href="#mr">Raise material request</a>`) +
+  `<div class="seg" role="group" aria-label="Warehouse">${Object.keys(now).map(s => `<button type="button" class="btn" data-act="site" data-arg="${s}" aria-pressed="${s === S.site}">${s}</button>`).join('')}</div>
+  <div class="kpis">
+    ${[['Items tracked', rows.length, 'Active SKUs at this site', ''], ['Below reorder', low.length, 'Raise MR or transfer', 't-bad'], ['Damaged hold', rows.filter(r => r.b[6] > 0).length, 'Items quarantined', 't-warn'], ['In transit', rows.filter(r => r.b[5] > 0).length, 'Inter-site transfers', 't-info'], ['Open GRNs', S.grnApproved ? 2 : 3, 'Awaiting QC or approval', '']].map(k => `<div class="card kpi"><span class="k">${k[0]}</span><span class="v ${k[3]}">${k[1]}</span><span class="sub">${k[2]}</span></div>`).join('')}
+  </div>
+  <div class="row">
+    <section class="card grow" aria-label="Stock position">
+      <div class="card-h"><h2>Stock position · ${S.site}</h2><span class="sub">${S.grnApproved && S.site === 'Dhulagarh' ? 'Includes GRN-Dhulagarh-Sep2026/0022' : 'Synced from the stock ledger'}</span></div>
+      ${table(cols, [['Code'],['Description'],['Class'],['Avail.',1],['Resv.',1],['Transit',1],['Damaged',1],['Reorder',1],['Status']], rows.map(r => [
+        `<div class="mono" style="font-size:12px">${r.b[0]}</div>`, `<div>${r.b[1]} <span class="t-muted">· ${r.b[2]}</span></div>`, `<div class="sub">${r.b[3]}</div>`,
+        `<div class="r mono b">${f(r.a)}</div>`, `<div class="r mono t-muted">${r.b[4]}</div>`, `<div class="r mono t-muted">${r.b[5]}</div>`, `<div class="r mono t-muted">${r.b[6]}</div>`, `<div class="r mono t-muted">${r.b[7]}</div>`, `<div>${chip(r.st[0], r.st[1])}</div>`]))}
+    </section>
+    <aside class="card side-w" style="width:330px;flex-shrink:0;display:flex;flex-direction:column" aria-label="Low stock alerts">
+      <div class="card-h"><h2>Low stock alerts</h2>${chip(low.length + ' items', low.length ? 'bad' : 'ok')}</div>
+      <div class="col" style="padding:10px 12px;gap:8px;flex:1">${low.length ? low.map(l => `<div class="box"><div style="display:flex;justify-content:space-between;gap:8px"><span class="b" style="font-size:13px">${l.b[1]}</span><span class="mono t-bad" style="font-size:12px">${l.a} / ${l.b[7]}</span></div><div class="meter"><i style="width:${l.pct}%"></i></div><span class="sub">${l.hint}</span></div>`).join('') : '<p class="note">Every item at this site is above its reorder level.</p>'}</div>
+      <div style="padding:12px;border-top:1px solid var(--line-2)"><a class="btn btn-primary" style="width:100%" href="#mr">Raise MR for all alerts</a></div>
+    </aside>
+  </div>`;
+};
+
+SCREENS.mr = () => {
+  const L = [['Evaporator coil 22 kW','CC-EVP-220',3,'Pune · 2 surplus',2,1,'Partial — transfer + buy','warn'],['Scroll compressor 15 HP','CC-CMP-15',2,'None above reorder level',0,2,'Purchase','bad'],['Temperature data logger','CC-DL-01',10,'Noida · 15 surplus',10,0,'Met by transfer','ok'],['Refrigerant R-404A, 10 kg','CC-RFG-404',5,'Pune · 3 · Taloja · 2',3,2,'Partial — transfer + buy','warn']];
+  const len = S.mrImpact.trim().length;
+  const cols = '1.5fr 70px 1.6fr 90px 90px 1.2fr';
+  return head('Procurement / Material requests / New', 'New material request', ` <span class="docno">MR-Dhulagarh-Sep2026/0047</span> ${chip(S.mrSubmitted ? 'MR_DECLARED' : 'MR_STOCK_PARTIAL', S.mrSubmitted ? 'ok' : 'info')}`,
+    `<button type="button" class="btn" data-act="toast" data-arg="Draft saved">Save draft</button><button type="button" class="btn btn-primary" data-act="mrSubmit">Submit for approval</button>`) +
+  `<section class="card pad grid g5" aria-label="Request header">
+    <div class="field"><label for="mr-site">Requesting site</label><select id="mr-site" class="inp"><option>Dhulagarh</option></select></div>
+    <div class="field"><label for="mr-cat">Category</label><select id="mr-cat" class="inp"><option>Maintenance Capex</option><option>Operations Capex</option><option>Assets</option></select></div>
+    <div class="field"><label for="mr-date">Required by</label><input id="mr-date" class="inp" type="date" value="2026-10-06"></div>
+    <div class="field"><label for="mr-urg">Urgency</label><select id="mr-urg" class="inp"><option>Planned (7–14 days)</option><option>Routine (15+ days)</option><option>Urgent (3–6 days)</option><option>Emergency (48 h)</option></select></div>
+    <div class="field"><label for="mr-bud">Budget code</label><select id="mr-bud" class="inp"><option>[BUDGET CODE] · FY26-27</option></select></div>
+  </section>
+  <section class="card" aria-label="Lines and stock check">
+    <div class="card-h"><h2>Line items · group-wide stock check</h2><span class="sub">Checked across 12 sites · counts only surplus above each site's reorder level</span></div>
+    ${table(cols, [['Item'],['Qty',1],['Found at other sites'],['Transfer',1],['Purchase',1],['Outcome']], L.map(l => [
+      `<div><div class="b">${l[0]}</div><div class="mono sub">${l[1]}</div></div>`, `<div class="r mono b">${l[2]}</div>`, `<div class="note">${l[3]}</div>`, `<div class="r mono b t-ok">${l[4]}</div>`, `<div class="r mono b t-bad">${l[5]}</div>`, `<div>${chip(l[6], l[7])}</div>`]),
+      `<div class="tr tfoot" style="grid-template-columns:1fr auto"><span class="note">Transfer requests go to the holding site's Warehouse Lead. Only the purchase balance moves to a Purchase Request, and it is locked.</span><span>Transfer <b class="mono t-ok">15</b> &nbsp; Purchase <b class="mono t-bad">5</b></span></div>`)}
+  </section>
+  <section class="card pad grid g2" aria-label="Declaration">
+    <div class="field"><label for="mr-impact">Business impact — what stops or degrades if this is not procured (min. 40 characters)</label>
+      <textarea id="mr-impact" class="inp" data-in="mrImpact" aria-invalid="${len < 40}">${esc(S.mrImpact)}</textarea>
+      <span class="sub ${len < 40 ? 't-bad' : 't-ok'}">${len} characters · ${len < 40 ? 'at least 40 needed' : 'meets the minimum'}</span></div>
+    <div class="col" style="gap:10px"><span class="lbl">Site allocation (must total 100%)</span>
+      <div style="display:flex;justify-content:space-between"><span>Dhulagarh — Freezer block</span><span class="mono">70%</span></div>
+      <div style="display:flex;justify-content:space-between"><span>Dhulagarh — Chiller plant</span><span class="mono">30%</span></div>
+      <div style="display:flex;gap:10px;align-items:flex-start;border-top:1px solid var(--line-2);padding-top:10px"><input id="mr-decl" type="checkbox" data-in="mrDecl" ${S.mrDecl ? 'checked' : ''} style="width:20px;height:20px;margin-top:2px"><label for="mr-decl" class="note">I declare this need is genuine and not met by group stock. Recorded with my Crystal Core identity and timestamp.</label></div>
+    </div>
+  </section>`;
+};
+
+SCREENS.raisepr = () => {
+  const sum = termsSum(), t = prTotal(), bd = band(t);
+  const names = ['Advance','Before delivery','Running','Post delivery','Post completion','Retention'];
+  return head('Procurement / Purchase requests / New', 'Raise purchase request', ` <span class="note" style="font-weight:400">ID assigned on submit</span>`,
+    `<button type="button" class="btn" data-act="toast" data-arg="Draft saved">Save draft</button><button type="button" class="btn btn-primary" data-act="prSubmit" ${sum !== 100 ? 'disabled' : ''}>Submit PR</button>`) +
+  `<div class="row">
+    <aside class="card side-w" style="width:270px;flex-shrink:0;display:flex;flex-direction:column" aria-label="Declared MRs">
+      <div class="card-h" style="flex-direction:column;align-items:flex-start;gap:2px"><h2>Start from a declared MR</h2><span class="sub">A PR cannot exist without one</span></div>
+      ${[['MR-Dhulagarh-Sep2026/0047','3 lines · 5 units to buy','Declared · MR approved 22 Sep',true],['MR-Taloja-Sep2026/0044','Insulated door seals','Declared · awaiting MR approval',false],['MR-Noida-Sep2026/0039','Chiller AMC — service','Declared · MR approved 19 Sep',false]].map(m => `<div class="list-btn" style="cursor:default;${m[3] ? 'background:var(--accent-soft)' : ''}"><span class="mono b" style="font-size:12px">${m[0]}</span><span class="b">${m[1]}</span><span class="sub">${m[2]}</span></div>`).join('')}
+      <div class="sub" style="margin-top:auto;padding:12px 16px">MRs fully met by transfer never appear here.</div>
+    </aside>
+    <div class="grow col">
+      <section class="card pad grid g4" aria-label="Header">
+        <div class="field"><span class="lbl">Site · from MR</span><div class="readonly">Dhulagarh</div></div>
+        <div class="field"><span class="lbl">Category · from MR</span><div class="readonly">Maintenance Capex</div></div>
+        <div class="field"><label for="pr-type">Procurement type</label><select id="pr-type" class="inp"><option>Material</option><option>Service</option></select></div>
+        <div class="field"><label for="pr-vendor">Suggested vendor (optional)</label><select id="pr-vendor" class="inp"><option>Leave for buyer to decide</option><option>Frostline Refrigeration</option><option>Arctic Cool Engineers</option></select></div>
+        <div class="field" style="grid-column:1/-1"><label for="pr-purpose">Purpose</label><input id="pr-purpose" class="inp" value="Replace failed evaporator coil in freezer room 3; compressor and refrigerant for chiller 2 overhaul"></div>
+      </section>
+      <section class="card" aria-label="Line items">
+        ${table('1.6fr 100px 130px 70px 140px', [['Item · purchase balance from MR'],['Qty (locked)',1],['Est. rate ₹',1],['GST',1],['Line total ₹',1]], PR_LINES.map((l, i) => [
+          `<div><b>${l[0]}</b> <span class="mono sub">${l[1]}</span></div>`, `<div class="r mono" style="display:flex;justify-content:flex-end;align-items:center;gap:6px">${lockIcon}${l[2]}</div>`,
+          `<div class="r"><label for="prr-${i}" class="sr">Estimated rate for ${l[0]}</label><input id="prr-${i}" class="inp-sm" inputmode="numeric" data-in="prRate" data-i="${i}" value="${S.prRates[i]}"></div>`,
+          `<div class="r mono">18%</div>`, `<div class="r mono b">${f(Math.round(l[2] * (Number(S.prRates[i]) || 0) * 1.18))}</div>`]),
+          `<div class="tr tfoot" style="grid-template-columns:auto auto auto 1fr;gap:14px"><span class="t-muted">Delivery charges</span><span class="seg" role="radiogroup" aria-label="Delivery charges"><button type="button" class="btn btn-sm" role="radio" aria-checked="${!S.prChargeable}" data-act="prChg" data-arg="0">Included</button><button type="button" class="btn btn-sm" role="radio" aria-checked="${S.prChargeable}" data-act="prChg" data-arg="1">Chargeable</button></span><span class="mono">${S.prChargeable ? '₹ 4,500 + GST ₹ 810' : ''}</span><span class="r">Total incl. GST <b class="mono" style="font-size:15px">₹ ${f(t)}</b></span></div>`)}
+      </section>
+      <div class="row">
+        <section class="card pad grow col" style="gap:10px" aria-label="Payment terms">
+          <div style="display:flex;justify-content:space-between"><h2 class="h2">Payment terms</h2><span class="sub b ${sum === 100 ? 't-ok' : 't-bad'}">Totals ${sum}%${sum === 100 ? '' : ' — must be 100%'}</span></div>
+          <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(110px,1fr))">${names.map((n, i) => `<div class="field"><label for="pt-${i}">${n} %</label><input id="pt-${i}" class="inp-sm" style="max-width:none" inputmode="numeric" data-in="prTerm" data-i="${i}" value="${S.prTerms[i]}" aria-invalid="${sum !== 100}"></div>`).join('')}</div>
+        </section>
+        <section class="card pad col side-w" style="width:320px;flex-shrink:0;gap:8px" aria-label="Delivery and documents">
+          <h2 class="h2">Delivery and documents</h2><span>Dhulagarh warehouse, Gate 2 · by 06 Oct 2026</span>
+          <div class="seg" style="gap:6px">${chip('Budget quote · PDF','neutral')}${chip('Coil failure report','neutral')}<button type="button" class="btn btn-sm" data-act="toast" data-arg="File picker opens here">+ Attach</button></div>
+        </section>
+      </div>
+      <div class="banner info"><span>Approval routing on submit: <b>${bd.label}</b> — ${bd.route}.</span><span>You cannot approve your own PR.</span></div>
+    </div>
+  </div>`;
+};
+
+SCREENS.pr = () => {
+  const d = S.prDecision, ok = d === 'a', rej = d === 'r';
+  const sub = PR_LINES.reduce((t, l, i) => t + l[2] * (Number(S.prRates[i]) || 0), 0);
+  const gst = Math.round(sub * 0.18), bd = band(prTotal());
+  const code = ok ? ['PR_APPROVED','ok'] : rej ? ['PR_REJECTED','bad'] : ['PR_SUBMITTED','warn'];
+  return head('Procurement / Purchase requests / PR-Dhulagarh-Sep2026/0031', 'Purchase request', ` <span class="docno">PR-Dhulagarh-Sep2026/0031</span> ${chip(code[0], code[1])}`,
+    `<span class="note">Raised from <a href="#mr" class="mono">MR-Dhulagarh-Sep2026/0047</a></span>`) +
+  steps([{label:'MR raised',sub:'Stock checked',st:'done',n:1},{label:'MR approved',sub:'Site Manager',st:'done',n:2},{label:'PR submitted',sub:'Balance only',st:'done',n:3},{label:'PR approval',sub:ok ? 'Complete' : rej ? 'Rejected' : '1 of 2 approvers',st:ok ? 'done' : 'now',n:4},{label:'Quotations',sub:'Min. 3',st:ok ? 'now' : 'todo',n:5},{label:'Purchase order',sub:'Tally ref',st:'todo',n:6}]) +
+  `<div class="row">
+    <div class="grow col">
+      <section class="card pad col" style="gap:12px" aria-label="Inherited from MR">
+        <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap"><h2 class="h2">Inherited from the declared MR</h2><span class="sub" style="display:flex;gap:6px;align-items:center">${lockIcon} Locked — edit the MR to change</span></div>
+        <div class="grid g5">${[['Site','Dhulagarh'],['Category','Maintenance Capex'],['Budget code','[BUDGET CODE]'],['Urgency','Planned'],['Allocation','Freezer 70 · Chiller 30']].map(x => `<div class="tile"><span class="sub">${x[0]}</span><span class="b">${x[1]}</span></div>`).join('')}</div>
+      </section>
+      <section class="card">
+        <div class="card-h"><h2>Purchase balance only</h2><span class="sub">Transferred quantity excluded · estimated at last purchase rate</span></div>
+        ${table('1.8fr 80px 120px 70px 140px', [['Item'],['Qty',1],['Est. rate ₹',1],['GST',1],['Line total ₹',1]], PR_LINES.map((l, i) => [`<div><b>${l[0]}</b> <span class="mono sub">${l[1]}</span></div>`, `<div class="r mono">${l[2]}</div>`, `<div class="r mono">${f(S.prRates[i])}</div>`, `<div class="r mono">18%</div>`, `<div class="r mono b">${f(Math.round(l[2] * S.prRates[i] * 1.18))}</div>`]),
+          `<div class="tr tfoot" style="grid-template-columns:1fr auto auto auto;gap:24px"><span></span><span>Sub-total <b class="mono">${f(sub)}</b></span><span>GST <b class="mono">${f(gst)}</b></span><span>Total incl. GST <b class="mono" style="font-size:15px">₹ ${f(prTotal())}</b></span></div>`)}
+      </section>
+      <section class="card pad grid g3" style="font-size:13px">
+        <div><span class="sub">Payment terms</span><div>${['Advance','Before delivery','Running','Post delivery','Post completion','Retention'].map((n, i) => S.prTerms[i] > 0 ? `${n} ${S.prTerms[i]}%` : '').filter(Boolean).join(' · ')}</div><span class="sub t-ok">Totals ${termsSum()}%</span></div>
+        <div><span class="sub">Delivery</span><div>Dhulagarh warehouse, Gate 2</div><span class="sub">Expected by 06 Oct 2026 · charges ${S.prChargeable ? 'chargeable' : 'included'}</span></div>
+        <div><span class="sub">Vendor</span><div>To be decided at quotation stage</div><span class="sub">Optional at PR</span></div>
+      </section>
+    </div>
+    <aside class="card pad col side-w" style="width:320px;flex-shrink:0;gap:14px" aria-label="Approval">
+      <h2 class="h2">Approval</h2>
+      <div class="banner info">Value band ${bd.label} · ${bd.route}</div>
+      ${[['Site Manager, Dhulagarh','Approved · 22 Sep, 10:42','done'],['Functional Head, Engineering', ok ? 'Approved · just now' : rej ? 'Rejected · just now' : 'Awaiting your decision', ok ? 'done' : 'now']].map((c, i) => `<div style="display:flex;gap:10px"><span class="dot d-${c[2]}" style="width:24px;height:24px;font-size:12px">${c[2] === 'done' ? '✓' : i + 1}</span><div><div class="b">${c[0]}</div><div class="sub">${c[1]}</div></div></div>`).join('')}
+      <div class="field"><label for="pr-remarks">Remarks</label><textarea id="pr-remarks" class="inp" data-in="prRemarks" ${d ? 'disabled' : ''}>${esc(S.prRemarks)}</textarea></div>
+      ${!d ? `<div class="seg"><button type="button" class="btn btn-primary grow" data-act="prDecide" data-arg="a">Approve</button><button type="button" class="btn btn-danger" data-act="prDecide" data-arg="r">Reject</button></div>` : ''}
+      ${ok ? `<p class="note t-ok" style="margin:0">Approved-PR PDF generated and emailed. The PR is now locked against edits.</p><a class="btn btn-primary" href="#quotes">Request vendor quotations</a>` : ''}
+      ${rej ? `<p class="note t-bad" style="margin:0">Rejected. This PR is closed; the requester raises a new one.</p><button type="button" class="btn" data-act="prReset">Reset demo</button>` : ''}
+      <span class="sub" style="margin-top:auto">You cannot approve a PR you raised. Checked by user ID.</span>
+    </aside>
+  </div>`;
+};
+
+SCREENS.quotes = () => {
+  const s = S.quotes[S.quoteSel], L = landed(s);
+  return head('Procurement / Vendor quotations / RFQ for PR-Dhulagarh-Sep2026/0031', 'Vendor quotations', '', `${chip('3 of 3 minimum received', 'ok')}<a class="btn btn-primary" href="#compare">Compare quotations</a>`) +
+  `<div class="grid g4">${S.quotes.map((v, i) => `<button type="button" class="pick" data-act="quoteSel" data-arg="${i}" aria-pressed="${i === S.quoteSel}"><span style="display:flex;justify-content:space-between;width:100%;gap:8px"><b>${v.name}</b>${chip('Received', 'ok')}</span><span class="sub">Ref ${v.ref} · valid to ${v.valid}</span><span>Quoted total <b class="mono">₹ ${f(landed(v).total)}</b></span></button>`).join('')}
+    <button type="button" class="pick" style="border-style:dashed;align-items:center;justify-content:center" data-act="toast" data-arg="A fourth quotation can be added here">+ Add quotation</button></div>
+  <section class="card" aria-label="Quotation detail">
+    <div class="card-h"><div><h2>${s.name}</h2><span class="sub">Quotation ${s.ref} · dated ${s.date} · valid until ${s.valid}</span></div>${chip(s.file, 'neutral')}</div>
+    ${table('1.6fr 60px 130px 60px 100px 110px 140px', [['Item'],['Qty',1],['Unit rate ₹',1],['GST',1],['Lead time',1],['Make'],['Line ₹ incl. GST',1]], PR_LINES.map((l, i) => [
+      `<div class="b">${l[0]}</div>`, `<div class="r mono">${quoteQty[i]}</div>`,
+      `<div class="r"><label for="qr-${i}" class="sr">Unit rate for ${l[0]}</label><input id="qr-${i}" class="inp-sm" inputmode="numeric" data-in="qRate" data-i="${i}" value="${s.rates[i]}"></div>`,
+      `<div class="r mono">18%</div>`, `<div class="r">${s.lead[i]}</div>`, `<div class="note">${s.make[i]}</div>`, `<div class="r mono b">${f(Math.round(L.lines[i] * 1.18))}</div>`]),
+      `<div class="tr tfoot" style="grid-template-columns:repeat(4,1fr)"><div class="field"><label for="qf">Freight ₹</label><input id="qf" class="inp-sm" style="text-align:left;max-width:140px" inputmode="numeric" data-in="qFreight" value="${s.freight}"></div><div><span class="sub">Payment terms</span><div>${s.terms}</div></div><div><span class="sub">Warranty</span><div>${s.warranty}</div></div><div><span class="sub">Quoted total incl. GST + freight</span><div class="mono b" style="font-size:15px">₹ ${f(L.total)}</div></div></div>`)}
+  </section>
+  <div class="grid g2"><div class="card pad note">Vendors shortlisted from Vendor Master by category <b>Refrigeration spares</b> and site <b>Dhulagarh</b>. Only approved, unblocked vendors appear.</div><div class="card pad note">Change a rate above and the comparison statement re-ranks the vendors.</div></div>`;
+};
+
+SCREENS.compare = () => {
+  const Ls = S.quotes.map(landed), order = ranks(), low = order[0], aw = awardIdx();
+  const rank = i => 'L' + (order.indexOf(i) + 1);
+  const row = (label, vals, bold) => { const m = Math.min(...vals); return `<div class="tr" style="grid-template-columns:1.4fr repeat(3,1fr);${bold ? 'background:var(--surface-2)' : ''}"><div class="${bold ? 'b' : ''}">${label}</div>${vals.map(v => `<div class="r mono ${bold ? 'b' : ''} ${v === m && label !== 'Sub-total' && label !== 'GST 18%' && label !== 'Freight' ? 't-ok' : ''}">${f(v)}</div>`).join('')}</div>`; };
+  const variance = Ls[aw].total - Ls[low].total;
+  return head('Procurement / Quote comparison / PR-Dhulagarh-Sep2026/0031', 'Comparison statement', '', `<button type="button" class="btn" data-act="toast" data-arg="Comparison statement PDF generated">Download statement PDF</button>`) +
+  `<section class="card tbl" aria-label="Comparison matrix">
+    <div class="tr th" style="grid-template-columns:1.4fr repeat(3,1fr)"><div>Landed cost, ₹</div>${S.quotes.map((v, i) => `<div style="${i === aw ? 'color:var(--accent-text)' : ''}"><span style="display:flex;justify-content:space-between;gap:6px;font-size:13px;letter-spacing:0"><b style="color:var(--ink)">${v.short}</b>${chip(rank(i), i === low ? 'ok' : 'neutral')}</span><span class="mono" style="letter-spacing:0">${v.ref}</span></div>`).join('')}</div>
+    ${row('Evaporator coil 22 kW × 1', Ls.map(l => l.lines[0]))}${row('Scroll compressor 15 HP × 2', Ls.map(l => l.lines[1]))}${row('Refrigerant R-404A × 2', Ls.map(l => l.lines[2]))}
+    ${row('Sub-total', Ls.map(l => l.sub))}${row('GST 18%', Ls.map(l => l.gst))}${row('Freight', S.quotes.map(v => Number(v.freight) || 0))}${row('Landed cost', Ls.map(l => l.total), true)}
+  </section>
+  <div class="row">
+    <section class="card pad grow col" style="gap:12px" aria-label="Award">
+      <h2 class="h2">Award decision</h2>
+      <div class="seg" role="radiogroup" aria-label="Awarded vendor">${S.quotes.map((v, i) => `<button type="button" class="btn" role="radio" aria-checked="${i === aw}" data-act="award" data-arg="${i}">${v.short} · ${rank(i)}</button>`).join('')}</div>
+      ${aw !== low ? `<div class="banner warn" style="flex-direction:column"><b>Not the lowest quote — ₹ ${f(variance)} above L1. Justification and one extra approval level are required.</b>
+        <div class="field"><label for="j-code" style="color:inherit">Reason code</label><select id="j-code" class="inp"><option>Quality history — lower QC rejection rate</option><option>Delivery reliability</option><option>Longer warranty</option><option>Technical compliance</option></select></div>
+        <div class="field"><label for="j-text" style="color:inherit">Remark (required)</label><textarea id="j-text" class="inp" style="min-height:64px" data-in="justification" aria-invalid="${!S.justification.trim()}">${esc(S.justification)}</textarea></div>
+        <span>Routes to Head of Supply Chain before the PO can be issued.</span></div>` : `<div class="banner ok"><b>Lowest landed cost selected — no additional approval needed.</b></div>`}
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><span class="note">Losing quotations are archived against the PR, not deleted.</span><button type="button" class="btn btn-primary" data-act="awardGo" ${aw !== low && !S.justification.trim() ? 'disabled' : ''}>Award and create PO</button></div>
+    </section>
+    <section class="card pad col side-w" style="width:380px;flex-shrink:0;gap:8px" aria-label="Vendor scorecard">
+      <h2 class="h2">Vendor scorecard · last 12 months</h2><span class="sub">Computed from GRN, QC and return records</span>
+      ${[['', 'Frost.', 'Arctic', 'Polar'], ['QC rejection rate','1.2%','6.8%','2.4%'], ['On-time delivery','94%','71%','88%'], ['Returns raised','1','6','2'], ['Warranty offered','18 m','12 m','24 m'], ['Longest lead time','14 d','12 d','15 d']].map((r, i) => `<div style="display:grid;grid-template-columns:1fr 64px 64px 64px;gap:8px;padding:6px 0;${i ? 'border-top:1px solid var(--line-2)' : 'font-size:11px;color:var(--muted)'}"><span>${r[0]}</span><span class="r mono">${r[1]}</span><span class="r mono">${r[2]}</span><span class="r mono">${r[3]}</span></div>`).join('')}
+    </section>
+  </div>`;
+};
+
+SCREENS.po = () => {
+  const vi = S.awarded === null ? awardIdx() : S.awarded, v = S.quotes[vi], L = landed(v);
+  const checks = [['Vendor approved, active, not blocked', true], ['PAN and GSTIN valid in Vendor Master', true], ['Quantities within approved PR', true], ['Rates match awarded quotation', true], ['First PO against this PR', true], ['Tally PO reference entered', !!S.tallyRef.trim()]];
+  return head('Procurement / Purchase orders / New from award', 'Purchase order', ` <span class="docno">PO-Dhulagarh-Sep2026/0019</span> ${chip(S.poIssued ? 'PO_CREATED' : 'Draft', S.poIssued ? 'ok' : 'warn')}`) +
+  `<div class="row">
+    <article class="card doc grow" aria-label="PO preview">
+      <div class="doc-head"><div><div style="font-size:20px;font-weight:700">Crystal Group</div><div class="sub">CRPL Infra Pvt Ltd · Dhulagarh warehouse, Gate 2</div><div class="sub">GSTIN [SITE GSTIN]</div></div>
+        <div class="r"><div style="font-size:18px;font-weight:700;letter-spacing:.05em">PURCHASE ORDER</div><div class="mono">PO-Dhulagarh-Sep2026/0019</div><div class="sub">Date 26 Sep 2026 · Tally ref ${S.tallyRef ? esc(S.tallyRef) : '[TALLY PO NO.]'}</div></div></div>
+      <div class="grid g3" style="font-size:13px">
+        <div><span class="sub">Vendor</span><div class="b">${v.name}</div><div class="note">PAN [PAN] · GSTIN [GSTIN]</div><div class="note">Quotation ${v.ref}</div></div>
+        <div><span class="sub">Deliver to</span><div class="b">Dhulagarh warehouse</div><div class="note">Gate 2 · Stores</div><div class="note">By 06 Oct 2026</div></div>
+        <div><span class="sub">References</span><div>PR-Dhulagarh-Sep2026/0031</div><div>MR-Dhulagarh-Sep2026/0047</div><div>Budget [BUDGET CODE]</div></div>
+      </div>
+      ${table('40px 1.6fr 60px 120px 60px 130px', [['#'],['Description'],['Qty',1],['Rate ₹',1],['GST',1],['Amount ₹',1]], PR_LINES.map((l, i) => [`<div class="t-muted">${i + 1}</div>`, `<div><b>${l[0]}</b><div class="sub">${v.make[i]}</div></div>`, `<div class="r mono">${quoteQty[i]}</div>`, `<div class="r mono">${f(v.rates[i])}</div>`, `<div class="r mono">18%</div>`, `<div class="r mono">${f(L.lines[i])}</div>`]),
+        `<div class="tr tfoot" style="grid-template-columns:1fr auto;background:transparent"><span></span><span class="col" style="gap:4px;align-items:flex-end"><span>Sub-total <b class="mono">${f(L.sub)}</b></span><span>GST 18% <b class="mono">${f(L.gst)}</b></span><span>Freight <b class="mono">${f(v.freight)}</b></span><span style="font-size:15px;border-top:1px solid var(--ink);padding-top:6px">Total ₹ <b class="mono">${f(L.total)}</b></span></span></div>`)}
+      <div class="grid g2 note" style="border-top:1px solid var(--line-2);padding-top:12px;font-size:12px"><div><b>Payment</b> · ${v.terms}. Invoice released only after three-way match against the accepted quantity.</div><div><b>Receipt</b> · Goods pass QA/QC at gate inward. Rejected quantity is returned under a Purchase Return Note and recovered by debit note.</div></div>
+    </article>
+    <aside class="col side-w" style="width:330px;flex-shrink:0" aria-label="Issue PO">
+      <section class="card pad col" style="gap:10px"><h2 class="h2">Order details</h2>
+        <div class="field"><label for="po-tally">Tally PO reference (required, unique)</label><input id="po-tally" class="inp mono" placeholder="Paste from Tally" data-in="tallyRef" value="${esc(S.tallyRef)}" ${S.poIssued ? 'disabled' : ''}></div>
+        <div class="field"><label for="po-date">Expected delivery</label><input id="po-date" class="inp" type="date" value="2026-10-06"></div>
+        <div class="field"><label for="po-file">Signed PO (optional) — filed as PO_Dhulagarh_0019</label><input id="po-file" type="file"></div></section>
+      <section class="card pad col" style="gap:8px"><h2 class="h2">Checks before issue</h2>${checks.map(c => `<div style="display:flex;gap:8px;font-size:13px"><span class="${c[1] ? 't-ok' : 't-warn'} b" aria-hidden="true">${c[1] ? '✓' : '!'}</span><span>${c[0]}${c[1] ? '' : ' — not yet'}</span></div>`).join('')}</section>
+      ${S.poIssued ? `<div class="banner ok">PO issued and emailed to ${v.name}.</div><a class="btn btn-primary" href="#gate">Go to gate inward</a>` : `<button type="button" class="btn btn-primary" data-act="poIssue" ${S.tallyRef.trim() ? '' : 'disabled'}>Issue PO and email vendor</button>`}
+      <span class="sub">Vendor, Site Receiver and Site Manager are notified with the PO PDF attached.</span>
+    </aside>
+  </div>`;
+};
+
+SCREENS.gate = () => {
+  const br = tempBreach();
+  return head('Receiving / Gate inward / New entry', 'Gate inward', ` <span class="docno">GI-Dhulagarh-Sep2026/0058</span> ${chip(S.gateRejected ? 'INWARD_REJECTED' : S.gateSubmitted ? 'QC_PENDING' : 'INWARD_RECEIVED', S.gateRejected ? 'bad' : 'info')}`, `<span class="note">Arrival logged <b class="mono">26 Sep 2026 · 09:14</b> (server time)</span>`) +
+  `<div class="row">
+    <aside class="card side-w" style="width:300px;flex-shrink:0;display:flex;flex-direction:column" aria-label="Expected deliveries">
+      <div class="card-h"><h2>Expected at Dhulagarh</h2></div>
+      ${[['PO-…/0014','Northern Polymers & Packaging','4 lines · selected','Due today','t-ok',true],['PO-…/0011','Kaveri Insulation','Balance of partial delivery','2 days late','t-bad'],['PO-…/0019','Arctic Cool Engineers', S.poIssued ? '3 lines · issued today' : '3 lines · refrigeration spares','06 Oct','t-muted'],['PO-…/0017','Sentinel Instruments','Data loggers','09 Oct','t-muted']].map(e => `<div class="list-btn" style="cursor:default;${e[5] ? 'background:var(--accent-soft)' : ''}"><span class="top"><span class="mono b" style="font-size:12px">${e[0]}</span><span class="sub b ${e[4]}">${e[3]}</span></span><span class="b">${e[1]}</span><span class="sub">${e[2]}</span></div>`).join('')}
+      <div class="sub" style="margin-top:auto;padding:12px 16px">Only POs with outstanding quantity are listed.</div>
+    </aside>
+    <div class="grow col">
+      <section class="card pad grid g4" aria-label="Vehicle and documents">
+        <div style="grid-column:1/-1;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><h2 class="h2">PO-Dhulagarh-Sep2026/0014 · Northern Polymers &amp; Packaging</h2><span class="sub">Partial deliveries allowed</span></div>
+        <div class="field"><label for="gi-veh">Vehicle number</label><input id="gi-veh" class="inp mono" value="WB 11 C 4821"></div>
+        <div class="field"><label for="gi-lr">Transporter / LR no.</label><input id="gi-lr" class="inp" placeholder="[LR NUMBER]"></div>
+        <div class="field"><label for="gi-seal">Seal number</label><input id="gi-seal" class="inp" placeholder="[SEAL NO.]"></div>
+        <div class="field"><label for="gi-dc">Delivery challan no.</label><input id="gi-dc" class="inp mono" value="NPP/DC/5521"></div>
+        <div class="seg" style="grid-column:1/-1">${chip('Challan uploaded · NPP_DC_5521.pdf', 'ok')}${chip('Invoice · can follow later', 'neutral')}</div>
+      </section>
+      <section class="card pad" style="display:flex;gap:18px;align-items:center;flex-wrap:wrap" aria-label="Cold chain">
+        <div style="width:220px"><h2 class="h2">Cold-chain check</h2><span class="sub">Required: line 4 is a frozen item class</span></div>
+        <div><span class="sub">Reefer set point</span><div class="mono b" style="font-size:18px">−18.0 °C</div></div>
+        <div class="field" style="width:140px"><label for="gi-temp">Actual at opening °C</label><input id="gi-temp" class="inp mono" data-in="gateTemp" value="${esc(S.gateTemp)}" aria-invalid="${br}"></div>
+        <div><span class="sub">Tolerance</span><div class="mono b" style="font-size:18px">−20 to −15 °C</div></div>
+        <div class="banner ${br ? 'bad' : 'ok'}" style="margin-left:auto;max-width:280px"><b>${br ? 'Out of tolerance — every line goes to conditional hold' : 'Within tolerance · data logger file attached'}</b></div>
+      </section>
+      <section class="card" aria-label="Delivered quantities">
+        ${table('1.6fr 110px 110px 120px 1.2fr', [['Item'],['Outstanding',1],['Per challan',1],['Counted',1],['Gate note']], RCV.map((l, i) => { const c = Number(S.gateCounts[i]) || 0; const n = c < l.dc ? [`Short by ${l.dc - c} against challan`, 't-bad'] : c > l.dc ? [`Excess ${c - l.dc} — held, not accepted`, 't-warn'] : i === 3 ? ['Cold-chain item', 't-info'] : ['Matches challan', 't-ok'];
+          return [`<div><b>${l.name}</b> <span class="t-muted">· ${l.uom}</span></div>`, `<div class="r mono">${f(l.out)}</div>`, `<div class="r mono">${f(l.dc)}</div>`, `<div class="r"><label for="cnt-${i}" class="sr">Counted quantity for ${l.name}</label><input id="cnt-${i}" class="inp-sm" inputmode="numeric" data-in="gateCount" data-i="${i}" value="${S.gateCounts[i]}"></div>`, `<div class="sub b ${n[1]}">${n[0]}</div>`]; }))}
+      </section>
+      <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap"><button type="button" class="btn btn-danger" data-act="gateReject">Reject at gate</button><button type="button" class="btn btn-primary" data-act="gateSubmit" ${S.gateRejected ? 'disabled' : ''}>Send to QA/QC inspection</button></div>
+    </div>
+  </div>`;
+};
+
+SCREENS.qc = () => {
+  const allOk = qcAllBalanced(), hq = holdQty();
+  return head('Receiving / QA/QC inspection / GI-Dhulagarh-Sep2026/0058', 'QA/QC inspection', ` <span class="docno">QC-Dhulagarh-Sep2026/0055</span> ${chip(S.qcSubmitted ? 'QC_COMPLETED' : 'QC_IN_PROGRESS', S.qcSubmitted ? 'ok' : 'warn')}`, `<span class="note t-ok b">SLA 48 h ambient · 4 h cold-chain — 1 h 12 m elapsed</span>`) +
+  (tempBreach() ? `<div class="banner bad"><b>Temperature breach recorded at gate inward. Put every line on conditional hold for a Site Manager decision.</b></div>` : '') +
+  `<section class="card" aria-label="Line verdicts">
+    ${table('1.4fr 80px 100px 90px 100px 1.3fr 110px', [['Item'],['Delivered',1],['Accepted',1],['Hold',1],['Rejected',1],['Reason'],['Sum check']], RCV.map((l, i) => { const q = S.qc[i], bal = qcBalanced(i), needR = q.hold + q.rej > 0;
+      return [`<div><b>${l.name}</b><div class="sub">${l.cls}</div></div>`, `<div class="r mono">${f(qcDelivered(i))}</div>`,
+        ...['acc','hold','rej'].map((k, j) => `<div class="r"><label for="qc-${k}-${i}" class="sr">${['Accepted','Hold','Rejected'][j]} for ${l.name}</label><input id="qc-${k}-${i}" class="inp-sm" inputmode="numeric" data-in="qc" data-i="${i}" data-k="${k}" value="${q[k]}" aria-invalid="${!bal}" ${S.qcSubmitted ? 'disabled' : ''} style="color:var(--${['ok','warn','bad'][j]})"></div>`),
+        `<div>${needR ? `<label for="qc-r-${i}" class="sr">Reason for ${l.name}</label><select id="qc-r-${i}" class="inp" style="height:36px" data-in="qcReason" data-i="${i}">${l.reasons.map(r => `<option ${r === q.reason ? 'selected' : ''}>${r}</option>`).join('')}</select>` : `<span class="t-muted">${i === 2 && shortQty() ? `Short ${shortQty()} recorded at gate` : '—'}</span>`}</div>`,
+        `<div>${bal ? chip('Balanced', 'ok') : chip(`Off by ${Math.abs(qcDelivered(i) - q.acc - q.hold - q.rej)}`, 'bad')}</div>`]; }))}
+  </section>
+  <div class="row">
+    <section class="card pad grow col" style="gap:12px" aria-label="Evidence">
+      <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><h2 class="h2">Evidence · HDPE pallet — ${S.qc[0].rej} rejected</h2><span class="sub">At least one photo required for any hold or rejection</span></div>
+      <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))"><div class="ph">[Photo · cracked deck boards, stack A]</div><div class="ph">[Photo · stack B close-up]</div><div class="ph">[Photo · batch label]</div><button type="button" class="ph" style="border:1px dashed var(--input);background:var(--surface);cursor:pointer;font-weight:600" data-act="toast" data-arg="Camera opens here on a phone or tablet">+ Capture photo</button></div>
+      <div class="grid g2" style="gap:6px 18px;font-size:13px">${[['Dimensions within spec','Pass'],['Load rating marked','Pass'],['Deck boards intact',`Fail · ${S.qc[0].rej} Nos`],['Food-grade certificate','Pass'],['Colour and batch match','Pass'],['Quantity matches challan','Pass']].map(c => `<div style="display:flex;justify-content:space-between;border-bottom:1px solid var(--line-2);padding:6px 0"><span>${c[0]}</span><span class="b ${c[1] === 'Pass' ? 't-ok' : 't-bad'}">${c[1]}</span></div>`).join('')}</div>
+      <span class="sub">Checklist version HDPE-PAL v3 · stamped on the verdict</span>
+    </section>
+    <aside class="col side-w" style="width:350px;flex-shrink:0">
+      <section class="card pad col" style="gap:10px"><h2 class="h2">Conditional hold${hq ? ` · ${hq} units` : ''}</h2>
+        ${hq ? `<p class="note" style="margin:0">PUF panel thickness 102 mm against 100 ± 1 mm. Site Manager decides — accept under concession or reject.</p>
+        <div class="seg"><button type="button" class="btn grow" data-act="hold" data-arg="c" aria-pressed="${S.holdDecision === 'c'}">Accept under concession</button><button type="button" class="btn" data-act="hold" data-arg="r" aria-pressed="${S.holdDecision === 'r'}">Reject</button></div>
+        <span class="note b ${S.holdDecision === 'c' ? 't-ok' : S.holdDecision === 'r' ? 't-bad' : 't-warn'}">${S.holdDecision === 'c' ? `${hq} moves to accepted · concession recorded against your ID` : S.holdDecision === 'r' ? `${hq} moves to rejected · added to the purchase return` : 'Undecided — escalates to Head of Operations after 72 h'}</span>` : '<p class="note" style="margin:0">No quantity on hold.</p>'}
+      </section>
+      <section class="card pad col" style="gap:8px;font-size:13px"><h2 class="h2">Who did what</h2>
+        <div style="display:flex;justify-content:space-between"><span class="t-muted">Gate inward</span><span>Site Receiver · SR</span></div>
+        <div style="display:flex;justify-content:space-between"><span class="t-muted">Inspection</span><span>QA/QC Inspector · QI</span></div>
+        <div style="display:flex;justify-content:space-between"><span class="t-muted">GRN approval</span><span>Site Manager · SM</span></div>
+        <span class="sub t-ok">Three different user IDs — segregation satisfied</span></section>
+      <button type="button" class="btn btn-primary" data-act="qcSubmit" ${allOk && !S.qcSubmitted ? '' : 'disabled'}>${S.qcSubmitted ? 'Verdict submitted' : 'Submit verdict'}</button>
+      <span class="sub">${allOk ? 'Rejected quantity auto-drafts a purchase return. The verdict cannot be edited after submission.' : 'Every line must balance: accepted + hold + rejected = delivered.'}</span>
+      ${S.qcSubmitted ? '<a class="btn" href="#grn">Open the GRN</a>' : ''}
+    </aside>
+  </div>`;
+};
+
+SCREENS.grn = () => {
+  const ok = S.grnApproved, needHold = anyHold() && !S.holdDecision, rl = rtvLines(), sq = shortQty();
+  const code = ok ? ['GRN_APPROVED','ok'] : S.grnFlagged ? ['GRN_FLAGGED','warn'] : ['GRN_DRAFT','warn'];
+  return head('Receiving / Goods receipt / from QC-Dhulagarh-Sep2026/0055', 'Goods receipt note', ` <span class="docno">GRN-Dhulagarh-Sep2026/0022</span> ${chip(code[0], code[1])}`, `<span class="note">PO-Dhulagarh-Sep2026/0014 · Northern Polymers &amp; Packaging</span>`) +
+  `<div class="grid g4">
+    <div class="card kpi"><span class="k">Posted to GRN</span><span class="b">4 lines · accepted qty only</span><span class="sub">Rejected quantity never appears here</span></div>
+    <a class="card kpi" href="#returns" style="text-decoration:none;color:inherit"><span class="k t-bad">Rejected → return</span><span class="b">${rl.length ? rl.map(x => `${x.qty} ${RCV[x.i].uom}`).join(' + ') + ' · RTV-…/0006' : 'Nothing rejected'}</span><span class="sub" style="color:var(--accent-text)">Open purchase return</span></a>
+    <a class="card kpi" href="#damage" style="text-decoration:none;color:inherit"><span class="k t-warn">Short supplied</span><span class="b">${sq ? `${sq} data loggers missing` : 'No shortfall'}</span><span class="sub" style="color:var(--accent-text)">Open shortfall case</span></a>
+    <div class="card kpi"><span class="k t-info">Concession</span><span class="b">${S.holdDecision === 'c' ? `${holdQty()} accepted under concession` : S.holdDecision === 'r' ? 'Hold rejected' : anyHold() ? 'Hold undecided' : 'None'}</span><span class="sub">Authority: Site Manager</span></div>
+  </div>
+  <section class="card" aria-label="Stock-in preview">
+    <div class="card-h"><h2>Stock-in to Dhulagarh · posts on approval</h2><span class="sub">One stock ledger entry per line · safe to retry</span></div>
+    ${table('1.5fr 90px 90px 90px 110px 1.3fr 150px', [['Item'],['Accepted',1],['Before',1],['After',1],['Status'],['Asset tags'],['Ledger entry']], RCV.map((l, i) => { const a = grnAccepted(i);
+      return [`<div><b>${l.name}</b> <span class="t-muted">· ${l.uom}</span></div>`, `<div class="r mono b t-ok">+${f(a)}</div>`, `<div class="r mono t-muted">${f(l.before)}</div>`, `<div class="r mono b">${f(l.before + a)}</div>`, `<div>${chip('AVAILABLE', 'ok')}</div>`, `<div class="mono sub">${i === 2 && a ? `DL-DHU-0419 … ${419 + a - 1}` : '—'}</div>`, `<div class="mono sub ${ok ? 't-ok' : ''}">${ok ? 'SL-DHU-10488' + (i + 1) : 'pending'}</div>`]; }))}
+  </section>
+  <div class="row">
+    <section class="card pad grow col" style="gap:12px" aria-label="Three-way match">
+      <h2 class="h2">Handoff to Accounts · three-way match</h2>
+      <div class="grid g3"><div class="box"><span class="sub">Purchase order</span><b>PO-…/0014</b><span class="sub t-ok">Rates and quantities</span></div><div class="box"><span class="sub">This GRN</span><b>Accepted qty</b><span class="sub ${ok ? 't-ok' : 't-warn'}">${ok ? 'Approved' : 'Awaiting approval'}</span></div><div class="box"><span class="sub">Vendor invoice</span><b>NPP/INV/2291</b><span class="sub t-warn">Bills 25 loggers + 500 pallets — excess held</span></div></div>
+      <p class="note" style="margin:0">Accounts can release payment only for accepted quantity. Returned and missing quantity is held against the invoice until the debit note or balance delivery settles it.</p>
+    </section>
+    <aside class="card pad col side-w" style="width:330px;flex-shrink:0;gap:12px" aria-label="GRN approval">
+      <h2 class="h2">Approval</h2><span class="note">Approver cannot be the receiver or the inspector on this record.</span>
+      ${ok ? `<div class="banner ok"><b>Approved · 4 ledger entries posted</b></div><span class="note">PO status: <b>PO_PARTIALLY_RECEIVED</b> — ${sq} loggers and ${rl.reduce((t, x) => t + x.qty, 0)} rejected units outstanding.</span><span class="note">Warehouse stock and the stock ledger now include this receipt.</span><div class="seg"><a class="btn" href="#main">View stock</a><a class="btn" href="#ledger">View ledger</a></div>`
+        : `${needHold ? '<div class="banner warn"><b>Decide the conditional hold on the QC screen first.</b></div>' : ''}<button type="button" class="btn btn-primary" data-act="grnApprove" ${needHold ? 'disabled' : ''}>Approve GRN and post stock</button>
+        <div class="seg"><button type="button" class="btn btn-warn grow" data-act="grnFlag">${S.grnFlagged ? 'Flagged' : 'Flag'}</button><button type="button" class="btn btn-danger grow" data-act="toast" data-arg="Rejecting needs a reason — nothing posts to stock">Reject</button></div>
+        <span class="sub">Flagged GRNs are held and do not count toward PO received quantity.</span>`}
+    </aside>
+  </div>`;
+};
+
+SCREENS.damage = () => {
+  const sq = shortQty();
+  const cases = [['DMG-…/0005','Evaporator coil 22 kW · 1','Damaged in storage', S.dmgDec === 1 && S.rtvStage['0005'] >= 1 ? 'Return' : 'Hold','warn','damage'],['SHT-…/0003',`Temperature data logger · ${sq}`,'Missing at receipt · GRN-…/0022', S.shortConfirmed ? 'Decided' : 'Open', S.shortConfirmed ? 'ok' : 'info','short'],['DMG-…/0004','PUF panel 100 mm · 12 sqm','Water ingress · write-off pending approval','Approval','bad','damage'],['DMG-…/0002','HDPE pallet · 34','Handling damage · written off','Closed','neutral','damage']];
+  const D = [['Internal repair','Status → UNDER_REPAIR','Service request raised against this case; asset returns to AVAILABLE after QA verifies the repair.','Raise repair request'],['Vendor warranty claim','In warranty · return to vendor','A purchase return is drafted from this case. Stock is reversed from the source GRN on dispatch.','Open purchase return'],['Write-off','₹1.82 lakh · Head of Operations band','Band ₹25,000–2 lakh: Warehouse Lead and Head of Operations approve. Loss is posted to Accounts with this case reference.','Send for write-off approval']];
+  const kind = cases[S.dmgSel][5];
+  const damageDetail = `<section class="card pad grow col" style="gap:14px" aria-label="Damage case">
+      <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap"><div><div style="font-size:18px;font-weight:700">Evaporator coil 22 kW · 1 Nos</div><div class="note t-muted">DMG-Dhulagarh-Sep2026/0005 · asset tag EVP-DHU-0112 · reported 21 Sep by Storekeeper</div></div>${chip('DAMAGED_HOLD · quarantined', 'warn')}</div>
+      <div class="grid g3"><div class="ph">[Photo · bent fins, lower header]</div><div class="ph">[Photo · packaging at rack]</div><div class="col" style="gap:6px;font-size:13px">${[['Cause','Handling · rack shift'],['Location','Rack C-04'],['Book value','₹ 1,82,000'],['Stock check','Excluded from availability']].map(x => `<div style="display:flex;justify-content:space-between;gap:8px"><span class="t-muted">${x[0]}</span><span>${x[1]}</span></div>`).join('')}</div></div>
+      <div class="grid g2"><div class="box"><span class="sub">Warranty — from source GRN-Dhulagarh-Mar2026/0009</span><b class="t-ok">In warranty until 14 Mar 2027</b><span class="sub">Vendor: Frostline Refrigeration · 12 months</span></div><div class="box"><span class="sub">Joint inspection</span><b>Site Manager ✓ · QA/QC Inspector ✓</b><span class="sub">Neither is the reporter · 22 Sep</span></div></div>
+      <h2 class="h2">Decision</h2>
+      <div class="grid g3" role="radiogroup" aria-label="Decision">${D.map((d, i) => `<button type="button" class="pick sel-solid" style="min-height:72px" role="radio" aria-checked="${i === S.dmgDec}" data-act="dmgDec" data-arg="${i}"><b>${d[0]}</b><span style="font-size:12px;opacity:.85">${d[1]}</span></button>`).join('')}</div>
+      <p class="note" style="margin:0">${D[S.dmgDec][2]}</p>
+      <div style="display:flex;justify-content:flex-end"><button type="button" class="btn btn-primary" data-act="dmgGo">${D[S.dmgDec][3]}</button></div>
+    </section>`;
+  const shortDetail = `<section class="card pad grow col" style="gap:14px" aria-label="Shortfall case">
+      <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap"><div><div style="font-size:18px;font-weight:700">Temperature data logger · ${sq} Nos missing</div><div class="note t-muted">SHT-Dhulagarh-Sep2026/0003 · raised at gate inward GI-…/0058 · Northern Polymers &amp; Packaging</div></div>${chip(S.shortConfirmed ? (S.shortDec === 'await' ? 'Awaiting balance' : 'Short-closed') : 'Awaiting decision', S.shortConfirmed ? 'ok' : 'info')}</div>
+      <div class="grid g4"><div class="tile"><span class="sub">Ordered (PO)</span><b class="mono" style="font-size:20px">25</b></div><div class="tile"><span class="sub">Per challan</span><b class="mono" style="font-size:20px">25</b></div><div class="tile"><span class="sub">Counted and accepted</span><b class="mono t-ok" style="font-size:20px">${25 - sq}</b></div><div class="tile" style="background:var(--bad-bg);color:var(--bad)"><span class="sub" style="color:inherit">Missing</span><b class="mono" style="font-size:20px">${sq}</b></div></div>
+      <p class="note" style="margin:0">Missing quantity never entered stock, so there is nothing to reverse. The vendor invoice bills 25; payment for ${sq} is held until this case closes.</p>
+      <div class="grid g2" role="radiogroup" aria-label="Shortfall decision">
+        <button type="button" class="pick" role="radio" aria-checked="${S.shortDec === 'await'}" data-act="shortDec" data-arg="await" ${S.shortConfirmed ? 'disabled' : ''}><b>Await balance delivery</b><span class="note">PO stays PO_PARTIALLY_RECEIVED. The next delivery gets its own gate inward, QC and GRN. Chased on the daily digest after 7 days.</span></button>
+        <button type="button" class="pick" role="radio" aria-checked="${S.shortDec === 'close'}" data-act="shortDec" data-arg="close" ${S.shortConfirmed ? 'disabled' : ''}><b>Short-close the balance</b><span class="note">Line closed at ${25 - sq}. If the invoice bills 25, a debit note for ${sq} is raised automatically and matched against the vendor credit note.</span></button>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><span class="sub">Vendor was notified at gate inward with the counted quantity.</span><button type="button" class="btn btn-primary" data-act="shortGo" ${S.shortConfirmed || !sq ? 'disabled' : ''}>${S.shortConfirmed ? 'Decision recorded' : 'Confirm decision'}</button></div>
+    </section>`;
+  return head('Inventory / Damaged &amp; missing', 'Damaged and missing stock', '', `<button type="button" class="btn btn-primary" data-act="toast" data-arg="New damage report form opens here">Report damage</button>`) +
+  `<div class="kpis">${[['Damaged hold', 2, 't-warn'], ['Missing at receipt', sq ? 1 : 0, 't-info'], ['Under warranty', 1, 't-ok'], ['Written off this month', '₹ 73,100', 't-bad']].map(k => `<div class="card kpi"><span class="k">${k[0]}</span><span class="v ${k[2]}" style="font-size:22px">${k[1]}</span></div>`).join('')}</div>
+  <div class="row">
+    <aside class="card side-w" style="width:340px;flex-shrink:0;overflow:hidden" aria-label="Open cases"><div class="card-h"><h2>Cases · Dhulagarh</h2></div>
+      ${cases.map((c, i) => `<button type="button" class="list-btn" data-act="dmgSel" data-arg="${i}" aria-pressed="${i === S.dmgSel}"><span class="top"><span class="mono b" style="font-size:12px">${c[0]}</span>${chip(c[3], c[4])}</span><b>${c[1]}</b><span class="sub">${c[2]}</span></button>`).join('')}
+    </aside>
+    ${kind === 'short' ? shortDetail : damageDetail}
+  </div>`;
+};
+
+SCREENS.returns = () => {
+  const stages = ['Draft','Approved','Dispatched','Acknowledged','Closed'], codes = ['RTV_DRAFT','RTV_APPROVED','RTV_DISPATCHED','RTV_ACKNOWLEDGED','RTV_CLOSED'], acts = ['Approve return','Dispatch goods','Record vendor acknowledgement','Close return','Closed'];
+  const rl = rtvLines();
+  const all = [['0006', rl.map(x => `${RCV[x.i].name.split(' ')[0]} ${x.qty}`).join(' + ') || 'No rejections', 'QC rejection', S.rtvStage['0006']], ['0005','Evaporator coil · 1','Warranty damage', S.rtvStage['0005']], ['0003','Gel ice pack · 150','Temperature breach',2], ['0002','Data logger · 5','Calibration fail',3], ['0001','PUF panel · 18 sqm','QC rejection',4]];
+  const sel = S.rtvSel, s = S.rtvStage[sel];
+  let d;
+  if (sel === '0006') {
+    const tx = rtvTaxable();
+    d = { title: `${rl.map(x => `${RCV[x.i].name} · ${x.qty} ${RCV[x.i].uom}`).join(', ') || 'No rejected quantity'}`, sub: 'RTV-Dhulagarh-Sep2026/0006 · Northern Polymers & Packaging · auto-drafted from QC', source: 'QC rejection', sref: 'QC-…/0055 · with photos', basis: 'Credit', bnote: 'No replacement requested', value: f(Math.round(tx * 1.18)), vnote: rl.map(x => `${x.qty} × ₹${f(RCV[x.i].rate)}`).join(' + ') + ' + 18% GST', stock: 'None — rejected quantity never entered stock, so nothing is reversed.', ledger: 'no entry',
+      dnIntro: s >= 2 ? 'Pending debit note created on dispatch, linked to the return, PO, GRN and vendor.' : 'A debit note is created automatically when the goods are dispatched.',
+      dn: [['Debit note created', s >= 2 ? 'DN-Dhulagarh-Sep2026/0004 · DEBIT_NOTE_PENDING' : 'On dispatch', s >= 2], ['Issued to vendor', 'GST mirrors invoice NPP/INV/2291 · posted to Tally', S.dnStage['0004'] >= 1 && s >= 2], ['Vendor credit note matched', 'Variance above 2% is flagged', S.dnStage['0004'] >= 2 && s >= 2], ['Reconciled', 'Vendor ledger updated · return closes', S.dnStage['0004'] >= 4]] };
+  } else {
+    d = { title: 'Evaporator coil 22 kW · 1 Nos', sub: 'RTV-Dhulagarh-Sep2026/0005 · Frostline Refrigeration · from damage case DMG-…/0005', source: 'Warehouse damage', sref: 'DMG-…/0005 · in warranty to 14 Mar 2027', basis: 'Free-of-cost replacement', bnote: 'Warranty claim · replacement re-enters gate inward', value: f(214760), vnote: 'At source GRN rate · held for recovery', stock: s >= 2 ? 'Reversed on dispatch against the original receipt; the replacement will post as a new GRN.' : 'Will reverse −1 on dispatch, referencing GRN-Dhulagarh-Mar2026/0009.', ledger: s >= 2 ? 'SL-DHU-104902 · −1' : 'on dispatch',
+      dnIntro: 'No debit note while a free replacement is expected. If it does not arrive within 30 days, the return converts to a credit claim.',
+      dn: [['Replacement awaited', 'Linked to PO of the original supply', s >= 2], ['Replacement received', 'Gate inward → QC → GRN, flagged as replacement', s >= 3], ['Return closed', 'Or converted to debit note after 30 days', s >= 4]] };
+  }
+  return head('Receiving / Purchase returns', 'Purchase returns', '', `<span class="note">Dispatch due within 7 days of rejection · vendor acknowledgement within 15</span>`) +
+  `<div class="kanban">${stages.map((n, si) => { const cards = all.filter(c => c[3] === si); return `<div class="card kcol"><div style="display:flex;justify-content:space-between;padding:2px 4px"><span class="sub b" style="color:var(--ink-2)">${n}</span><span class="mono sub">${cards.length}</span></div>${cards.map(c => { const can = c[0] === '0006' || c[0] === '0005'; return `<button type="button" class="kcard" ${can ? `data-act="rtvSel" data-arg="${c[0]}"` : 'disabled'} aria-pressed="${c[0] === sel}"><span class="mono b" style="font-size:12px">RTV-…/${c[0]}</span><b style="font-size:13px">${c[1]}</b><span class="sub">${c[2]}</span></button>`; }).join('')}</div>`; }).join('')}</div>
+  <div class="row">
+    <section class="card pad grow col" style="gap:14px" aria-label="Return detail">
+      <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap"><div><div style="font-size:18px;font-weight:700">${d.title}</div><div class="note t-muted">${d.sub}</div></div>${chip(codes[s], s >= 4 ? 'ok' : 'info')}</div>
+      ${bars(stages, s)}
+      <div class="grid g3" style="font-size:13px"><div class="tile"><span class="sub">Source</span><b>${d.source}</b><span class="sub">${d.sref}</span></div><div class="tile"><span class="sub">Return basis</span><b>${d.basis}</b><span class="sub">${d.bnote}</span></div><div class="tile"><span class="sub">Return value incl. GST</span><b class="mono" style="font-size:16px">₹ ${d.value}</b><span class="sub">${d.vnote}</span></div></div>
+      <div class="box" style="flex-direction:row;align-items:center;gap:12px;flex-wrap:wrap"><span class="sub" style="width:100px">Stock impact</span><span class="grow note">${d.stock}</span>${chip(d.ledger, 'neutral')}</div>
+      <div class="seg"><button type="button" class="btn" data-act="toast" data-arg="Purchase Return Note PDF generated">Purchase Return Note (PDF)</button><button type="button" class="btn" data-act="toast" data-arg="Return gate pass ready to print">Return gate pass</button><button type="button" class="btn btn-primary" style="margin-left:auto" data-act="rtvAdvance" ${s >= 4 || (sel === '0006' && s >= 3 && S.dnStage['0004'] < 4) || (sel === '0006' && !rl.length) ? 'disabled' : ''}>${sel === '0006' && s === 3 && S.dnStage['0004'] < 4 ? 'Closes when debit note reconciles' : acts[s]}</button></div>
+      <span class="sub">The person who raised a return cannot approve it. Dispatch captures transporter, LR and e-way bill where the value requires one.</span>
+    </section>
+    <aside class="card pad col side-w" style="width:340px;flex-shrink:0;gap:12px" aria-label="Value recovery">
+      <h2 class="h2">Accounts · value recovery</h2><span class="note">${d.dnIntro}</span>
+      ${d.dn.map((n, i) => `<div style="display:flex;gap:10px"><span class="dot d-${n[2] ? 'done' : 'todo'}" style="width:22px;height:22px;font-size:11px">${n[2] ? '✓' : i + 1}</span><div><div class="b" style="font-size:13px">${n[0]}</div><div class="sub">${n[1]}</div></div></div>`).join('')}
+      <div class="tile sub" style="margin-top:auto">Three-way match nets this off: the vendor invoice cannot be released for returned quantity.</div>
+      <a class="btn" href="#notes">Open in debit &amp; credit notes</a>
+    </aside>
+  </div>`;
+};
+
+SCREENS.ledger = () => {
+  const DATA = [
+    { name: 'HDPE pallet 1200 × 1000', open: 874, rows: [['05 Sep','SL-DHU-104702','Issue to operations','bad','ISS-Dhulagarh-Sep2026/0031',0,20,-20,-20,'Storekeeper'],['12 Sep','SL-DHU-104761','Damage quarantine','warn','DMG-Dhulagarh-Sep2026/0002',0,0,-34,0,'Storekeeper'],['18 Sep','SL-DHU-104805','Write-off','bad','DMG-Dhulagarh-Sep2026/0002',0,34,0,-34,'Warehouse Lead']]
+      .concat(S.grnApproved ? [['26 Sep','SL-DHU-104881','GRN receipt','ok','GRN-Dhulagarh-Sep2026/0022', grnAccepted(0), 0, grnAccepted(0), grnAccepted(0), 'Site Manager']] : []) },
+    { name: 'Evaporator coil 22 kW', open: 3, rows: [['08 Sep','SL-DHU-104718','Issue to maintenance','bad','ISS-Dhulagarh-Sep2026/0034',0,1,-1,-1,'Storekeeper'],['14 Sep','SL-DHU-104770','Transfer in','info','TRF-Pune-Sep2026/0003',1,0,1,1,'Site Receiver'],['21 Sep','SL-DHU-104829','Damage quarantine','warn','DMG-Dhulagarh-Sep2026/0005',0,0,-1,0,'Storekeeper']]
+      .concat(S.rtvStage['0005'] >= 2 ? [['27 Sep','SL-DHU-104902','Return reversal','bad','RTV-Dhulagarh-Sep2026/0005 · ref GRN-…Mar2026/0009',0,1,0,-1,'Site Receiver']] : []) }
+  ];
+  const it = DATA[S.ledgerItem];
+  let a = it.open, h = it.open, tin = 0, tout = 0;
+  const rows = [['01 Sep','—',chip('Opening balance','neutral'),'—','','',f(it.open),f(it.open),'System']];
+  it.rows.forEach(r => { a += r[7]; h += r[8]; tin += r[5]; tout += r[6]; rows.push([r[0], r[1], chip(r[2], r[3]), r[4], r[5] ? '+' + f(r[5]) : '', r[6] ? '−' + f(r[6]) : '', f(a), f(h), r[9]]); });
+  const pending = S.ledgerItem === 0 && !S.grnApproved ? 'GRN-Dhulagarh-Sep2026/0022 is awaiting approval — its receipt posts here once approved.' : S.ledgerItem === 1 && S.rtvStage['0005'] < 2 ? 'RTV-…/0005 posts a reversal here when it is dispatched.' : '';
+  return head('Inventory / Stock ledger', 'Stock ledger', '', `<button type="button" class="btn" data-act="toast" data-arg="Ledger exported as CSV">Export CSV</button>`) +
+  `<section class="card pad" style="display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap" aria-label="Filters">
+    <div class="field" style="width:160px"><label for="sl-site">Site</label><select id="sl-site" class="inp"><option>Dhulagarh</option></select></div>
+    <div class="field"><span class="lbl">Item</span><div class="seg" role="radiogroup" aria-label="Item">${DATA.map((d, i) => `<button type="button" class="btn" role="radio" aria-checked="${i === S.ledgerItem}" data-act="ledgerItem" data-arg="${i}">${d.name}</button>`).join('')}</div></div>
+    <div class="field" style="width:170px"><label for="sl-period">Period</label><select id="sl-period" class="inp"><option>01 – 30 Sep 2026</option></select></div>
+  </section>
+  <div class="kpis">${[['Opening', f(it.open), ''], ['Received in', '+' + f(tin), 't-ok'], ['Issued / out', '−' + f(tout), 't-bad'], ['Closing on hand', f(h), ''], ['Closing available', f(a), '']].map(k => `<div class="card kpi"><span class="k">${k[0]}</span><span class="v ${k[2]}" style="font-size:22px${k[0] === 'Closing available' ? ';color:var(--accent-text)' : ''}">${k[1]}</span></div>`).join('')}</div>
+  <section class="card" aria-label="Ledger entries">
+    ${table('90px 130px 170px 1.4fr 70px 70px 90px 90px 110px', [['Date'],['Entry'],['Movement'],['Source document'],['In',1],['Out',1],['Available',1],['On hand',1],['By']], rows.map(r => [`<div class="t-muted">${r[0]}</div>`, `<div class="mono" style="font-size:12px">${r[1]}</div>`, `<div>${r[2]}</div>`, `<div class="mono" style="font-size:12px;color:var(--accent-text)">${r[3]}</div>`, `<div class="r mono b t-ok">${r[4]}</div>`, `<div class="r mono b t-bad">${r[5]}</div>`, `<div class="r mono b">${r[6]}</div>`, `<div class="r mono t-muted">${r[7]}</div>`, `<div class="sub">${r[8]}</div>`]))}
+    ${pending ? `<div class="banner info" style="margin:12px 18px 0">${pending}</div>` : ''}
+    <p class="sub" style="padding:12px 18px;margin:0">Append-only. Entries are never edited or deleted — a correction is a new reversing entry that references the original. Status moves such as quarantine change Available without changing On hand.</p>
+  </section>`;
+};
+
+SCREENS.notes = () => {
+  const rtvOut = S.rtvStage['0006'] >= 2;
+  const N = [];
+  if (rtvOut) N.push({ id: '0004', no: 'DN-Dhulagarh-Sep2026/0004', vendor: 'Northern Polymers & Packaging', src: 'RTV-…/0006 · QC rejections', what: 'Quantity rejected at QC and returned for credit', taxable: rtvTaxable(), intra: true, inv: 'NPP/INV/2291', rtv: 'RTV-…/0006', po: 'PO-…/0014', grn: 'GRN-…/0022', cn: S.cnNo, cnVal: Number(String(S.cnVal).replace(/,/g, '')) || 0, age: 'Dispatched today', ageK: 't-ok' });
+  N.push({ id: '0003', no: 'DN-Dhulagarh-Sep2026/0003', vendor: 'Coldpack Supplies', src: 'RTV-…/0003 · 150 gel packs', what: '150 gel ice packs returned after a reefer temperature breach', taxable: 14250, intra: true, inv: 'CPS/INV/0871', rtv: 'RTV-…/0003', po: 'PO-…/0009', grn: 'GRN-…/0017', cn: 'CPS/CN/044', cnVal: 16815, age: '9 days open', ageK: 't-muted' });
+  N.push({ id: '0002', no: 'DN-Dhulagarh-Sep2026/0002', vendor: 'Sentinel Instruments', src: 'RTV-…/0002 · 5 loggers', what: '5 data loggers failed calibration and were returned for credit', taxable: 17000, intra: false, inv: 'SI/2026/5530', rtv: 'RTV-…/0002', po: 'PO-…/0006', grn: 'GRN-…/0012', cn: 'SI/CN/2026/19', cnVal: 19240, age: '17 days open · amber', ageK: 't-warn' });
+  N.push({ id: '0001', no: 'DN-Dhulagarh-Aug2026/0001', vendor: 'Kaveri Insulation', src: 'RTV-…/0001 · 18 sqm', what: 'PUF panels rejected at QC', taxable: 33300, intra: true, inv: 'KI/INV/3312', rtv: 'RTV-…/0001', po: 'PO-…/0003', grn: 'GRN-…/0008', cn: 'KI/CN/077', cnVal: 39294, age: 'Closed', ageK: 't-muted' });
+  if (!N.some(n => n.id === S.dnSel)) S.dnSel = N[0].id;
+  const total = n => Math.round(n.taxable * 1.18);
+  const short = ['Pending','Issued','CN received','Adjusted','Reconciled'], ck = ['warn','info','info','info','ok'];
+  const n = N.find(x => x.id === S.dnSel), s = S.dnStage[n.id], t = total(n), route = S.dnRoute[n.id];
+  const variance = s >= 2 && route !== 'Adjusted' || (s === 1 && n.id === '0004') ? Math.abs(t - n.cnVal) / t * 100 : null;
+  const flagged = variance !== null && variance > 2;
+  const code = ['DEBIT_NOTE_PENDING','DEBIT_NOTE_ISSUED','CREDIT_NOTE_RECEIVED','DN_ADJUSTED','DN_RECONCILED'][s];
+  const tax = n.intra ? [['Taxable value', f(n.taxable)], ['CGST 9%', f(Math.round(n.taxable * 0.09))], ['SGST 9%', f(Math.round(n.taxable * 0.09))]] : [['Taxable value', f(n.taxable)], ['IGST 18% · inter-state', f(Math.round(n.taxable * 0.18))]];
+  const prog = s >= 4 ? 3 : Math.min(s, 2);
+  let act = {};
+  if (s === 0) act = { t: 'Issue debit note', x: 'Generates the debit note PDF with the GST treatment above, posts it to Tally under the DN/DHU series and emails the vendor with the Purchase Return Note attached.', l: 'Issue and post to Tally' };
+  if (s === 1) act = { t: 'Settle with the vendor', x: 'Record the vendor credit note when it arrives, or offset this amount against their open invoice in Bill Control now.', l: 'Record credit note', alt: 'Offset against ' + n.inv, form: n.id === '0004' };
+  if (s === 2 && !flagged) act = { t: 'Reconcile', x: 'Credit note matches within tolerance. Reconciling updates the vendor ledger in Tally and closes the linked return.', l: 'Reconcile and close' };
+  if (s === 2 && flagged) act = { t: 'Variance flagged — cannot close', x: `The vendor credited ₹ ${f(n.cnVal)} against ₹ ${f(t)}. Ask for a revised credit note, or accept the short credit with Head of Finance approval.`, l: 'Request revised credit note', alt: 'Accept with approval', danger: true };
+  if (s === 3) act = { t: 'Offset recorded', x: `Payable on ${n.inv} reduced in Bill Control. Reconcile to update the vendor ledger and close the return.`, l: 'Reconcile and close' };
+  if (s === 4) act = { t: 'Reconciled', x: 'Vendor ledger updated in Tally. The linked return is closed.', l: 'Closed', done: true };
+  const pendingValue = N.reduce((sum, x) => sum + (S.dnStage[x.id] < 4 ? total(x) : 0), 0);
+  return head('Accounts / Debit &amp; credit notes', 'Debit and credit notes', '', chip(`₹ ${f(pendingValue)} awaiting recovery`, 'warn')) +
+  (!rtvOut ? `<div class="banner info"><span>RTV-…/0006 has not been dispatched yet, so its debit note does not exist. <a href="#returns">Dispatch it on Purchase returns</a> to create one.</span></div>` : '') +
+  `<div class="row">
+    <aside class="card side-w" style="width:330px;flex-shrink:0;overflow:hidden" aria-label="Debit note queue"><div class="card-h"><h2>Queue · created on return dispatch</h2></div>
+      ${N.map(x => `<button type="button" class="list-btn" data-act="dnSel" data-arg="${x.id}" aria-pressed="${x.id === S.dnSel}"><span class="top"><span class="mono b" style="font-size:12px">${x.no.replace('Dhulagarh-', '')}</span>${chip(short[S.dnStage[x.id]], ck[S.dnStage[x.id]])}</span><b>${x.vendor}</b><span class="top sub"><span>${x.src}</span><span class="mono" style="color:var(--ink)">₹ ${f(total(x))}</span></span><span class="sub b ${x.ageK}">${x.age}</span></button>`).join('')}
+    </aside>
+    <div class="grow col">
+      <section class="card pad col" style="gap:14px" aria-label="Debit note detail">
+        <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap"><div><div style="font-size:18px;font-weight:700">${n.no} · ${n.vendor}</div><div class="note t-muted">${n.what}</div></div>${chip(code, s >= 4 ? 'ok' : 'info')}</div>
+        <div class="seg" style="gap:8px">${[['Return', n.rtv], ['PO', n.po], ['GRN', n.grn], ['Invoice', n.inv], ['Tally voucher', s >= 1 ? 'DN/DHU/26-27/0' + (36 + Number(n.id)) : 'on issue']].map(r => `<span class="chip neutral" style="font-weight:400"><span class="t-muted">${r[0]}</span> <span class="mono">${r[1]}</span></span>`).join('')}</div>
+        ${bars(['Pending', 'Issued · posted to Tally', 'Credit note received', 'Reconciled'], prog)}
+        <div class="grid g2">
+          <div class="box" style="font-size:13px"><span class="sub">GST treatment · mirrors ${n.inv}</span>${tax.map(r => `<div style="display:flex;justify-content:space-between"><span>${r[0]}</span><span class="mono">${r[1]}</span></div>`).join('')}<div style="display:flex;justify-content:space-between" class="b"><span>Debit note total</span><span class="mono">₹ ${f(t)}</span></div></div>
+          <div class="box" style="font-size:13px"><span class="sub">Vendor credit note</span><div style="display:flex;justify-content:space-between"><span>Number</span><span class="mono">${s >= 2 ? esc(n.cn) : '—'}</span></div><div style="display:flex;justify-content:space-between"><span>Value</span><span class="mono">${s >= 2 ? '₹ ' + f(n.cnVal) : '—'}</span></div><div style="display:flex;justify-content:space-between"><span>Variance vs debit note</span><span class="mono b ${flagged ? 't-bad' : 't-ok'}">${variance === null ? '—' : variance.toFixed(1) + '%'}</span></div><span class="sub">Above 2% is flagged and blocks closure</span></div>
+        </div>
+      </section>
+      <section class="card pad col" style="gap:12px" aria-label="Action">
+        <h2 class="h2">${act.t}</h2><p class="note" style="margin:0">${act.x}</p>
+        ${act.form ? `<div class="grid g3"><div class="field"><label for="cn-no">Credit note number</label><input id="cn-no" class="inp mono" data-in="cnNo" value="${esc(S.cnNo)}"></div><div class="field"><label for="cn-date">Date</label><input id="cn-date" class="inp" type="date" value="2026-09-30"></div><div class="field"><label for="cn-val">Value incl. GST ₹</label><input id="cn-val" class="inp mono" inputmode="numeric" data-in="cnVal" value="${esc(S.cnVal)}" aria-invalid="${flagged}"></div></div><span class="sub ${flagged ? 't-bad' : 't-ok'}">Debit note ₹ ${f(t)} · variance ${variance === null ? '—' : variance.toFixed(1) + '%'}${flagged ? ' — will be flagged' : ''}</span>` : ''}
+        <div class="seg" style="justify-content:flex-end">${act.alt ? `<button type="button" class="btn" data-act="dnAlt">${act.alt}</button>` : ''}<button type="button" class="btn btn-primary" data-act="dnAct" ${act.done ? 'disabled' : ''} ${act.danger ? 'style="background:var(--bad);border-color:var(--bad)"' : ''}>${act.l}</button></div>
+      </section>
+      <a href="#recon" class="b" style="align-self:flex-end">Open vendor reconciliation</a>
+    </div>
+  </div>`;
+};
+
+SCREENS.recon = () => {
+  const v = S.reconV, mapped = S.reconMapped;
+  const NP = [['01 Sep','Opening balance','—','Brought forward',120000,120000,'Matched','ok'],['10 Sep','Payment','[UTR]','Against PO-…/0008',-120000,-120000,'Matched','ok'],['26 Sep','Invoice','NPP/INV/2291','₹62,776 held · 20 returned, 3 short',2135800,2135800,'Matched','ok'],['28 Sep','Debit note','DN-…/0004','RTV-…/0006 · 20 pallets',-50740,-50740,'Matched','ok'],['29 Sep','Advance payment','[UTR]', mapped ? 'Mapped to PO-…/0014' : 'Posted in Tally, not linked in portal', mapped ? -200000 : null, -200000, mapped ? 'Matched' : 'Only in Tally', mapped ? 'ok' : 'bad', !mapped],['30 Sep','Credit note','NPP/CN/118','Matches DN-…/0004 · no second posting',null,null,'Matched to DN','info'],['—','Open item','SHT-…/0003','3 loggers short · ₹12,036 held',null,null,'Awaiting decision','warn']];
+  const FR = [['01 Sep','Opening balance','—','Brought forward',0,0,'Matched','ok'],['04 Sep','Invoice','FR/INV/1166','Evaporator coil · GRN-…/0014',214760,214760,'Matched','ok'],['20 Sep','Payment','[UTR]','Released after three-way match',-214760,-214760,'Matched','ok'],['—','Open item','RTV-…/0005','Warranty return · replacement awaited, no value',null,null,'No ledger effect','info']];
+  let pb = 0, tb = 0;
+  const fmt = x => x === null ? '—' : x < 0 ? f(-x) + ' Dr' : f(x) + ' Cr';
+  const rows = (v === 0 ? NP : FR).map(r => { if (r[4] !== null) pb += r[4]; if (r[5] !== null) tb += r[5]; return [`<div class="t-muted">${r[0]}</div>`, `<div class="b">${r[1]}</div>`, `<div><div class="mono" style="font-size:12px">${r[2]}</div><div class="sub">${r[3]}</div></div>`, `<div class="r mono">${fmt(r[4])}</div>`, `<div class="r mono">${fmt(r[5])}</div>`, `<div class="r mono b">${f(pb)} Cr</div>`, `<div class="col" style="gap:4px;align-items:flex-start">${chip(r[6], r[7])}${r[8] ? '<button type="button" class="btn btn-sm" data-act="reconMap">Map to PO-…/0014</button>' : ''}</div>`]; });
+  const diff = pb - tb, held = v === 0 ? 12036 : 0, done = S.reconDone[v];
+  return head('Accounts / Vendor reconciliation · September 2026', 'Vendor reconciliation', '', `<button type="button" class="btn" data-act="toast" data-arg="Statement emailed to the vendor for confirmation">Send statement to vendor</button><button type="button" class="btn btn-primary" data-act="reconDone" ${diff !== 0 || done ? 'disabled' : ''} ${done ? 'style="background:var(--ok);border-color:var(--ok)"' : ''}>${done ? 'Reconciled for September' : diff === 0 ? 'Mark reconciled' : 'Resolve difference first'}</button>`) +
+  `<div class="seg" role="radiogroup" aria-label="Vendor">${['Northern Polymers & Packaging', 'Frostline Refrigeration'].map((n, i) => `<button type="button" class="btn" role="radio" aria-checked="${i === v}" data-act="reconV" data-arg="${i}">${n}</button>`).join('')}</div>
+  <div class="kpis">${[['Portal balance', '₹ ' + f(pb), 'Payable per portal records', ''], ['Tally ledger', '₹ ' + f(tb), 'Payable per books', ''], ['Difference', '₹ ' + f(Math.abs(diff)), diff === 0 ? 'Fully explained' : '1 unmatched entry', diff === 0 ? 't-ok' : 't-bad'], ['Held from payment', '₹ ' + f(held), held ? 'Open shortfall case' : 'Nothing held', held ? 't-warn' : 't-ok']].map(k => `<div class="card kpi"><span class="k">${k[0]}</span><span class="v ${k[3]}" style="font-size:22px">${k[1]}</span><span class="sub">${k[2]}</span></div>`).join('')}</div>
+  <section class="card" aria-label="Statement">
+    ${table('80px 150px 1.3fr 120px 120px 120px 160px', [['Date'],['Document'],['Reference'],['Portal ₹',1],['Tally ₹',1],['Balance ₹',1],['Match']], rows)}
+    <p class="sub" style="padding:12px 18px;margin:0">Cr raises what we owe; Dr reduces it. Held amounts stay in the balance but cannot be released for payment until their return or shortfall case closes.</p>
+  </section>`;
+};
+
+/* ---------------- actions ---------------- */
+const go = r => { location.hash = r; };
+const ACT = {
+  menu: () => document.getElementById('nav').classList.toggle('open'),
+  theme: () => { const r = document.documentElement; const dark = r.getAttribute('data-theme') === 'dark' || (!r.getAttribute('data-theme') && matchMedia('(prefers-color-scheme: dark)').matches); r.setAttribute('data-theme', dark ? 'light' : 'dark'); try { localStorage.setItem('theme', dark ? 'light' : 'dark'); } catch (e) {} },
+  toast: a => toast(a),
+  site: a => { S.site = a; },
+  mrSubmit: () => { if (S.mrImpact.trim().length < 40) return toast('Business impact needs at least 40 characters'); if (!S.mrDecl) return toast('Tick the declaration to submit'); S.mrSubmitted = true; toast('MR submitted and approved · purchase balance ready for a PR'); go('raisepr'); },
+  prChg: a => { S.prChargeable = a === '1'; },
+  prSubmit: () => { if (termsSum() !== 100) return toast('Payment terms must total 100%'); S.prSubmitted = true; toast('PR-Dhulagarh-Sep2026/0031 submitted for approval'); go('pr'); },
+  prDecide: a => { S.prDecision = a; toast(a === 'a' ? 'PR approved and locked · PDF emailed' : 'PR rejected · requester notified'); },
+  prReset: () => { S.prDecision = null; },
+  quoteSel: a => { S.quoteSel = +a; },
+  award: a => { S.award = +a; },
+  awardGo: () => { S.awarded = awardIdx(); toast(`Awarded to ${S.quotes[S.awarded].name}${S.awarded !== ranks()[0] ? ' · sent for Head of Supply Chain approval' : ''}`); go('po'); },
+  poIssue: () => { if (!S.tallyRef.trim()) return toast('Enter the Tally PO reference first'); S.poIssued = true; toast('PO issued and emailed to the vendor'); },
+  gateReject: () => { S.gateRejected = !S.gateRejected; toast(S.gateRejected ? 'Rejected at gate · buyer and vendor notified' : 'Gate rejection undone'); },
+  gateSubmit: () => { S.gateSubmitted = true; toast('Sent to QA/QC · inspector notified'); go('qc'); },
+  hold: a => { S.holdDecision = a; },
+  qcSubmit: () => { if (!qcAllBalanced()) return toast('Every line must balance before submitting'); S.qcSubmitted = true; toast(rtvLines().length ? 'Verdict submitted · purchase return RTV-…/0006 drafted' : 'Verdict submitted'); },
+  grnApprove: () => { if (anyHold() && !S.holdDecision) return toast('Decide the conditional hold first'); S.grnApproved = true; S.grnFlagged = false; toast('GRN approved · stock posted to Dhulagarh'); },
+  grnFlag: () => { S.grnFlagged = !S.grnFlagged; toast(S.grnFlagged ? 'GRN flagged · excluded from PO received quantity' : 'Flag removed'); },
+  dmgSel: a => { S.dmgSel = +a; },
+  dmgDec: a => { S.dmgDec = +a; },
+  dmgGo: () => { if (S.dmgDec === 1) { S.rtvSel = '0005'; go('returns'); } else toast(S.dmgDec === 0 ? 'Repair request raised · status UNDER_REPAIR' : 'Sent to Warehouse Lead and Head of Operations for approval'); },
+  shortDec: a => { S.shortDec = a; },
+  shortGo: () => { S.shortConfirmed = true; toast(S.shortDec === 'await' ? 'Balance of 3 awaited · vendor chased on the daily digest' : 'Line short-closed · debit note raised for the billed excess'); },
+  rtvSel: a => { S.rtvSel = a; },
+  rtvAdvance: () => { const k = S.rtvSel, s = S.rtvStage[k]; if (s >= 4) return; S.rtvStage[k] = s + 1; if (k === '0006' && s + 1 === 2) S.dnSel = '0004';
+    const msgs = ['Return approved · PRN and gate pass generated', k === '0006' ? 'Goods dispatched · debit note DN-…/0004 created for Accounts' : 'Goods dispatched · stock reversed against the original GRN', 'Vendor acknowledgement recorded', 'Return closed'];
+    toast(msgs[s]); },
+  dnSel: a => { S.dnSel = a; },
+  dnAct: () => { const k = S.dnSel, s = S.dnStage[k];
+    const t = k === '0004' ? Math.round(rtvTaxable() * 1.18) : null;
+    if (s === 0) { S.dnStage[k] = 1; toast('Debit note issued and posted to Tally'); }
+    else if (s === 1) { S.dnStage[k] = 2; S.dnRoute[k] = 'Matched'; toast('Credit note recorded'); }
+    else if (s === 2) { const v = k === '0004' ? Math.abs(t - (Number(String(S.cnVal).replace(/,/g, '')) || 0)) / t * 100 : k === '0002' ? 4.1 : 0; if (v > 2) return toast('Revised credit note requested from the vendor'); S.dnStage[k] = 4; if (k === '0004') S.rtvStage['0006'] = 4; toast('Reconciled · vendor ledger updated · return closed'); }
+    else if (s === 3) { S.dnStage[k] = 4; if (k === '0004') S.rtvStage['0006'] = 4; toast('Reconciled · vendor ledger updated · return closed'); } },
+  dnAlt: () => { const k = S.dnSel, s = S.dnStage[k]; if (s === 1) { S.dnStage[k] = 3; S.dnRoute[k] = 'Adjusted'; toast('Offset against the open invoice in Bill Control'); } else if (s === 2) { S.dnStage[k] = 4; if (k === '0004') S.rtvStage['0006'] = 4; toast('Short credit accepted with Head of Finance approval'); } },
+  ledgerItem: a => { S.ledgerItem = +a; },
+  reconV: a => { S.reconV = +a; },
+  reconMap: () => { S.reconMapped = true; toast('Advance mapped to PO-…/0014 · difference cleared'); },
+  reconDone: () => { S.reconDone[S.reconV] = true; toast('Vendor reconciled for September'); }
+};
+
+const INPUT = {
+  mrImpact: el => { S.mrImpact = el.value; },
+  mrDecl: el => { S.mrDecl = el.checked; },
+  prRate: el => { S.prRates[+el.dataset.i] = el.value.replace(/[^0-9]/g, ''); },
+  prTerm: el => { S.prTerms[+el.dataset.i] = el.value.replace(/[^0-9.]/g, ''); },
+  prRemarks: el => { S.prRemarks = el.value; },
+  qRate: el => { S.quotes[S.quoteSel].rates[+el.dataset.i] = el.value.replace(/[^0-9]/g, ''); },
+  qFreight: el => { S.quotes[S.quoteSel].freight = el.value.replace(/[^0-9]/g, ''); },
+  justification: el => { S.justification = el.value; },
+  tallyRef: el => { S.tallyRef = el.value; },
+  gateTemp: el => { S.gateTemp = el.value; },
+  gateCount: el => { const i = +el.dataset.i; S.gateCounts[i] = el.value.replace(/[^0-9]/g, ''); const q = S.qc[i]; q.acc = Math.max(0, (Number(S.gateCounts[i]) || 0) - q.hold - q.rej); },
+  qc: el => { S.qc[+el.dataset.i][el.dataset.k] = Number(el.value.replace(/[^0-9]/g, '')) || 0; },
+  qcReason: el => { S.qc[+el.dataset.i].reason = el.value; },
+  cnVal: el => { S.cnVal = el.value; },
+  cnNo: el => { S.cnNo = el.value; }
+};
+
+/* ---------------- render ---------------- */
+const view = document.getElementById('view'), nav = document.getElementById('nav');
+function route() { const r = (location.hash || '#main').slice(1); return SCREENS[r] ? r : 'main'; }
+function renderNav(r) {
+  nav.innerHTML = `<div class="brand"><div class="brand-mark"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 2v20M4.9 6.5l14.2 11M19.1 6.5L4.9 17.5"/></svg></div><div><b>Crystal</b><small>Assets &amp; Procurement</small></div></div>` +
+    NAV.map(g => `<div class="nav-group"><div class="nav-label">${g[0]}</div>${g[1].map(([k, t]) => `<a class="nav-link" href="#${k}" ${k === r ? 'aria-current="page"' : ''}>${t}</a>`).join('')}</div>`).join('') +
+    `<div class="nav-foot"><b>Signed in via Crystal Core</b>Site Receiver · Dhulagarh<br><button type="button" class="theme-btn" data-act="theme">Switch light / dark</button></div>`;
+}
+function render(keepScroll) {
+  const r = route();
+  const a = document.activeElement, id = a && a.id; let pos = null; try { if (a && typeof a.selectionStart === 'number') pos = [a.selectionStart, a.selectionEnd]; } catch (e) {}
+  const y = window.scrollY;
+  renderNav(r);
+  view.innerHTML = SCREENS[r]();
+  document.title = TITLES[r] + ' · Crystal';
+  if (id) { const el = document.getElementById(id); if (el) { el.focus({ preventScroll: true }); if (pos && el.setSelectionRange) { try { el.setSelectionRange(pos[0], pos[1]); } catch (e) {} } } }
+  if (keepScroll) window.scrollTo(0, y);
+}
+let tt;
+function toast(msg) { const el = document.getElementById('toast'); el.textContent = msg; el.classList.add('show'); clearTimeout(tt); tt = setTimeout(() => el.classList.remove('show'), 2600); }
+
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-act]');
+  if (b && !b.disabled) { const fn = ACT[b.dataset.act]; if (fn) { fn(b.dataset.arg, b); if (b.dataset.act !== 'menu' && b.dataset.act !== 'toast') render(true); } return; }
+  const link = e.target.closest('a.nav-link'); if (link) nav.classList.remove('open');
+});
+document.addEventListener('input', e => { const el = e.target.closest('[data-in]'); if (el && INPUT[el.dataset.in]) { INPUT[el.dataset.in](el); render(true); } });
+document.addEventListener('change', e => { const el = e.target.closest('[data-in]'); if (el && (el.type === 'checkbox' || el.tagName === 'SELECT') && INPUT[el.dataset.in]) { INPUT[el.dataset.in](el); render(true); } });
+window.addEventListener('hashchange', () => { render(false); window.scrollTo(0, 0); view.focus({ preventScroll: true }); });
+try { const th = localStorage.getItem('theme'); if (th) document.documentElement.setAttribute('data-theme', th); } catch (e) {}
+render(false);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Vendor quotations</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>body{margin:0;background:#F3F2EE}a{color:#0B5F63}a:hover{color:#08484B}</style>
+</helmet>
+<div style="width: 1440px; height: 960px; display: flex; font-family: 'IBM Plex Sans', system-ui, sans-serif; color: #18202B; background: #F3F2EE;">
+<dc-import name="Sidebar" active="Quotes" hint-size="240px,960px"></dc-import>
+<main style="width: 1200px; height: 960px; box-sizing: border-box; padding: 26px 32px; display: flex; flex-direction: column; gap: 16px;">
+
+<header style="display: flex; justify-content: space-between; align-items: flex-end;">
+<div style="display: flex; flex-direction: column; gap: 4px;">
+<div style="font-size: 13px; color: #5B6270;">Procurement / Vendor quotations / RFQ for PR-Dhulagarh-Sep2026/0031</div>
+<h1 style="margin: 0; font-size: 26px; font-weight: 700;">Vendor quotations</h1>
+</div>
+<div style="display: flex; gap: 10px; align-items: center;">
+<span style="padding: 6px 12px; border-radius: 999px; font-size: 13px; font-weight: 600; background: #E0F1E7; color: #1B5E3B;">3 of 3 minimum received</span>
+<a href="Compare.dc.html" style="height: 44px; box-sizing: border-box; display: flex; align-items: center; padding: 0 18px; border-radius: 8px; background: #0B5F63; color: #FFFFFF; text-decoration: none; font-weight: 600; font-size: 14px;">Compare quotations</a>
+</div>
+</header>
+
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px;">
+<sc-for list="{{vendors}}" as="v" hint-placeholder-count="3">
+<button type="button" onClick="{{v.pick}}" aria-pressed="{{v.pressed}}" style="{{v.style}}">
+<div style="display: flex; justify-content: space-between; width: 100%;"><span style="font-size: 15px; font-weight: 700; text-align: left;">{{v.name}}</span><span style="font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: #E0F1E7; color: #1B5E3B;">Received</span></div>
+<span style="font-size: 12px; color: #5B6270; text-align: left;">{{v.meta}}</span>
+<span style="font-size: 13px; text-align: left;">Quoted total <b style="font-family: 'IBM Plex Mono', monospace;">₹ {{v.total}}</b></span>
+</button>
+</sc-for>
+<button type="button" style="border: 1px dashed #A9A597; background: transparent; border-radius: 10px; min-height: 108px; font-family: inherit; font-size: 14px; font-weight: 600; color: #454B55; cursor: pointer;">+ Add quotation</button>
+</div>
+
+<section aria-label="Quotation detail" style="background: #FFFFFF; border: 1px solid #DAD8D0; border-radius: 10px; overflow: hidden;">
+<div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; border-bottom: 1px solid #E6E4DD;">
+<div style="display: flex; flex-direction: column; gap: 2px;"><div style="font-weight: 600; font-size: 15px;">{{sel.name}}</div><div style="font-size: 12px; color: #5B6270;">Quotation {{sel.ref}} · dated {{sel.date}} · valid until {{sel.valid}}</div></div>
+<div style="display: flex; gap: 8px;"><span style="padding: 4px 10px; border-radius: 6px; background: #F8F7F3; font-size: 12px; border: 1px solid #E6E4DD;">{{sel.file}}</span></div>
+</div>
+<div style="display: grid; grid-template-columns: 1.6fr 70px 130px 70px 110px 110px 130px; gap: 10px; padding: 10px 18px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.6px; color: #5B6270; background: #F8F7F3;">
+<div>Item</div><div style="text-align: right;">Qty</div><div style="text-align: right;">Unit rate ₹</div><div style="text-align: right;">GST</div><div style="text-align: right;">Lead time</div><div>Make</div><div style="text-align: right;">Line ₹ incl. GST</div>
+</div>
+<sc-for list="{{sel.lines}}" as="l" hint-placeholder-count="3">
+<div style="display: grid; grid-template-columns: 1.6fr 70px 130px 70px 110px 110px 130px; gap: 10px; padding: 10px 18px; font-size: 13px; border-top: 1px solid #EFEDE7; align-items: center;">
+<div style="font-weight: 600;">{{l.name}}</div>
+<div style="text-align: right; font-family: 'IBM Plex Mono', monospace;">{{l.qty}}</div>
+<div style="text-align: right;"><label for="rate-{{$index}}" style="position: absolute; left: -9999px;">Unit rate for {{l.name}}</label><input id="rate-{{$index}}" type="text" value="{{l.rate}}" style="width: 110px; height: 36px; box-sizing: border-box; border: 1px solid #CFCCC2; border-radius: 6px; padding: 0 8px; text-align: right; font-family: 'IBM Plex Mono', monospace; font-size: 13px;"></div>
+<div style="text-align: right; font-family: 'IBM Plex Mono', monospace;">18%</div>
+<div style="text-align: right;">{{l.lead}}</div>
+<div style="color: #454B55;">{{l.make}}</div>
+<div style="text-align: right; font-family: 'IBM Plex Mono', monospace; font-weight: 600;">{{l.total}}</div>
+</div>
+</sc-for>
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; padding: 14px 18px; background: #F8F7F3; border-top: 1px solid #E6E4DD; font-size: 13px;">
+<div style="display: flex; flex-direction: column; gap: 3px;"><div style="font-size: 12px; color: #5B6270;">Freight</div><div style="font-family: 'IBM Plex Mono', monospace;">₹ {{sel.freight}}</div></div>
+<div style="display: flex; flex-direction: column; gap: 3px;"><div style="font-size: 12px; color: #5B6270;">Payment terms</div><div>{{sel.terms}}</div></div>
+<div style="display: flex; flex-direction: column; gap: 3px;"><div style="font-size: 12px; color: #5B6270;">Warranty</div><div>{{sel.warranty}}</div></div>
+<div style="display: flex; flex-direction: column; gap: 3px;"><div style="font-size: 12px; color: #5B6270;">Quoted total incl. GST + freight</div><div style="font-family: 'IBM Plex Mono', monospace; font-weight: 700; font-size: 15px;">₹ {{sel.total}}</div></div>
+</div>
+</section>
+
+<div style="display: flex; gap: 12px; font-size: 13px; color: #454B55;">
+<div style="flex-grow: 1; background: #FFFFFF; border: 1px solid #DAD8D0; border-radius: 10px; padding: 12px 16px;">Vendors shortlisted from Vendor Master by category <b>Refrigeration spares</b> and site <b>Dhulagarh</b>. Only approved, unblocked vendors appear.</div>
+<div style="flex-grow: 1; background: #FFFFFF; border: 1px solid #DAD8D0; border-radius: 10px; padding: 12px 16px;">Quotation rates are visible to Buyer and Site Manager only — not to the requester.</div>
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":960}}'>
+class Component extends DCLogic {
+  constructor(p) { super(p); this.state = { v: 1 }; }
+  renderVals() {
+    const f = (n) => n.toLocaleString('en-IN');
+    const items = [['Evaporator coil 22 kW', 1], ['Scroll compressor 15 HP', 2], ['Refrigerant R-404A, 10 kg', 2]];
+    const V = [
+      { name: 'Frostline Refrigeration', ref: 'FR/Q/2026/381', date: '24 Sep 2026', valid: '24 Oct 2026', rates: [184000, 236000, 9800], freight: 6000, terms: '30% advance, 70% on delivery', warranty: '18 months', lead: ['10 days', '14 days', '3 days'], make: ['Frostline', 'Copeland', 'Honeywell'], file: 'FR_Q_381.pdf' },
+      { name: 'Arctic Cool Engineers', ref: 'ACE-2609-17', date: '25 Sep 2026', valid: '10 Oct 2026', rates: [179500, 241000, 9400], freight: 0, terms: '100% within 30 days of delivery', warranty: '12 months', lead: ['7 days', '12 days', '2 days'], make: ['Kirloskar', 'Danfoss', 'SRF'], file: 'ACE_2609_17.pdf' },
+      { name: 'Polar Tech Industries', ref: 'PTI/RFQ/0922', date: '25 Sep 2026', valid: '25 Nov 2026', rates: [188000, 233500, 10200], freight: 9500, terms: '50% advance, 50% on delivery', warranty: '24 months', lead: ['15 days', '10 days', '4 days'], make: ['Polar', 'Copeland', 'Chemours'], file: 'PTI_0922.pdf' }
+    ];
+    const tot = (v) => Math.round(items.reduce((t, it, i) => t + it[1] * v.rates[i], 0) * 1.18) + v.freight;
+    const s = V[this.state.v];
+    return {
+      vendors: V.map((v, i) => ({
+        name: v.name, total: f(tot(v)), meta: 'Ref ' + v.ref + ' · valid to ' + v.valid,
+        pressed: i === this.state.v ? 'true' : 'false',
+        pick: () => this.setState({ v: i }),
+        style: 'display:flex;flex-direction:column;gap:8px;align-items:flex-start;min-height:108px;padding:14px 16px;border-radius:10px;font-family:inherit;color:#18202B;cursor:pointer;background:#FFFFFF;' +
+          (i === this.state.v ? 'border:2px solid #0B5F63;' : 'border:1px solid #DAD8D0;')
+      })),
+      sel: {
+        name: s.name, ref: s.ref, date: s.date, valid: s.valid, file: s.file, freight: f(s.freight), terms: s.terms, warranty: s.warranty, total: f(tot(s)),
+        lines: items.map((it, i) => ({ name: it[0], qty: it[1], rate: f(s.rates[i]), lead: s.lead[i], make: s.make[i], total: f(Math.round(it[1] * s.rates[i] * 1.18)) }))
+      }
+    };
+  }
+}
+</script>
+</body>
+</html>
