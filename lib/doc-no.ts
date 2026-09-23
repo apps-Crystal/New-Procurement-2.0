@@ -28,10 +28,12 @@ export const DOC_ENTITIES = [
   'SHT', // shortfall case
   'RTV', // purchase return
   'RGP', // returnable gate pass
+  'PRN', // purchase return note, minted with the gate pass on approval
   'DN', // debit note
   'TRF', // stock transfer
   'SL', // stock ledger entry
   'ISS', // stock issue
+  'ADJ', // stock adjustment (conflict C-27)
 ] as const;
 
 export type DocEntity = (typeof DOC_ENTITIES)[number];

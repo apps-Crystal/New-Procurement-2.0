@@ -15,6 +15,18 @@ export interface NavItem {
   href: string;
   label: string;
   permission: PermissionKey;
+  /**
+   * The phase that builds this screen, while it does not exist yet.
+   *
+   * The nav lists the whole product from the start, because the shape of the
+   * thing is part of what the sidebar communicates. But a link to a screen that
+   * has not been written is a 404, and a 404 reads as a bug rather than as
+   * "not yet" — so these render as plainly unavailable instead.
+   *
+   * Delete the marker when the screen lands; the architecture test checks that
+   * every unmarked href resolves to a page.
+   */
+  comingIn?: string;
 }
 
 export interface NavGroup {
@@ -63,9 +75,9 @@ export const NAV: NavGroup[] = [
   {
     label: 'Accounts',
     items: [
-      { href: '/invoices', label: 'Vendor invoices', permission: 'INVOICE.VIEW' },
-      { href: '/notes', label: 'Debit & credit notes', permission: 'DEBIT_NOTE.VIEW' },
-      { href: '/reconciliation', label: 'Vendor reconciliation', permission: 'RECON.VIEW' },
+      { href: '/invoices', label: 'Vendor invoices', permission: 'INVOICE.VIEW' , comingIn: 'Phase 8' },
+      { href: '/notes', label: 'Debit & credit notes', permission: 'DEBIT_NOTE.VIEW' , comingIn: 'Phase 8' },
+      { href: '/reconciliation', label: 'Vendor reconciliation', permission: 'RECON.VIEW' , comingIn: 'Phase 8' },
     ],
   },
   {
@@ -76,7 +88,7 @@ export const NAV: NavGroup[] = [
     label: 'Administration',
     items: [
       { href: '/masters', label: 'Master data', permission: 'MASTER.VIEW' },
-      { href: '/audit', label: 'Audit trail', permission: 'AUDIT.VIEW' },
+      { href: '/audit', label: 'Audit trail', permission: 'AUDIT.VIEW' , comingIn: 'Phase 10' },
     ],
   },
 ];

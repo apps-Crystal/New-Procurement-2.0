@@ -112,6 +112,11 @@ async function main() {
   const qcSvc = await import('../lib/services/qc');
   const grnSvc = await import('../lib/services/grn');
   const shortfalls = await import('../lib/services/shortfall');
+  const inventory = await import('../lib/services/inventory');
+  const issues = await import('../lib/services/issues');
+  const assets = await import('../lib/services/assets');
+  const damage = await import('../lib/services/damage');
+  const rtv = await import('../lib/services/rtv');
   const stock = await import('../lib/services/stock');
 
   try {
@@ -135,6 +140,8 @@ async function main() {
     const wareId = await mkUser('whl', 'Wasim Warehouse Lead');
     const recvId = await mkUser('rcv', 'Ravi Receiver');
     const inspId = await mkUser('qc', 'Qaiser Inspector');
+    const acctId = await mkUser('acc', 'Anita Accounts');
+    const ware2Id = await mkUser('whl2', 'Wahida Warehouse Lead');
 
     const principal = (id: number, roles: RoleCode[], sites: { id: number; code: string; name: string }[]): Principal => ({
       userId: id,
@@ -171,6 +178,8 @@ async function main() {
     const WHL = { principal: principal(wareId, ['CG_WHL'], bothSites), ip: null };
     const RCV = { principal: principal(recvId, ['CG_RCV'], bothSites), ip: null };
     const QCI = { principal: principal(inspId, ['CG_QC'], bothSites), ip: null };
+    const ACC = { principal: principal(acctId, ['CG_ACC'], bothSites), ip: null };
+    const WHL2 = { principal: principal(ware2Id, ['CG_WHL'], bothSites), ip: null };
 
     const classId = Number((await masters.createItemClass(ADMIN, { code: 'AMB', name: 'Ambient' })).id);
 
@@ -1193,6 +1202,747 @@ async function main() {
       assert(done.completed_at !== null, 'completes once nothing is accepted on a breach');
     });
 
+
+    /**
+     * Run the whole chain for one item and return the approved receipt.
+     *
+     * Every step is proven above; this exists so a test that needs stock ON THE
+     * SHELF can say so without repeating sixty lines of setup.
+     */
+    const buildReceipt = async (spec: {
+      itemId: number; itemCode: string; qty: string; rate: string;
+    }): Promise<{ grnId: number; poId: number }> => {
+      const mr = await mrSvc.createMr(REQ, {
+        siteId: siteA, category: 'CONSUMABLES', requiredBy: '2026-11-30', urgency: 'ROUTINE',
+        lines: [{ itemId: spec.itemId, qtyRequested: spec.qty }],
+      });
+      const id = Number(mr.id);
+
+      await mrSvc.runStockCheck(SMGR, id);
+      await mrSvc.declare(REQ, id, {
+        businessImpact: `Operations need ${spec.itemCode} on site and the group holds none to transfer.`,
+        budgetCodeId: budgetId, estimatedValue: '10000',
+        allocations: [{ siteId: siteA, costHead: 'Warehouse', pct: '100' }],
+      });
+      await mrSvc.decideMr(SMGR, id, true);
+
+      const { lines: mrLines } = await mrSvc.getMr(id);
+      const pr = await prSvc.createPr(BUY, {
+        mrId: id, procurementType: 'MATERIAL',
+        purpose: `Purchase of ${spec.itemCode} for warehouse operations`,
+        expectedDelivery: '2026-11-20',
+        paymentTerms: {
+          pay_advance_pct: '0', pay_before_delivery_pct: '0', pay_running_pct: '0',
+          pay_post_delivery_pct: '100', pay_post_completion_pct: '0', pay_retention_pct: '0',
+        },
+        lines: [{ mrLineId: Number(mrLines[0].id), estRate: spec.rate, gstRate: '18' }],
+      });
+      const prId2 = Number(pr.id);
+
+      await prSvc.submitPr(BUY, prId2);
+      const state = await prSvc.prApprovalState(prId2);
+      for (const level of state.levels) {
+        await prSvc.decidePr(level.required_role === 'CG_FHEAD' ? FHEAD : SMGR, prId2, true);
+      }
+
+      const { lines: prLines } = await prSvc.getPr(prId2);
+      const quoted: number[] = [];
+      for (const [vendorId, bump, ref] of [
+        [frostline, 0, 'A'], [arctic, 50, 'B'], [polar, 90, 'C'],
+      ] as [number, number, string][]) {
+        const q = await quotes.recordQuotation(BUY, {
+          prId: prId2, vendorId, vendorQuoteRef: `${spec.itemCode}-${ref}`,
+          quoteDate: '2026-09-23', validUntil: '2026-12-31',
+          lines: [{ prLineId: Number(prLines[0].id), unitRate: String(Number(spec.rate) + bump), gstRate: '18' }],
+        });
+        quoted.push(Number(q.id));
+      }
+      await quotes.award(BUY, { prId: prId2, quotationId: quoted[0] });
+
+      const po = await poSvc.createPo(BUY, { prId: prId2, expectedDelivery: '2026-11-20' });
+      const poId2 = Number(po.id);
+      await poSvc.issuePo(BUY, poId2, `TALLY-${spec.itemCode}`);
+
+      const { lines: poLines } = await poSvc.getPo(poId2);
+      const gi = await gate.createGateInward(RCV, {
+        poId: poId2, vehicleNo: 'WB23AB4567', challanNo: `CH-${spec.itemCode}`,
+        challanDate: '2026-09-23',
+        lines: [{ poLineId: Number(poLines[0].id), qtyPerChallan: spec.qty, qtyCounted: spec.qty }],
+      });
+      await gate.sendToQc(RCV, Number(gi.id));
+
+      const { qc, lines: qcLines } = await qcSvc.startInspection(QCI, Number(gi.id));
+      await qcSvc.recordVerdict(QCI, Number(qc.id), {
+        qcLineId: Number(qcLines[0].id), qtyAccepted: spec.qty, qtyHold: '0', qtyRejected: '0',
+      });
+      await qcSvc.completeInspection(QCI, Number(qc.id));
+
+      const grn = await grnSvc.createGrn(WHL, { qcId: Number(qc.id) });
+      await grnSvc.approveGrn(SMGR, Number(grn.id));
+
+      return { grnId: Number(grn.id), poId: poId2 };
+    };
+
+
+    // =====================================================================
+    // Inventory — position, issues, adjustment, reversal, assets, damage
+    // =====================================================================
+    await check('C-21 · the stock position is read one site at a time', async () => {
+      const rows = await inventory.stockPosition(SMGR.principal, { siteId: siteA });
+      const pallet = rows.find(r => r.code === 'PL-HDPE-12');
+      assert(pallet !== undefined, 'the pallets are on the Dhulagarh position');
+      // 60 arrived by transfer, 36 by goods receipt.
+      assertEqual(pallet?.available, '96.000', 'available');
+      assertEqual(pallet?.reorder_level, '0', 'no reorder level set here');
+
+      // The cross join invents a row for every item at every site; an item that
+      // has never been here has nothing to show.
+      assert(
+        !rows.some(r => r.code === 'FZ-PRAWN-20'),
+        'an item with no stock and no reorder level is not listed',
+      );
+    });
+
+    await check('a site the caller does not hold is refused', async () => {
+      const elsewhere = { principal: principal(managerId, ['CG_SMGR'], [bothSites[1]]), ip: null };
+      await rejects(
+        () => inventory.stockPosition(elsewhere.principal, { siteId: siteA }),
+        /do not have access to that site/i,
+        'cross-site read',
+      );
+    });
+
+    let issueId = 0;
+
+    await check('stock is issued, and the ledger records it', async () => {
+      const { issue, lines } = await issues.createIssue(WHL, {
+        siteId: siteA,
+        issuedTo: 'Freezer block maintenance, WO-4471',
+        lines: [{ itemId: palletId, qty: '6' }],
+      });
+
+      issueId = Number(issue.id);
+      assert(String(issue.issue_no).startsWith('ISS-DHU-'), `numbered at the site: ${issue.issue_no}`);
+      assertEqual(lines.length, 1, 'one line');
+
+      const balances = await inTransaction(tx => stock.balancesFor(tx, siteA, palletId));
+      assertEqual(balances.find(b => b.bucket === 'AVAILABLE')?.qty, '90.000', '96 less 6');
+    });
+
+    await check('an issue larger than the balance is refused, naming what is there', async () => {
+      await rejects(
+        () =>
+          issues.createIssue(WHL, {
+            siteId: siteA, issuedTo: 'Overreach test',
+            lines: [{ itemId: palletId, qty: '500' }],
+          }),
+        /has 90 Nos of HDPE pallet.*not enough to issue 500/is,
+        'overdraw',
+      );
+    });
+
+    await check('nothing is issued when a later line cannot be met', async () => {
+      const before = await inTransaction(tx => stock.balancesFor(tx, siteA, coilId));
+      const beforeQty = Number(before.find(b => b.bucket === 'AVAILABLE')?.qty ?? 0);
+
+      await rejects(
+        () =>
+          issues.createIssue(WHL, {
+            siteId: siteA, issuedTo: 'Partial test',
+            lines: [
+              { itemId: coilId, qty: '1' },
+              { itemId: palletId, qty: '9999' },
+            ],
+          }),
+        /not enough to issue/i,
+        'atomicity',
+      );
+
+      const after = await inTransaction(tx => stock.balancesFor(tx, siteA, coilId));
+      const afterQty = Number(after.find(b => b.bucket === 'AVAILABLE')?.qty ?? 0);
+      assertEqual(afterQty, beforeQty, 'the first line was not issued either');
+    });
+
+    await check('the same item twice on one issue is refused', async () => {
+      await rejects(
+        () =>
+          issues.createIssue(WHL, {
+            siteId: siteA, issuedTo: 'Duplicate test',
+            lines: [
+              { itemId: palletId, qty: '1' },
+              { itemId: palletId, qty: '2' },
+            ],
+          }),
+        /more than one line/i,
+        'duplicate item',
+      );
+    });
+
+    await check('only the Warehouse Lead may issue', async () => {
+      await rejects(
+        () =>
+          issues.createIssue(REQ, {
+            siteId: siteA, issuedTo: 'Not my job',
+            lines: [{ itemId: palletId, qty: '1' }],
+          }),
+        /Warehouse Lead/i,
+        'permission',
+      );
+    });
+
+    let adjEntryId = 0;
+
+    await check('C-27 · an adjustment has a source record, and two are not one', async () => {
+      const first = await inventory.adjustToCount(WHL, {
+        siteId: siteA, itemId: palletId, countedQty: '88',
+        reason: 'Quarterly stock take, aisle 3 — two pallets unaccounted for',
+      });
+
+      assert(first.adjustment !== null, 'the stock take is recorded');
+      assertEqual(first.delta, '-2.000', 'down two');
+      assert(String(first.adjustment?.adj_no).startsWith('ADJ-DHU-'), 'numbered at the site');
+      adjEntryId = Number(first.entryId);
+
+      // The second count MUST post. Under any (site, item) key scheme it would
+      // collide with the first and silently do nothing — which is the whole
+      // reason C-27 exists.
+      const second = await inventory.adjustToCount(WHL, {
+        siteId: siteA, itemId: palletId, countedQty: '87',
+        reason: 'Recount after the aisle was tidied — one more missing',
+      });
+
+      assert(second.entryId !== null, 'the second count posted its own entry');
+      assert(second.entryId !== first.entryId, 'and it is a different ledger entry');
+      assertEqual(second.delta, '-1.000', 'down one more');
+
+      const balances = await inTransaction(tx => stock.balancesFor(tx, siteA, palletId));
+      assertEqual(balances.find(b => b.bucket === 'AVAILABLE')?.qty, '87.000', 'the count wins');
+    });
+
+    await check('a count that matches posts nothing at all', async () => {
+      const same = await inventory.adjustToCount(WHL, {
+        siteId: siteA, itemId: palletId, countedQty: '87',
+        reason: 'Recount confirms the figure',
+      });
+      assertEqual(same.entryId, null, 'no ledger entry');
+      assertEqual(same.adjustment, null, 'no adjustment record either');
+    });
+
+    await check('the ledger explains every movement through its source', async () => {
+      const rows = await inventory.listAdjustments(SMGR.principal, { siteId: siteA });
+      assertEqual(rows.length, 2, 'two discrepancies recorded');
+      assert(rows.every(r => r.entry_no !== null), 'each resolves to its ledger entry');
+      assertEqual(rows[0].delta, '-1.000', 'newest first');
+    });
+
+    await check('an adjustment cannot take stock below zero', async () => {
+      await rejects(
+        () =>
+          inventory.adjustToCount(WHL, {
+            siteId: siteA, itemId: coilId, countedQty: '-5',
+            reason: 'Impossible count',
+          }),
+        /cannot be negative/i,
+        'negative count',
+      );
+    });
+
+    await check('§29 · a movement is corrected by reversal, never by editing', async () => {
+      const before = await inTransaction(tx => stock.balancesFor(tx, siteA, palletId));
+      const beforeQty = Number(before.find(b => b.bucket === 'AVAILABLE')?.qty ?? 0);
+
+      const reversalId = await inventory.reverseMovement(
+        SMGR, adjEntryId, 'The first stock take counted a bay that belongs to Pune',
+      );
+
+      const after = await inTransaction(tx => stock.balancesFor(tx, siteA, palletId));
+      const afterQty = Number(after.find(b => b.bucket === 'AVAILABLE')?.qty ?? 0);
+      assertEqual(afterQty - beforeQty, 2, 'the two pallets came back');
+
+      // Both entries stand. That is the point of a reversal.
+      const entry = await inventory.ledgerEntry(adjEntryId);
+      assertEqual(Number(entry.reversed_by_id), reversalId, 'the original names its reversal');
+    });
+
+    await check('the same movement cannot be reversed twice', async () => {
+      await rejects(
+        () => inventory.reverseMovement(SMGR, adjEntryId, 'Second attempt'),
+        /already been reversed/i,
+        'double reversal',
+      );
+    });
+
+    await check('a reversal is not itself reversible', async () => {
+      const entries = await inventory.ledger(SMGR.principal, { siteId: siteA, movement: 'REVERSAL' });
+      await rejects(
+        () => inventory.reverseMovement(SMGR, Number(entries[0].id), 'Reversing the reversal'),
+        /itself a reversal/i,
+        'reversing a reversal',
+      );
+    });
+
+    await check('only a Site Manager or Functional Head may reverse', async () => {
+      await rejects(
+        () => inventory.reverseMovement(WHL, adjEntryId, 'Not my call'),
+        /do not have permission/i,
+        'reversal permission',
+      );
+    });
+
+    // =====================================================================
+    // Serialised stock and the asset register (C-19)
+    // =====================================================================
+    let serialItemId = 0;
+    let serialGrnId = 0;
+
+    await check('a serialised item is received, and each unit enters the register', async () => {
+      serialItemId = Number(
+        (await masters.createItem(ADMIN, {
+          code: 'DL-TEMP-01', name: 'Temperature data logger', itemClassId: classId,
+          uom: 'Nos', isSerialised: true, warrantyMonths: 24,
+        })).id,
+      );
+
+      // Straight to a receipt: the procurement chain is proven above, and what
+      // is under test here is what happens to the units.
+      const built = await buildReceipt({
+        itemId: serialItemId, qty: '3', rate: '18000', itemCode: 'DL-TEMP-01',
+      });
+      serialGrnId = built.grnId;
+
+      const units = await assets.listAssets(SMGR.principal, { itemId: serialItemId });
+      assertEqual(units.length, 3, 'one row per unit');
+      assertEqual(units[0].asset_tag, 'DL-TEMP-01-DHU-0001', 'tagged in an item-and-site series');
+      assertEqual(units[2].asset_tag, 'DL-TEMP-01-DHU-0003', 'sequentially');
+      assert(units.every(u => u.bucket === 'AVAILABLE'), 'and available');
+      assert(units.every(u => u.in_warranty === true), 'under warranty from receipt');
+    });
+
+    await check('C-19 · the register and the balance agree after a receipt', async () => {
+      const drift = await assets.assetDrift(siteA);
+      assertEqual(drift, [], 'no drift');
+    });
+
+    await check('C-19 · issuing a serialised item moves its units too', async () => {
+      await issues.createIssue(WHL, {
+        siteId: siteA, issuedTo: 'Reefer 4 retrofit',
+        lines: [{ itemId: serialItemId, qty: '1' }],
+      });
+
+      const units = await assets.listAssets(SMGR.principal, { itemId: serialItemId });
+      const gone = units.filter(u => u.bucket === 'WRITTEN_OFF');
+      assertEqual(gone.length, 1, 'one unit left the building');
+      assertEqual(gone[0].asset_tag, 'DL-TEMP-01-DHU-0001', 'the oldest, deterministically');
+
+      const available = units.filter(u => u.bucket === 'AVAILABLE');
+      assertEqual(available.length, 2, 'two still on the shelf');
+
+      const drift = await assets.assetDrift(siteA);
+      assertEqual(drift, [], 'still no drift');
+    });
+
+    await check('a unit carries its receipt, and only its details are editable', async () => {
+      const units = await assets.listAssets(SMGR.principal, { itemId: serialItemId, bucket: 'AVAILABLE' });
+      const { asset, history } = await assets.getAsset(Number(units[0].id));
+
+      assertEqual(asset.grn_no !== null, true, 'traceable to the receipt that created it');
+      assert(Array.isArray(history), 'its movement history reads');
+
+      const updated = await assets.updateAsset(WHL, Number(units[0].id), { serialNo: 'SN-99120-A' });
+      assertEqual(updated.serial_no, 'SN-99120-A', 'serial recorded');
+      assertEqual(updated.bucket, 'AVAILABLE', 'the bucket is not editable and did not move');
+    });
+
+    // =====================================================================
+    // Damage and quarantine
+    // =====================================================================
+    let damageId = 0;
+
+    await check('damage is reported, and the stock is quarantined in the same breath', async () => {
+      const before = await inTransaction(tx => stock.balancesFor(tx, siteA, palletId));
+      const beforeAvailable = Number(before.find(b => b.bucket === 'AVAILABLE')?.qty ?? 0);
+
+      const report = await damage.reportDamage(WHL, {
+        siteId: siteA, itemId: palletId, qty: '4', cause: 'HANDLING',
+        observedOn: '2026-09-23',
+      });
+
+      damageId = Number(report.id);
+      assert(String(report.dmg_no).startsWith('DMG-DHU-'), `numbered at the site: ${report.dmg_no}`);
+      assertEqual(report.status, 'DMG_REPORTED', 'reported');
+      assert(report.quarantine_entry_id !== null, 'the quarantine movement is stamped on it');
+
+      const after = await inTransaction(tx => stock.balancesFor(tx, siteA, palletId));
+      assertEqual(
+        Number(after.find(b => b.bucket === 'AVAILABLE')?.qty ?? 0),
+        beforeAvailable - 4,
+        'out of the available pool immediately',
+      );
+      assertEqual(after.find(b => b.bucket === 'DAMAGED_HOLD')?.qty, '4.000', 'and into damaged hold');
+    });
+
+    await check('damage cannot be reported for more than is available', async () => {
+      await rejects(
+        () =>
+          damage.reportDamage(WHL, {
+            siteId: siteA, itemId: palletId, qty: '9999', cause: 'STORAGE_FAILURE',
+            observedOn: '2026-09-23',
+          }),
+        /cannot be quarantined/i,
+        'over-quarantine',
+      );
+    });
+
+    await check('a serialised item is damaged as a unit, not as a quantity', async () => {
+      await rejects(
+        () =>
+          damage.reportDamage(WHL, {
+            siteId: siteA, itemId: serialItemId, qty: '1', cause: 'HANDLING',
+            observedOn: '2026-09-23',
+          }),
+        /name the unit that was damaged/i,
+        'serialised without a unit',
+      );
+    });
+
+    await check('the reporter cannot sign the inspection they raised', async () => {
+      await rejects(
+        () =>
+          damage.inspectDamage(
+            { principal: principal(wareId, ['CG_WHL', 'CG_SMGR'], bothSites), ip: null },
+            damageId, 'Looks broken to me, and I found it',
+          ),
+        /somebody else/i,
+        'self-inspection',
+      );
+    });
+
+    await check('the inspection needs both a Site Manager and a QC inspector', async () => {
+      const first = await damage.inspectDamage(
+        SMGR, damageId, 'Four pallets cracked across the top deck; consistent with forklift contact',
+      );
+      assert(!first.complete, 'one signature is not an inspection');
+      assertEqual(first.report.status, 'DMG_REPORTED', 'still reported');
+
+      // Signing again from the same person adds nothing and is refused while
+      // the inspection is still open — the second signature has to be someone
+      // else's, which is the entire point of a joint inspection.
+      await rejects(
+        () => damage.inspectDamage(SMGR, damageId, 'Signing again for good measure'),
+        /already signed/i,
+        'double signature',
+      );
+
+      const second = await damage.inspectDamage(
+        QCI, damageId, 'Confirmed; load-bearing surface compromised, not repairable in house',
+      );
+      assert(second.complete, 'both roles have now signed');
+      assertEqual(second.report.status, 'DMG_INSPECTED', 'and the report moved');
+      assertEqual(second.signatures.length, 2, 'two signatures recorded');
+    });
+
+    await check('a completed inspection is not signed again', async () => {
+      await rejects(
+        () => damage.inspectDamage(SMGR, damageId, 'Late to the party'),
+        /inspection is already done/i,
+        'signing after completion',
+      );
+    });
+
+
+    let coilDamageId = 0;
+    let loggerDamageId = 0;
+    let shortfallRtvId = 0;
+
+    // =====================================================================
+    // Returns — damage decisions, then the three RTV sources
+    // =====================================================================
+    await check('a repair is approved, and the stock comes back from it', async () => {
+      // The pallet damage from above: 4 at ₹2,150 is ₹8,600, well under every
+      // threshold, so it takes the single-approver route.
+      const { report } = await damage.decideDamage(WHL, damageId, 'INTERNAL_REPAIR');
+      assertEqual(report.status, 'DMG_DECISION_PENDING_APPROVAL', 'proposed');
+      assertEqual(report.decision, 'INTERNAL_REPAIR', 'repair');
+
+      const approved = await damage.approveDamageDecision(FHEAD, damageId);
+      assertEqual(approved.report.status, 'DMG_UNDER_REPAIR', 'under repair');
+      assert(approved.entryId !== null, 'and the stock moved with it');
+
+      const mid = await inTransaction(tx => stock.balancesFor(tx, siteA, palletId));
+      assertEqual(mid.find(b => b.bucket === 'UNDER_REPAIR')?.qty, '4.000', 'out of damaged hold');
+      assertEqual(mid.find(b => b.bucket === 'DAMAGED_HOLD')?.qty, '0.000', 'and nothing left there');
+
+      const done = await damage.completeRepair(WHL, damageId, 'Top decks re-plated');
+      assertEqual(done.report.status, 'DMG_CLOSED', 'closed');
+
+      const after = await inTransaction(tx => stock.balancesFor(tx, siteA, palletId));
+      assertEqual(after.find(b => b.bucket === 'UNDER_REPAIR')?.qty, '0.000', 'repair bucket drained');
+    });
+
+    await check('C-13 · a write-off above ₹50,000 needs an insurance reference', async () => {
+      const report = await damage.reportDamage(WHL, {
+        siteId: siteA, itemId: coilId, qty: '1', cause: 'POWER_REFRIGERATION_FAILURE',
+        observedOn: '2026-09-23',
+      });
+      coilDamageId = Number(report.id);
+
+      await damage.inspectDamage(SMGR, coilDamageId, 'Compressor seized after the substation failure');
+      await damage.inspectDamage(QCI, coilDamageId, 'Confirmed; windings burnt out, beyond economic repair');
+
+      // The coil was received at ₹1,82,000, so this is well over the threshold.
+      await rejects(
+        () => damage.decideDamage(WHL, coilDamageId, 'WRITE_OFF'),
+        /above the .50,000 threshold.*insurance claim reference/is,
+        'no insurance reference',
+      );
+    });
+
+    await check('the reporter cannot approve their own decision', async () => {
+      await damage.decideDamage(WHL, coilDamageId, 'WRITE_OFF', {
+        insuranceClaimRef: 'NIC/2026/CG/00817',
+      });
+
+      // Wasim raised it and holds CG_WHL, which IS level 1 of this band — so
+      // the permission passes and only the self-approval rule stands in the way.
+      await rejects(
+        () => damage.approveDamageDecision(WHL, coilDamageId),
+        /somebody else approves/i,
+        'self-approval',
+      );
+    });
+
+    await check('a write-off is banded, and destroys stock only once every level clears', async () => {
+      const levels = await damage.writeOffApprovals(coilDamageId);
+      // ₹1,82,000 falls in the ₹25,000–2 lakh band: Warehouse Lead, then
+      // Functional Head.
+      assertEqual(levels.map(l => l.required_role), ['CG_WHL', 'CG_FHEAD'], 'two levels');
+
+      const first = await damage.approveDamageDecision(WHL2, coilDamageId);
+      assert(!first.complete, 'one level is not approval');
+      assertEqual(first.report.status, 'DMG_DECISION_PENDING_APPROVAL', 'still pending');
+
+      const mid = await inTransaction(tx => stock.balancesFor(tx, siteA, coilId));
+      assertEqual(mid.find(b => b.bucket === 'DAMAGED_HOLD')?.qty, '1.000', 'still only quarantined');
+
+      const second = await damage.approveDamageDecision(FHEAD, coilDamageId);
+      assert(second.complete, 'both levels cleared');
+      assertEqual(second.report.status, 'DMG_WRITTEN_OFF', 'written off');
+
+      const after = await inTransaction(tx => stock.balancesFor(tx, siteA, coilId));
+      assertEqual(after.find(b => b.bucket === 'WRITTEN_OFF')?.qty, '1.000', 'and now it is gone');
+      assertEqual(after.find(b => b.bucket === 'DAMAGED_HOLD')?.qty, '0.000', 'hold drained');
+    });
+
+    await check('a warranty claim is refused on stock that was out of warranty', async () => {
+      // The pallets carry no warranty at all.
+      const report = await damage.reportDamage(RCV, {
+        siteId: siteA, itemId: palletId, qty: '2', cause: 'STORAGE_FAILURE',
+        observedOn: '2026-09-23',
+      });
+      const id = Number(report.id);
+      await damage.inspectDamage(SMGR, id, 'Water ingress on two pallets in the low bay');
+      await damage.inspectDamage(QCI, id, 'Confirmed; swelling and delamination');
+
+      await rejects(
+        () => damage.decideDamage(WHL, id, 'WARRANTY_CLAIM'),
+        /no warranty is recorded/i,
+        'warranty claim without a warranty',
+      );
+
+      // ₹4,300 falls in the lowest band, which is one level — but that level is
+      // still CG_WHL. A write-off is never unapproved, however small.
+      await damage.decideDamage(WHL, id, 'WRITE_OFF');
+      const done = await damage.approveDamageDecision(WHL2, id);
+      assertEqual(done.report.status, 'DMG_WRITTEN_OFF', 'written off once its one level cleared');
+    });
+
+    // =====================================================================
+    // RTV, all three sources
+    // =====================================================================
+    let damageRtvId = 0;
+
+    await check('a warranty claim clears the way for a return, without moving stock yet', async () => {
+      // The data logger: serialised, 24 months warranty, traceable to its receipt.
+      const units = await assets.listAssets(SMGR.principal, { itemId: serialItemId, bucket: 'AVAILABLE' });
+      const report = await damage.reportDamage(WHL, {
+        siteId: siteA, itemId: serialItemId, qty: '1', cause: 'HANDLING',
+        observedOn: '2026-09-23', assetUnitId: Number(units[0].id),
+      });
+      loggerDamageId = Number(report.id);
+      assertEqual(report.in_warranty, true, 'in warranty when the damage was seen');
+
+      await damage.inspectDamage(SMGR, loggerDamageId, 'Probe sheared off at the gland');
+      await damage.inspectDamage(QCI, loggerDamageId, 'Confirmed; manufacturing defect at the joint');
+
+      await damage.decideDamage(WHL, loggerDamageId, 'WARRANTY_CLAIM');
+      const approved = await damage.approveDamageDecision(FHEAD, loggerDamageId);
+      assertEqual(approved.report.status, 'DMG_RETURN_RAISED', 'cleared to return');
+      assertEqual(approved.entryId, null, 'and no movement yet — it has not left the building');
+
+      const balances = await inTransaction(tx => stock.balancesFor(tx, siteA, serialItemId));
+      assertEqual(balances.find(b => b.bucket === 'DAMAGED_HOLD')?.qty, '1.000', 'still quarantined');
+    });
+
+    await check('the return picker offers every origin that has not been returned', async () => {
+      const origins = await rtv.returnableOrigins(SMGR.principal);
+      const sources = new Set(origins.map(o => String(o.source)));
+
+      assert(sources.has('WAREHOUSE_DAMAGE'), 'the warranty-claim damage is offered');
+      assert(sources.has('QC_REJECTION'), 'the rejected pallets are offered');
+      assert(sources.has('SHORTFALL'), 'the awaited balance is offered');
+    });
+
+    await check('source · WAREHOUSE_DAMAGE takes the stock out of damaged hold', async () => {
+      const created = await rtv.createRtv(WHL, {
+        source: 'WAREHOUSE_DAMAGE', basis: 'FREE_REPLACEMENT', damageId: loggerDamageId,
+      });
+      damageRtvId = Number(created.id);
+      assert(String(created.rtv_no).startsWith('RTV-DHU-'), `numbered at the site: ${created.rtv_no}`);
+      assertEqual(created.status, 'RTV_DRAFT', 'draft');
+      assertEqual(created.prn_no, null, 'no PRN until it is approved');
+
+      const { rtv: approved } = await rtv.approveRtv(SMGR, damageRtvId);
+      assertEqual(approved.status, 'RTV_APPROVED', 'approved');
+      assert(String(approved.prn_no).startsWith('PRN-DHU-'), `PRN minted: ${approved.prn_no}`);
+      assert(String(approved.gate_pass_no).startsWith('RGP-DHU-'), `gate pass minted: ${approved.gate_pass_no}`);
+
+      const balances = await inTransaction(tx => stock.balancesFor(tx, siteA, serialItemId));
+      assertEqual(balances.find(b => b.bucket === 'DAMAGED_HOLD')?.qty, '0.000', 'damaged hold drained');
+
+      const { lines } = await rtv.getRtv(damageRtvId);
+      assert(lines[0].reversal_entry_no !== null, 'the line names the entry that reversed it');
+    });
+
+    await check('rtv_self_approval · the person who raised it cannot approve it', async () => {
+      // Raised by a Site Manager, who also holds RTV.APPROVE — so the
+      // permission passes and only the self-approval rule refuses. Raised by a
+      // Warehouse Lead it would be stopped a step earlier, by the permission,
+      // and this rule would never be reached.
+      const created = await rtv.createRtv(SMGR, {
+        source: 'SHORTFALL', basis: 'CREDIT',
+        shortfallId: Number((await shortfalls.listShortfalls(SMGR.principal, { decision: 'AWAIT_BALANCE' }))[0].id),
+      });
+      shortfallRtvId = Number(created.id);
+
+      await rejects(
+        () => rtv.approveRtv(SMGR, shortfallRtvId),
+        /raised this return/i,
+        'self-approval',
+      );
+    });
+
+    await check('source · SHORTFALL posts nothing — the goods never arrived', async () => {
+      const ledgerBefore = await sql<{ n: string }[]>`
+        SELECT count(*)::text AS n FROM stock_ledger WHERE source_type = 'RTV_LINE'`;
+
+      const { rtv: approved, entries } = await rtv.approveRtv(FHEAD, shortfallRtvId);
+      assertEqual(entries, [], 'no movements');
+      assert(String(approved.prn_no).startsWith('PRN-DHU-'), 'but the PRN is still minted');
+      assert(String(approved.gate_pass_no).startsWith('RGP-DHU-'), 'and the gate pass too');
+
+      const ledgerAfter = await sql<{ n: string }[]>`
+        SELECT count(*)::text AS n FROM stock_ledger WHERE source_type = 'RTV_LINE'`;
+      assertEqual(ledgerAfter[0].n, ledgerBefore[0].n, 'the ledger is untouched');
+    });
+
+    await check('source · QC_REJECTION posts nothing either — it never entered stock', async () => {
+      const created = await rtv.createRtv(QCI, {
+        source: 'QC_REJECTION', basis: 'CREDIT', qcId,
+      });
+      const qcRtvId = Number(created.id);
+
+      const { lines } = await rtv.getRtv(qcRtvId);
+      assertEqual(lines.length, 1, 'the rejected pallets');
+      assertEqual(lines[0].qty, '2.000', 'two of them');
+
+      const before = await inTransaction(tx => stock.balancesFor(tx, siteA, palletId));
+      const beforeAvailable = Number(before.find(b => b.bucket === 'AVAILABLE')?.qty ?? 0);
+
+      const { entries } = await rtv.approveRtv(SMGR, qcRtvId);
+      assertEqual(entries, [], 'no movements');
+
+      const after = await inTransaction(tx => stock.balancesFor(tx, siteA, palletId));
+      assertEqual(
+        Number(after.find(b => b.bucket === 'AVAILABLE')?.qty ?? 0),
+        beforeAvailable,
+        'and the balance is exactly as it was',
+      );
+
+      const { lines: after2 } = await rtv.getRtv(qcRtvId);
+      assertEqual(after2[0].reversal_entry_no, null, 'the line has no reversal to name');
+    });
+
+    await check('the same origin cannot be returned twice', async () => {
+      await rejects(
+        () => rtv.createRtv(QCI, { source: 'QC_REJECTION', basis: 'CREDIT', qcId }),
+        /already been returned as RTV-/i,
+        'duplicate return',
+      );
+    });
+
+    await check('damage with no traceable receipt cannot be returned to anybody', async () => {
+      const report = await damage.reportDamage(WHL, {
+        siteId: siteA, itemId: palletId, qty: '1', cause: 'PEST_CONTAMINATION',
+        observedOn: '2026-09-23',
+      });
+      const id = Number(report.id);
+
+      await rejects(
+        () => rtv.createRtv(WHL, { source: 'WAREHOUSE_DAMAGE', basis: 'CREDIT', damageId: id }),
+        /no receipt behind it.*repaired or written off/is,
+        'untraceable damage',
+      );
+    });
+
+    await check('the return is dispatched, acknowledged and closed', async () => {
+      const dispatched = await rtv.dispatchRtv(RCV, damageRtvId, {
+        transporter: 'Sundar Roadways', lrNo: 'LR-55120', ewayBillNo: 'EWB-771920334455',
+      });
+      assertEqual(dispatched.status, 'RTV_DISPATCHED', 'dispatched');
+      assert(dispatched.dispatched_at !== null, 'stamped');
+
+      await rejects(
+        () => rtv.acknowledgeRtv(BUY, damageRtvId, '   '),
+        /vendor.s reference/i,
+        'acknowledgement without a reference',
+      );
+
+      const acked = await rtv.acknowledgeRtv(BUY, damageRtvId, 'RMA-2026-0471');
+      assertEqual(acked.status, 'RTV_ACKNOWLEDGED', 'acknowledged');
+      assertEqual(acked.vendor_rma_no, 'RMA-2026-0471', 'with the vendor reference');
+
+      const closed = await rtv.closeRtv(ACC, damageRtvId, 'Free replacement received');
+      assertEqual(closed.status, 'RTV_CLOSED', 'closed');
+    });
+
+    await check('cancelling an approved return puts the stock back', async () => {
+      // The last available logger, taken through the whole chain again.
+      const units = await assets.listAssets(SMGR.principal, { itemId: serialItemId, bucket: 'AVAILABLE' });
+      const report = await damage.reportDamage(WHL, {
+        siteId: siteA, itemId: serialItemId, qty: '1', cause: 'INTERNAL_TRANSIT',
+        observedOn: '2026-09-23', assetUnitId: Number(units[0].id),
+      });
+      const dmgId = Number(report.id);
+      await damage.inspectDamage(SMGR, dmgId, 'Casing cracked in transit between bays');
+      await damage.inspectDamage(QCI, dmgId, 'Confirmed; sensor no longer seated');
+      await damage.decideDamage(WHL, dmgId, 'WARRANTY_CLAIM');
+      await damage.approveDamageDecision(FHEAD, dmgId);
+
+      const created = await rtv.createRtv(WHL, {
+        source: 'WAREHOUSE_DAMAGE', basis: 'CREDIT', damageId: dmgId,
+      });
+      const id = Number(created.id);
+      await rtv.approveRtv(SMGR, id);
+
+      const drained = await inTransaction(tx => stock.balancesFor(tx, siteA, serialItemId));
+      assertEqual(drained.find(b => b.bucket === 'DAMAGED_HOLD')?.qty, '0.000', 'gone on approval');
+
+      await rtv.cancelRtv(SMGR, id, 'Vendor refused the claim; keeping it here');
+
+      const back = await inTransaction(tx => stock.balancesFor(tx, siteA, serialItemId));
+      assertEqual(back.find(b => b.bucket === 'DAMAGED_HOLD')?.qty, '1.000', 'and back on cancellation');
+    });
+
     await check('the whole chain is in the audit trail', async () => {
       const rows = await sql<{ entity_type: string; action: string }[]>`
         SELECT entity_type, action FROM audit_log ORDER BY id`;
@@ -1200,6 +1950,7 @@ async function main() {
       for (const entity of [
         'MR', 'TRANSFER', 'PR', 'QUOTATION', 'QUOTE_AWARD', 'PO', 'VENDOR',
         'GATE_INWARD', 'QC_LINE', 'GRN', 'SHORTFALL',
+        'STOCK', 'STOCK_ISSUE', 'ASSET_UNIT', 'DAMAGE', 'RTV',
       ]) {
         assert(rows.some(r => r.entity_type === entity), `${entity} is missing from the audit trail`);
       }

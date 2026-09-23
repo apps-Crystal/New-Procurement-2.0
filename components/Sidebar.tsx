@@ -62,17 +62,26 @@ export function Sidebar({
         {groups.map(g => (
           <div className="nav-group" key={g.label}>
             <div className="nav-label">{g.label}</div>
-            {g.items.map(i => (
-              <Link
-                key={i.href}
-                href={i.href}
-                className="nav-link"
-                aria-current={i.href === active ? 'page' : undefined}
-                onClick={() => setOpen(false)}
-              >
-                {i.label}
-              </Link>
-            ))}
+            {g.items.map(i =>
+              i.comingIn ? (
+                // Not a link: the screen does not exist yet, and a 404 reads as
+                // something broken rather than as something not built.
+                <span key={i.href} className="nav-link is-pending" aria-disabled="true">
+                  {i.label}
+                  <em>{i.comingIn}</em>
+                </span>
+              ) : (
+                <Link
+                  key={i.href}
+                  href={i.href}
+                  className="nav-link"
+                  aria-current={i.href === active ? 'page' : undefined}
+                  onClick={() => setOpen(false)}
+                >
+                  {i.label}
+                </Link>
+              ),
+            )}
           </div>
         ))}
 

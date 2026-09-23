@@ -165,6 +165,42 @@ describe('authorisation (§26, §31)', () => {
     expect(unknown).toEqual([]);
   });
 
+  it('every navigation link resolves to a page, unless marked as not yet built', async () => {
+    const { NAV } = await import('@/lib/nav');
+    const appDir = path.join(ROOT, 'app', '(app)');
+
+    // A route group folder like (app) does not appear in the URL, and a
+    // dynamic segment cannot be reached from a static nav href, so neither
+    // needs handling here — every nav href is a literal path.
+    const pageExists = (href: string) => {
+      const rel = href === '/' ? '' : href.slice(1);
+      return statSync(path.join(appDir, rel, 'page.tsx'), { throwIfNoEntry: false }) !== undefined;
+    };
+
+    const broken = NAV.flatMap(g => g.items)
+      .filter(i => !i.comingIn && !pageExists(i.href))
+      .map(i => i.href);
+
+    expect(broken).toEqual([]);
+  });
+
+  it('nothing is marked as not yet built once its page exists', async () => {
+    const { NAV } = await import('@/lib/nav');
+    const appDir = path.join(ROOT, 'app', '(app)');
+
+    // The other half of the rule: a stale marker hides a finished screen behind
+    // a greyed-out label, which is worse than the 404 it was added to prevent.
+    const stale = NAV.flatMap(g => g.items)
+      .filter(
+        i =>
+          i.comingIn &&
+          statSync(path.join(appDir, i.href.slice(1), 'page.tsx'), { throwIfNoEntry: false }) !== undefined,
+      )
+      .map(i => i.href);
+
+    expect(stale).toEqual([]);
+  });
+
   it('every permission key grants at least one role', async () => {
     const { PERMISSION_MATRIX } = await import('@/lib/auth/permissions');
 

@@ -144,7 +144,65 @@ export async function postMovement(tx: Tx, input: MovementInput): Promise<number
       ${input.reversesEntryId ?? null}, ${input.remarks ?? null}
     )`;
 
-  return Number(rows[0].post_stock_movement);
+  const entryId = Number(rows[0].post_stock_movement);
+
+  // C-19: keep per-unit buckets in step with the aggregate, in the same
+  // transaction. See syncSerialisedUnits.
+  await syncSerialisedUnits(tx, input);
+
+  return entryId;
+}
+
+/**
+ * Keep `asset_units.bucket` in step with `stock_balances` (conflict C-19).
+ *
+ * A serialised item is counted twice by the schema: once per unit on
+ * `asset_units.bucket`, and once in aggregate on `stock_balances`. No trigger
+ * keeps them together, so they can drift — and a drifted asset register is
+ * worse than none, because it looks authoritative.
+ *
+ * The register's stated rule was that every caller updates the units alongside
+ * its movement. This does it INSIDE `postMovement` instead, which is the same
+ * transaction and the same guarantee, minus the chance of a caller forgetting.
+ * There is exactly one place stock moves, so there is exactly one place the
+ * units move with it.
+ *
+ * Which units move, when the caller did not name one: the oldest in the source
+ * bucket. Any rule would do — the units are interchangeable by definition, or
+ * they would have been named — but it has to be deterministic, so a replay
+ * touches the same rows.
+ */
+async function syncSerialisedUnits(tx: Tx, input: MovementInput): Promise<void> {
+  const [item] = await tx<{ is_serialised: boolean }[]>`
+    SELECT is_serialised FROM items WHERE id = ${input.itemId}`;
+  if (!item?.is_serialised) return;
+
+  // A movement out of nowhere (a receipt) has no units to move: they are minted
+  // by whoever created them, against the receipt line. A movement to nowhere
+  // (an issue) leaves the unit where the schema can still describe it, so the
+  // bucket it lands in is the one the movement named, or WRITTEN_OFF when the
+  // stock has left the building entirely.
+  const target = input.to ?? (input.movement === 'ISSUE' ? 'WRITTEN_OFF' : input.from);
+  if (!target || target === input.from) return;
+
+  if (input.assetUnitId) {
+    await tx`
+      UPDATE asset_units SET bucket = ${target}::stock_bucket, updated_at = now()
+       WHERE id = ${input.assetUnitId}`;
+    return;
+  }
+
+  if (!input.from) return; // nothing to take from; the receipt path mints instead
+
+  await tx`
+    UPDATE asset_units SET bucket = ${target}::stock_bucket, updated_at = now()
+     WHERE id IN (
+       SELECT id FROM asset_units
+        WHERE site_id = ${input.siteId} AND item_id = ${input.itemId}
+          AND bucket = ${input.from}::stock_bucket
+        ORDER BY id
+        LIMIT ${Math.round(Number(input.qty))}
+     )`;
 }
 
 /** Post several movements in order, inside one transaction. */

@@ -173,6 +173,12 @@ h1 { margin: 4px 0 0; font-size: 26px; font-weight: 700; display: flex; align-it
 
 /* Line-item rows label each input for a screen reader without a visible label,
    because a column header a row above is not programmatically the label. */
+/* A nav entry whose screen is not built yet: visible, so the shape of the
+   product still reads, but plainly not something to click. */
+.nav-link.is-pending { display: flex; justify-content: space-between; align-items: center; gap: 8px; opacity: .45; cursor: default; }
+.nav-link.is-pending:hover { background: none; }
+.nav-link.is-pending em { font-style: normal; font-size: 10px; letter-spacing: .04em; text-transform: uppercase; opacity: .8; }
+
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 .b { font-weight: 600; }
 

@@ -516,3 +516,55 @@ so the GRN attaches to whichever inspection is final.
 `shortfall_cases.gate_inward_line_id NOT NULL UNIQUE` is left alone: a shortfall
 is a gate fact, settled once, and is genuinely one per line however many times
 quality is re-judged.
+
+---
+
+## 🔴 C-27 — `ADJUSTMENT` is a movement type with nothing to move it
+
+**Found by** building the stock-take path in Phase 6.
+
+**Schema** — `movement_type` includes `'ADJUSTMENT'`, and every ledger entry
+must name its source:
+
+```sql
+source_type text   NOT NULL,   -- GRN_LINE, TRANSFER_LINE, DAMAGE_REPORT, …
+source_id   bigint NOT NULL,
+idempotency_key text NOT NULL UNIQUE,  -- source_type:source_id:movement:site_id
+```
+
+Every other `source_type` in that list is a row in a table, and
+`stock_ledger_source_idx ON (source_type, source_id)` exists so that "what
+caused this movement" can be answered. `ADJUSTMENT` has no such table.
+
+**The problem, in two parts.**
+
+The visible one: `source_id` would point at nothing. The source index stops
+answering its question for exactly the movements that most need explaining —
+the ones where the system was simply wrong.
+
+The one that bites: **the idempotency key would not be unique.** Any scheme
+built from what an adjustment actually has — site and item — makes a second
+stock-take of the same item at the same site collide with the first. And
+`post_stock_movement()` treats a key collision as a replay: it returns the
+original entry and posts nothing. The second count would silently do nothing at
+all, report success, and leave the balance untouched.
+
+That is the worst possible failure for a stock take, because the screen would
+show the count accepted. It was caught by asserting that two consecutive counts
+of the same item produce two different ledger entries.
+
+**Why not a sequence.** A synthetic id makes the key unique and leaves the
+source dangling — it fixes the failure while keeping the defect. A stock take is
+also a business record in its own right: who counted, when, what the system
+said, what they found, and why. The audit log records *that* it happened; it is
+not where a warehouse looks it up.
+
+**Rule** — `ADJUSTMENT` gets the table the schema's own design implies, in
+`0005_stock_adjustments.sql`. Append-only like the ledger it explains, with
+`delta` generated from the two quantities so the movement can never disagree
+with the count behind it, and a `CHECK` that a matching count is not recorded at
+all. There is deliberately no `stock_entry_id` column: the ledger already points
+here through the source index, and a second copy of that fact could only go
+stale.
+
+Nothing in the supplied schema is changed. A missing piece is added.

@@ -36,6 +36,7 @@ import { nextDocumentNoForSite } from '@/lib/doc-no';
 import { can } from '@/lib/auth/permissions';
 import { badRequest, conflict, forbidden, notFound } from '@/lib/errors';
 import { receiveFromGrn } from '@/lib/services/stock';
+import { mintUnits } from '@/lib/services/assets';
 import type { Actor, Row } from '@/lib/services/masters';
 import type { Principal } from '@/lib/auth/permissions';
 
@@ -285,6 +286,21 @@ export async function approveGrn(actor: Actor, grnId: number): Promise<{ grn: Ro
       // be traced to the receipt that created it.
       await tx`UPDATE grn_lines SET stock_entry_id = ${entryId} WHERE id = ${line.id as number}`;
       entries.push(entryId);
+
+      // A serialised item also enters the asset register, one row per unit, in
+      // this same transaction. Non-serialised items mint nothing and this
+      // returns empty.
+      await mintUnits(
+        tx,
+        {
+          grnLineId: Number(line.id),
+          itemId: Number(line.item_id),
+          siteId,
+          qty: Number(line.qty_accepted),
+          locationId: line.location_id === null ? null : Number(line.location_id),
+        },
+        actor.principal.userId,
+      );
     }
 
     const [updated] = await tx<Row[]>`

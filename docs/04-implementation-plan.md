@@ -133,21 +133,104 @@ Three things surfaced during the phase:
 
 ---
 
-## Phase 6 — Inventory
+## Phase 6 — Inventory ✅ complete
 Ledger, balances, asset units, issues, transfers, damage quarantine.
 
 **Gate** — negative stock impossible; duplicate posting impossible; reversal
 works; transfer round-trip leaves both sites correct and `IN_TRANSIT` drained;
 `asset_units.bucket` matches balances.
 
+**Gate met.** `npm run verify:procurement` runs 95 checks across the whole
+chain. Every clause has its own check: an over-issue is refused naming what is
+actually there, a second approval cannot double-post, a reversal mirrors and
+both entries survive, and `assetDrift()` returns empty after a receipt and again
+after an issue.
+
+Delivered:
+
+| | |
+|---|---|
+| Services | `inventory`, `issues`, `assets`, `damage` |
+| API | 15 routes under `/api/inventory`, `/api/issues`, `/api/assets`, `/api/damage` |
+| Screens | `/inventory`, `/inventory/ledger`, `/inventory/issues`, `/inventory/issues/[id]`, `/inventory/assets`, `/damage`, `/damage/[id]` |
+| Migration | `0005_stock_adjustments.sql` (conflict C-27) |
+
+Three things worth recording:
+
+- **C-27 — `ADJUSTMENT` had no source table.** Not merely untidy: the
+  idempotency key is built from the source, so a second stock-take of the same
+  item would have collided with the first and silently posted nothing while
+  reporting success. Caught by asserting two consecutive counts produce two
+  entries.
+
+- **C-19 moved inside `post_stock_movement`.** The register's rule was that
+  every caller updates `asset_units.bucket` alongside its movement. Doing it in
+  the one function that moves stock is the same transaction and the same
+  guarantee, minus the chance of a caller forgetting.
+
+- **Asset units are minted on GRN approval.** `items.is_serialised` existed and
+  nothing had ever created an `asset_units` row, so the asset register was
+  unreachable. Receipts now mint one unit per received unit, tagged
+  `<ITEM>-<SITE>-0001`, with warranty running from receipt.
+
+One limitation, stated rather than hidden: `assetDrift()` excludes
+`WRITTEN_OFF`. `stock_bucket` has no value meaning "issued out", so a serialised
+unit leaving on an issue has nowhere to go but `WRITTEN_OFF` — while the ISSUE
+movement takes its quantity out of the site entirely rather than into a
+`WRITTEN_OFF` balance. The two populations in that bucket are not comparable.
+Every bucket where the two genuinely must agree is still checked.
+
 ---
 
-## Phase 7 — Returns
+## Phase 7 — Returns ✅ complete
 Damage → decision → RTV → dispatch → acknowledgement → replacement receipt.
 
 **Gate** — all three RTV sources work; approver ≠ raiser proven; QC-rejected
 stock posts **no** reversal; warehouse-damage stock **does**; PRN and gate pass
 minted on approval.
+
+**Gate met.** `npm run verify:procurement` runs 110 checks. Each clause has its
+own: the three sources are exercised separately and the two that post nothing
+are asserted against the ledger row count, not merely against a balance.
+
+Delivered:
+
+| | |
+|---|---|
+| Services | `rtv`, plus the decision chain completing `damage` |
+| API | 7 routes under `/api/rtv` and `/api/damage/[id]` |
+| Screens | `/returns`, `/returns/[id]`, and the decision card on `/damage/[id]` |
+
+The design point worth recording is the one the gate is built around: **which
+origin a return has decides whether stock moves at all.**
+
+- **QC rejection** — failed inspection, never received. Physically in the
+  receiving bay, but no GRN line covers it and no ledger entry exists.
+  Approving posts nothing.
+- **Warehouse damage** — received, entered stock, later found damaged. Sitting
+  in `DAMAGED_HOLD` because the damage report quarantined it. Approving posts
+  `RTV_REVERSAL` and drains that hold.
+- **Shortfall** — never arrived. Nothing in the building, nothing in the ledger.
+
+The schema states half of this, in a comment on
+`purchase_return_lines.reversal_entry_id`: *"QC rejections never entered stock,
+so there is nothing to reverse."* Getting it wrong in either direction quietly
+doubles or destroys inventory, so the screens say which case they are in before
+anything is approved rather than leaving the three looking identical.
+
+Two further notes:
+
+- **A write-off is always banded**, however small. `WRITE_OFF` bands start at
+  ₹0 and level 1 is `CG_WHL`, so even a ₹4,300 write-off needs an approver who
+  is not the reporter. Stock is destroyed only when the last level clears; a
+  refusal returns the report to the inspectors with the stock still
+  quarantined.
+
+- **A warranty claim is judged on the observation date**, not today.
+  `damage_reports.in_warranty` is generated from `warranty_until` and
+  `observed_on`, so sitting on a report until the warranty lapses does not
+  change whether the claim was valid — and `dmg_warranty_claim` refuses the
+  decision outright once it was not.
 
 ---
 
