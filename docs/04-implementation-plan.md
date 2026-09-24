@@ -339,13 +339,109 @@ and the trail was only wrong when read from the other end.
 
 ---
 
-## Phase 10 — Hardening
+## Phase 10 — Hardening ✅ complete
 Full test matrix (§33), permission tests per role × endpoint, transaction
 rollback tests, constraint tests, workflow tests, accessibility pass, error-message
 review, performance check on ledger and dashboard queries.
 
 **Gate** — §36 acceptance walk-through completed end to end on a clean database
 by three different users with correct roles, with no mock data.
+
+**Gate met, and exceeded.** `npm run verify:procurement` walks the whole chain
+on a database created and dropped per run, with **ten distinct users** holding
+real roles. No mock data exists anywhere in the run: every record is created
+through the services, by someone entitled to create it.
+
+One command runs everything:
+
+```
+npm run verify:all
+```
+
+| Suite | What it proves |
+|---|---|
+| `typecheck` | clean |
+| `test` | 79 unit, architecture, accessibility and error-message tests |
+| `verify:db` | 32 schema checks — constraints, triggers, generated columns |
+| `verify:permissions` | **400 role × action pairs** against the real services |
+| `verify:procurement` | **147 checks**, material request → vendor reconciliation |
+
+### The permission matrix
+
+`verify:permissions` is deliberately not "call `can()` and compare to the
+matrix", which would only prove the matrix equals itself. Forty probes call the
+real service with a principal holding exactly one role:
+
+- a denied role must **never succeed** — unconditional;
+- where a permitted role then succeeds, proving the action was possible, every
+  denied role must have been stopped by **authorisation specifically**, not by
+  state or by chance.
+
+Denied roles run first, so the state they all see is identical.
+
+Building it needed three fixture users, because the segregation rules are real
+and the fixtures are not exempt: the person who creates a vendor cannot approve
+it, and a goods receipt needs a receiver, an inspector and an approver who are
+three different people.
+
+### What it found
+
+Two genuine defects, both recorded in the conflict register:
+
+- **C-29 — a status oracle.** `assertTransition` checked the arrow before the
+  permission, so an unauthorised caller learned a record's exact status from
+  the refusal message. 124 of 400 pairs. Fixed by asking whether the caller
+  works with that entity type at all before explaining anything.
+
+- **C-30 — seven state refusals thrown as `forbidden`.** "The stock check
+  cannot be re-run" applies to everyone; calling it forbidden tells a Site
+  Manager they lack a permission they hold, and answers 403 where 409 is true.
+
+And three of my own test bugs worth naming, because the guard caught them:
+probes naming permission keys that do not exist (`MASTER.CREATE`,
+`QUOTATION.CREATE`, `QUOTATION.AWARD`). `can()` fails closed on an unknown key,
+which is right — but a probe using one would silently prove nothing, so the
+script now refuses to start if a probe names a key the matrix does not hold.
+
+### Accessibility and error messages
+
+Static checks in `__tests__/hardening.test.ts`, each **proven to fail** by
+planting the mistake it exists to catch:
+
+- every form control has a label, including per-row ids built in a loop;
+- clickable non-buttons carry `role`, `tabIndex` and `onKeyDown`;
+- icon-only buttons carry an `aria-label`;
+- no thrown message leaks a SQLSTATE, a constraint violation or a `pg_` name;
+- every mapped constraint has a sentence rather than its own name.
+
+JSX cannot be matched with a naive regex — `onClick={() => x}` contains `>`, so
+`[^>]*` stops mid-tag. The tests use a small scanner that tracks brace depth
+and strings, which is the difference between a test that works and one that
+reports the first handler it meets.
+
+### Rollback, constraints and performance
+
+- a failure part way through an issue leaves no header, no ledger row and no
+  audit row — **and rolls the document-number counter back with it**;
+- `stock_ledger` and `audit_log` refuse UPDATE and DELETE, tested against the
+  trigger directly rather than through a service;
+- `stock_balances.qty >= 0` holds against a direct UPDATE that bypasses every
+  service;
+- the dashboard answers in under 3s, the ledger in under 2s, and
+  `v_stock_position` is shown to narrow by site rather than materialising every
+  site × item pair (conflict C-21).
+
+### Not done, and why
+
+- **Document upload** (a Phase 2 item) is still outstanding. The C-11
+  data-logger gate is implemented and will refuse a `requires_data_logger`
+  class until a file is attached — but nothing can attach one, so that path is
+  unreachable. No item class in use sets the flag.
+- **Notification outbox.** `notification_outbox` and `email_config` are seeded
+  and the schema is ready; no worker drains them.
+- **Load testing.** The performance checks are smoke tests against an
+  accidental cross join, not benchmarks. Real figures need production-shaped
+  volumes.
 
 ---
 

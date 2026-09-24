@@ -192,7 +192,7 @@ export async function updateVendor(actor: Actor, id: number, input: Partial<Vend
       v.pan !== current.pan || v.gstin !== current.gstin || v.state_code !== current.state_code;
 
     if (identityChanging && current.status === 'VENDOR_APPROVED') {
-      throw forbidden(
+      throw conflict(
         'PAN, GSTIN and state cannot be changed on an approved vendor. Block this vendor and create a new record if their registration has changed.',
       );
     }

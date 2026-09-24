@@ -15,7 +15,9 @@
     "db:create": "node --env-file=.env.local scripts/create-db.mjs",
     "migrate": "node --env-file=.env.local scripts/migrate.mjs",
     "verify:db": "tsx --env-file=.env.local scripts/verify-db.ts",
-    "verify:procurement": "tsx --env-file=.env.local scripts/verify-procurement.ts"
+    "verify:procurement": "tsx --env-file=.env.local scripts/verify-procurement.ts",
+    "verify:permissions": "tsx --env-file=.env.local scripts/verify-permissions.ts",
+    "verify:all": "npm run typecheck && npm test && npm run verify:db && npm run verify:permissions && npm run verify:procurement"
   },
   "dependencies": {
     "googleapis": "^181.0.0",

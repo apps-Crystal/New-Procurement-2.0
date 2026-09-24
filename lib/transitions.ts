@@ -75,14 +75,28 @@ export function invalidateTransitions() {
 export async function assertTransition(req: TransitionRequest, tx?: Tx): Promise<PermissionKey> {
   const { entityType, from, to, principal, siteId } = req;
 
+  const map = await loadTransitions(tx);
+
   if (from === to) {
+    // Same reasoning as the undeclared-arrow case below: "this invoice is
+    // already INV_MATCHED" names the record's state, so it is only said to
+    // somebody who works with invoices.
+    if (!worksWith(map, entityType, principal, siteId)) {
+      throw forbidden(`You do not have permission to change this ${friendly(entityType)}.`);
+    }
     throw conflict(`This ${friendly(entityType)} is already ${to}.`);
   }
 
-  const map = await loadTransitions(tx);
   const permissionKey = map.get(key(entityType, from, to));
 
   if (!permissionKey) {
+    // The move is not declared. Before saying so, check the caller has any
+    // business with this entity at all — otherwise the message "cannot go from
+    // DEBIT_NOTE_ISSUED to …" tells someone with no permission on debit notes
+    // that this one exists and what state it is in.
+    if (!worksWith(map, entityType, principal, siteId)) {
+      throw forbidden(`You do not have permission to change this ${friendly(entityType)}.`);
+    }
     throw conflict(`A ${friendly(entityType)} cannot go from ${from} to ${to}.`);
   }
 
@@ -91,6 +105,27 @@ export async function assertTransition(req: TransitionRequest, tx?: Tx): Promise
   }
 
   return permissionKey as PermissionKey;
+}
+
+/**
+ * Does this caller hold ANY declared transition on this entity type?
+ *
+ * Used only to decide whether an undeclared move may be explained. Someone who
+ * can move a purchase request at all is told "a purchase request cannot go from
+ * X to Y", which is useful and reveals nothing they could not read off the
+ * screen. Someone who cannot is told only that they may not.
+ */
+function worksWith(
+  map: Map<string, string>,
+  entityType: string,
+  principal: Principal | null,
+  siteId: number | null,
+): boolean {
+  for (const [k, permissionKey] of map) {
+    if (!k.startsWith(`${entityType}|`)) continue;
+    if (can(principal, permissionKey as PermissionKey, siteId)) return true;
+  }
+  return false;
 }
 
 /** Every state reachable from `from`, for rendering the actions a user has. */

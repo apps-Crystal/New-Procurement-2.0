@@ -61,7 +61,7 @@ export const conflict = (m: string) => new AppError('CONFLICT', m);
  * the user gets a generic message — so an unmapped constraint is a gap to fix,
  * never a leak.
  */
-const CONSTRAINT_MESSAGES: Record<string, { kind: ErrorKind; message: string; field?: string }> = {
+export const CONSTRAINT_MESSAGES: Record<string, { kind: ErrorKind; message: string; field?: string }> = {
   // --- Sites ------------------------------------------------------------------
   sites_gstin_format: { kind: 'VALIDATION', field: 'gstin', message: 'That GSTIN is not valid. It must be 15 characters: two state digits, a 10-character PAN, then three more.' },
   sites_gstin_state: { kind: 'VALIDATION', field: 'gstin', message: 'The GSTIN does not match the state selected. The first two digits of a GSTIN are the GST state code.' },

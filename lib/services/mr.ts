@@ -120,7 +120,7 @@ export async function replaceLines(actor: Actor, mrId: number, lines: MrLineInpu
     requirePermission(actor, 'MR.EDIT', Number(mr.site_id));
 
     if (LINES_FROZEN.has(String(mr.status))) {
-      throw forbidden(`This material request is ${mr.status} — its lines can no longer be changed.`);
+      throw conflict(`This material request is ${mr.status} — its lines can no longer be changed.`);
     }
 
     // A line already claimed by a transfer cannot vanish underneath it.
@@ -192,7 +192,7 @@ export async function runStockCheck(actor: Actor, mrId: number): Promise<{ mr: R
     requirePermission(actor, 'MR.STOCK_CHECK', siteId);
 
     if (LINES_FROZEN.has(String(mr.status))) {
-      throw forbidden(`This material request is ${mr.status} — the stock check cannot be re-run.`);
+      throw conflict(`This material request is ${mr.status} — the stock check cannot be re-run.`);
     }
 
     const lines = await tx<Row[]>`
@@ -301,7 +301,7 @@ export async function setTransferQuantities(
     requirePermission(actor, 'MR.EDIT', siteId);
 
     if (LINES_FROZEN.has(String(mr.status))) {
-      throw forbidden(`This material request is ${mr.status} — transfer quantities can no longer be changed.`);
+      throw conflict(`This material request is ${mr.status} — transfer quantities can no longer be changed.`);
     }
     if (!mr.stock_checked_at) {
       throw badRequest('Run the stock check before deciding what to transfer.');
@@ -403,7 +403,7 @@ export async function declare(actor: Actor, mrId: number, input: DeclarationInpu
     const [locked] = await tx<{ locked: boolean }[]>`
       SELECT locked FROM mr_declarations WHERE mr_id = ${mrId} AND locked ORDER BY version DESC LIMIT 1`;
     if (locked) {
-      throw forbidden('This declaration is locked because a purchase request already exists against it.');
+      throw conflict('This declaration is locked because a purchase request already exists against it.');
     }
 
     const [declaration] = await tx<Row[]>`

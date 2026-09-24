@@ -12,7 +12,7 @@
 import { inTransaction, sql, type Tx } from '@/lib/db';
 import { audit } from '@/lib/audit';
 import { can, invalidatePrincipal, type PermissionKey, type Principal } from '@/lib/auth/permissions';
-import { AppError, badRequest, forbidden, notFound } from '@/lib/errors';
+import { AppError, badRequest, conflict, forbidden, notFound } from '@/lib/errors';
 import {
   assertGstinMatchesState,
   assertTemperatureBand,
@@ -299,7 +299,7 @@ export async function updateItem(actor: Actor, id: number, input: Partial<ItemIn
       const [{ count }] = await tx<{ count: string }[]>`
         SELECT count(*)::text FROM stock_ledger WHERE item_id = ${id}`;
       if (Number(count) > 0) {
-        throw forbidden(
+        throw conflict(
           'Whether this item is serialised cannot be changed once it has stock movements. Create a new item instead.',
         );
       }

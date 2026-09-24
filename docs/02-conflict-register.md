@@ -607,3 +607,67 @@ typed the invoice nor the clerk booking it is the right authority on it.
 Debit notes do not repeat the derivation: their GST mirrors the invoice they
 relate to, proportionally, because the credit has to reverse the tax that was
 actually charged rather than the tax that should have been.
+
+---
+
+## 🔴 C-29 — `assertTransition` told unauthorised callers what state a record was in
+
+**Found by** the role × action matrix in Phase 10, which expected FORBIDDEN and
+got CONFLICT for 124 of 400 pairs.
+
+**What it did.** The guard checked the arrow before the permission:
+
+```ts
+if (from === to) throw conflict(`This ${friendly(entityType)} is already ${to}.`);
+const permissionKey = map.get(key(entityType, from, to));
+if (!permissionKey) throw conflict(`A ${friendly(entityType)} cannot go from ${from} to ${to}.`);
+if (!can(principal, permissionKey, siteId)) throw forbidden(…);
+```
+
+Both `conflict` branches fire before anyone's permission is consulted. So a
+caller with **no permission on debit notes at all** could learn, from the error
+message alone, that debit note 47 exists and is `DEBIT_NOTE_ISSUED`. Repeated
+across statuses it is a status oracle for every record in the system.
+
+**Why the order could not simply be swapped.** The permission key comes FROM the
+arrow. An undeclared arrow has no key to check, so there is nothing to test
+before the lookup.
+
+**Rule** — when the arrow is undeclared or the record is already in the target
+state, first ask whether the caller holds ANY declared transition on that entity
+type at that site:
+
+- **they do** — they work with these records, so "a purchase request cannot go
+  from X to Y" tells them nothing they could not read off the screen, and is
+  useful;
+- **they do not** — they are told only that they may not change it.
+
+Implemented as `worksWith()` in `lib/transitions.ts`. The permitted path is
+unchanged.
+
+---
+
+## 🟠 C-30 — state refusals were thrown as `forbidden`
+
+**Found by** the same matrix: roles the matrix PERMITS were being refused with
+FORBIDDEN, which the probe correctly flagged as a disagreement.
+
+Seven refusals described a record's state, not a caller's rights:
+
+| Service | Message |
+|---|---|
+| `mr.replaceLines` | "its lines can no longer be changed" |
+| `mr.runStockCheck` | "the stock check cannot be re-run" |
+| `mr.setTransferQuantities` | "transfer quantities can no longer be changed" |
+| `mr.declare` | "this declaration is locked" |
+| `pr.updatePr` | "was approved and can no longer be edited" |
+| `masters.updateItem` | "cannot be changed once it has stock movements" |
+| `vendors.updateVendor` | "cannot be changed on an approved vendor" |
+
+Every one of those applies to **everybody**, whatever their role. Calling them
+`forbidden` tells a Site Manager they lack a permission they in fact hold, and
+answers HTTP 403 where 409 is the truth — which also means a client cannot tell
+"ask someone else" from "this is not possible right now".
+
+**Rule** — `forbidden` means the caller may not; `conflict` means nobody may,
+in this state. All seven are now `conflict`.

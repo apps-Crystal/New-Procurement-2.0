@@ -240,7 +240,7 @@ export async function updatePr(actor: Actor, prId: number, input: Partial<PrInpu
     // pr_edit_lock() would refuse this. Saying so plainly is kinder than a
     // trigger message naming the constraint.
     if (pr.locked_at) {
-      throw forbidden(`${pr.pr_no} was approved and can no longer be edited.`);
+      throw conflict(`${pr.pr_no} was approved and can no longer be edited.`);
     }
     if (pr.status !== 'PR_DRAFT') {
       throw conflict(`${pr.pr_no} is ${pr.status} — only a draft can be edited.`);

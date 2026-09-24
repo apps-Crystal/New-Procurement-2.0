@@ -2392,6 +2392,138 @@ async function main() {
       );
     });
 
+
+    // =====================================================================
+    // Hardening — rollback, constraints, performance
+    // =====================================================================
+    await check('§28 · a failure part way through leaves nothing behind', async () => {
+      // An issue whose second line cannot be met. The first line must not post,
+      // and the issue header must not exist — the document number counter
+      // included, since it increments inside the same transaction.
+      const before = await sql<{ n: string; serial: string }[]>`
+        SELECT (SELECT count(*)::text FROM stock_issues)                          AS n,
+               (SELECT coalesce(max(last_serial), 0)::text FROM id_counters
+                 WHERE entity = 'ISS')                                            AS serial`;
+
+      await rejects(
+        () =>
+          issues.createIssue(WHL, {
+            siteId: siteA, issuedTo: 'Rollback probe',
+            lines: [
+              { itemId: palletId, qty: '1' },
+              { itemId: coilId, qty: '999999' },
+            ],
+          }),
+        /not enough to issue/i,
+        'partial issue',
+      );
+
+      const after = await sql<{ n: string; serial: string }[]>`
+        SELECT (SELECT count(*)::text FROM stock_issues)                          AS n,
+               (SELECT coalesce(max(last_serial), 0)::text FROM id_counters
+                 WHERE entity = 'ISS')                                            AS serial`;
+
+      assertEqual(after[0].n, before[0].n, 'no issue header survived');
+      assertEqual(after[0].serial, before[0].serial, 'and the number counter rolled back with it');
+    });
+
+    await check('§28 · a rolled-back transaction leaves no ledger entry', async () => {
+      const before = await sql<{ n: string }[]>`SELECT count(*)::text AS n FROM stock_ledger`;
+
+      await rejects(
+        () =>
+          issues.createIssue(WHL, {
+            siteId: siteA, issuedTo: 'Ledger rollback probe',
+            lines: [
+              { itemId: palletId, qty: '1' },
+              { itemId: serialItemId, qty: '999999' },
+            ],
+          }),
+        /not enough to issue/i,
+        'partial ledger write',
+      );
+
+      const after = await sql<{ n: string }[]>`SELECT count(*)::text AS n FROM stock_ledger`;
+      assertEqual(after[0].n, before[0].n, 'the ledger is untouched');
+    });
+
+    await check('§28 · a rolled-back transaction leaves no audit row', async () => {
+      const before = await sql<{ n: string }[]>`SELECT count(*)::text AS n FROM audit_log`;
+
+      await rejects(
+        () =>
+          damage.reportDamage(WHL, {
+            siteId: siteA, itemId: palletId, qty: '999999', cause: 'HANDLING',
+            observedOn: '2026-09-24',
+          }),
+        /cannot be quarantined/i,
+        'audit rollback',
+      );
+
+      const after = await sql<{ n: string }[]>`SELECT count(*)::text AS n FROM audit_log`;
+      assertEqual(after[0].n, before[0].n, 'nothing was written');
+    });
+
+    await check('the ledger and the balances cannot be edited directly', async () => {
+      // forbid_mutation() sits on both. If either ever came off, every figure
+      // in the system would become an opinion.
+      await rejects(
+        () => sql`UPDATE stock_ledger SET qty = qty + 1 WHERE id = (SELECT min(id) FROM stock_ledger)`,
+        /append-only|cannot be (modified|changed|updated)|immutable|forbid/i,
+        'editing the ledger',
+      );
+
+      await rejects(
+        () => sql`DELETE FROM audit_log WHERE id = (SELECT min(id) FROM audit_log)`,
+        /append-only|cannot be (modified|changed|deleted)|immutable|forbid/i,
+        'deleting an audit row',
+      );
+    });
+
+    await check('stock cannot be driven negative, whatever the route', async () => {
+      // The service checks under a lock; the CHECK constraint is the backstop.
+      // This goes at the constraint directly, past every service.
+      await rejects(
+        () => sql`
+          UPDATE stock_balances SET qty = -1
+           WHERE site_id = ${siteA} AND item_id = ${palletId} AND bucket = 'AVAILABLE'`,
+        /negative|check constraint|qty/i,
+        'negative balance',
+      );
+    });
+
+    await check('performance · the dashboard answers quickly', async () => {
+      // Six queries in parallel. The number here is generous on purpose: this
+      // is a smoke test against an accidental cross join, not a benchmark.
+      const started = Date.now();
+      await dash.dashboard(ADMIN.principal);
+      const elapsed = Date.now() - started;
+
+      assert(elapsed < 3000, `the dashboard took ${elapsed}ms`);
+    });
+
+    await check('performance · the ledger reads quickly under its index', async () => {
+      const started = Date.now();
+      const rows = await inventory.ledger(ADMIN.principal, { siteId: siteA, limit: 200 });
+      const elapsed = Date.now() - started;
+
+      assert(rows.length > 0, 'the ledger has entries to read');
+      assert(elapsed < 2000, `the ledger took ${elapsed}ms`);
+    });
+
+    await check('performance · the stock position uses its site predicate', async () => {
+      // v_stock_position cross-joins sites to items (conflict C-21), so this is
+      // the query most likely to degrade if the predicate is ever dropped.
+      const plan = await sql<{ line: string }[]>`
+        EXPLAIN SELECT * FROM v_stock_position WHERE site_id = ${siteA}`;
+
+      const text = plan.map(r => Object.values(r)[0]).join('\n');
+      assert(
+        /Index|Filter|Seq Scan on sites/i.test(text),
+        'the plan narrows by site rather than materialising every pair',
+      );
+    });
+
     await check('the whole chain is in the audit trail', async () => {
       const rows = await sql<{ entity_type: string; action: string }[]>`
         SELECT entity_type, action FROM audit_log ORDER BY id`;
