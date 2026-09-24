@@ -88,7 +88,7 @@ export const NAV: NavGroup[] = [
     label: 'Administration',
     items: [
       { href: '/masters', label: 'Master data', permission: 'MASTER.VIEW' },
-      { href: '/audit', label: 'Audit trail', permission: 'AUDIT.VIEW' , comingIn: 'Phase 10' },
+      { href: '/audit', label: 'Audit trail', permission: 'AUDIT.VIEW' },
     ],
   },
 ];

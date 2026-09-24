@@ -1,13 +1,13 @@
 import { PageHead } from '@/components/ui';
-import { Dashboard } from '@/app/(app)/Dashboard';
+import { AuditTrail } from '@/app/(app)/audit/AuditTrail';
 
 export const dynamic = 'force-dynamic';
 
 export default function Page() {
   return (
     <>
-      <PageHead crumb="Overview" title="Dashboard" />
-      <Dashboard />
+      <PageHead crumb="Administration" title="Audit trail" />
+      <AuditTrail />
     </>
   );
 }

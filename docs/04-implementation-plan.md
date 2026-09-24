@@ -281,11 +281,61 @@ balance.
 
 ---
 
-## Phase 9 — Dashboard & reporting
+## Phase 9 — Dashboard & reporting ✅ complete
 All §24 metrics from real queries. Audit trail viewer. Operational reports.
 
 **Gate** — every tile traceable to a named query; zero hardcoded numbers
 (enforced by a test that greps the dashboard modules for numeric literals).
+
+**Gate met.** 36 metrics across 6 groups, each carrying the name of the query
+that produced it — shown in small print on the tile itself, so a figure can be
+traced without reading the code. The grep test exists and was **proven to fail**
+by planting a typed tile value and a literal ₹ figure; both were caught.
+
+Delivered:
+
+| | |
+|---|---|
+| Services | `dashboard` (6 grouped queries), `audit-trail` |
+| API | 4 routes under `/api/dashboard` and `/api/audit` |
+| Screens | `/` (dashboard), `/audit` |
+| Tests | 5 new architecture tests; 139 checks in the chain |
+
+Design points:
+
+- **One query per group, not one per tile.** Twenty-four round trips to draw a
+  home page is a home page nobody keeps open, and each group's metrics come off
+  the same few tables anyway.
+
+- **Every tile is a link.** A tile you cannot act on is a decoration, and a
+  tile linking somewhere you cannot open is a bug found by clicking — so every
+  query is site-scoped, checked by a test that reads each group's body for
+  `scope(principal)`.
+
+- **Group-wide figures read `stock_balances`, never `v_stock_position`.** That
+  view cross-joins sites to items (conflict C-21) and is only ever read one
+  site at a time.
+
+### An audit gap this phase found
+
+Asserting that a purchase request's history contains `PO_POSTED` failed. Five
+services moved **another entity's** status as a side effect and audited only the
+entity they were called about:
+
+| Service | Moved | Was audited as |
+|---|---|---|
+| `po.issuePo` | PR → `PO_POSTED` | PO only |
+| `grn.advancePoStatus` | PO → `PO_PARTIALLY_RECEIVED` / `PO_RECEIVED` | GRN only |
+| `transfers.requestTransfer` | MR → `MR_TRANSFER_REQUESTED` | TRANSFER only |
+| `transfers.decideTransfer` | MR → `MR_TRANSFER_APPROVED` / `REJECTED` | TRANSFER only |
+| `transfers.receiveTransferOrder` | MR → `MR_FULFILLED_INTERNAL` | TRANSFER only |
+
+The moved record's history simply stopped, with nothing saying who moved it or
+why. §29 asks that a record's own history explain how it got where it is, so
+each now writes a paired audit row against the entity whose status changed.
+
+This is the kind of gap a walkthrough never finds — every screen looked right,
+and the trail was only wrong when read from the other end.
 
 ---
 

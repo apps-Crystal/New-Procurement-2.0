@@ -254,7 +254,9 @@ export async function issuePo(actor: Actor, poId: number, tallyPoRef: string): P
       RETURNING *`;
 
     // The PR has done its job once the order exists.
-    await tx`UPDATE purchase_requests SET status = 'PO_POSTED' WHERE id = ${po.pr_id as number}`;
+    const [pr] = await tx<Row[]>`
+      UPDATE purchase_requests SET status = 'PO_POSTED'
+       WHERE id = ${po.pr_id as number} RETURNING id, pr_no, status`;
 
     await audit(tx, {
       entityType: ENTITY, entityId: poId, action: 'TRANSITION',
@@ -263,6 +265,17 @@ export async function issuePo(actor: Actor, poId: number, tallyPoRef: string): P
       userId: actor.principal.userId, ip: actor.ip,
       remarks: `Issued against Tally reference ${ref}`,
     });
+
+    // The purchase request moved too, and its own history has to say so —
+    // otherwise it ends at PR_APPROVED with nothing explaining why it closed.
+    await audit(tx, {
+      entityType: 'PR', entityId: Number(po.pr_id), action: 'TRANSITION',
+      fromStatus: 'PR_APPROVED', toStatus: 'PO_POSTED',
+      userId: actor.principal.userId, ip: actor.ip,
+      remarks: `Order ${po.po_no} issued against this request`,
+    });
+
+    void pr;
 
     return updated;
   });

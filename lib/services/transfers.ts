@@ -118,6 +118,14 @@ export async function requestTransfer(actor: Actor, input: TransferInput): Promi
           tx,
         );
         await tx`UPDATE material_requests SET status = 'MR_TRANSFER_REQUESTED' WHERE id = ${input.mrId}`;
+
+        // The request moved with it; its own history has to say why (§29).
+        await audit(tx, {
+          entityType: 'MR', entityId: input.mrId, action: 'TRANSITION',
+          fromStatus: String(mr.status), toStatus: 'MR_TRANSFER_REQUESTED',
+          userId: actor.principal.userId, ip: actor.ip,
+          remarks: `Transfer ${transfer.transfer_no} requested from the holding site`,
+        });
       }
     }
 
@@ -197,6 +205,13 @@ export async function decideTransfer(
       const mrTo = approve ? 'MR_TRANSFER_APPROVED' : 'MR_TRANSFER_REJECTED';
       if (mr && mr.status === 'MR_TRANSFER_REQUESTED') {
         await tx`UPDATE material_requests SET status = ${mrTo}::mr_status WHERE id = ${transfer.mr_id as number}`;
+
+        await audit(tx, {
+          entityType: 'MR', entityId: Number(transfer.mr_id), action: 'TRANSITION',
+          fromStatus: String(mr.status), toStatus: mrTo,
+          userId: actor.principal.userId, ip: actor.ip,
+          remarks: `Transfer ${transfer.transfer_no} ${approve ? 'approved' : 'rejected'} by the holding site`,
+        });
       }
     }
 
@@ -328,6 +343,13 @@ export async function receiveTransferOrder(
 
       if (mr && Number(mr.to_purchase) === 0 && mr.status === 'MR_TRANSFER_APPROVED') {
         await tx`UPDATE material_requests SET status = 'MR_FULFILLED_INTERNAL' WHERE id = ${transfer.mr_id as number}`;
+
+        await audit(tx, {
+          entityType: 'MR', entityId: Number(transfer.mr_id), action: 'TRANSITION',
+          fromStatus: 'MR_TRANSFER_APPROVED', toStatus: 'MR_FULFILLED_INTERNAL',
+          userId: actor.principal.userId, ip: actor.ip,
+          remarks: `Transfer ${transfer.transfer_no} received in full`,
+        });
       }
     }
 

@@ -310,7 +310,7 @@ export async function approveGrn(actor: Actor, grnId: number): Promise<{ grn: Ro
        WHERE id = ${grnId}
       RETURNING *`;
 
-    await advancePoStatus(tx, Number(grn.po_id));
+    await advancePoStatus(tx, Number(grn.po_id), actor, String(grn.grn_no));
 
     await audit(tx, {
       entityType: ENTITY, entityId: grnId, action: 'TRANSITION',
@@ -331,13 +331,13 @@ export async function approveGrn(actor: Actor, grnId: number): Promise<{ grn: Ro
  * means every line's outstanding quantity is zero, and the view is the only
  * thing that knows that.
  */
-async function advancePoStatus(tx: Tx, poId: number): Promise<void> {
+async function advancePoStatus(tx: Tx, poId: number, actor: Actor, grnNo: string): Promise<void> {
   const [row] = await tx<{ outstanding: string; received: string }[]>`
     SELECT coalesce(sum(qty_outstanding), 0)::text AS outstanding,
            coalesce(sum(qty_received), 0)::text    AS received
       FROM v_po_line_receipt WHERE po_id = ${poId}`;
 
-  const [po] = await tx<Row[]>`SELECT status FROM purchase_orders WHERE id = ${poId} FOR UPDATE`;
+  const [po] = await tx<Row[]>`SELECT status, po_no FROM purchase_orders WHERE id = ${poId} FOR UPDATE`;
   if (!po) return;
 
   const current = String(po.status);
@@ -349,9 +349,19 @@ async function advancePoStatus(tx: Tx, poId: number): Promise<void> {
       ? 'PO_PARTIALLY_RECEIVED'
       : current;
 
-  if (next !== current) {
-    await tx`UPDATE purchase_orders SET status = ${next}::po_status, updated_at = now() WHERE id = ${poId}`;
-  }
+  if (next === current) return;
+
+  await tx`UPDATE purchase_orders SET status = ${next}::po_status, updated_at = now() WHERE id = ${poId}`;
+
+  // The order moved because of this receipt, and the order's own history has to
+  // say so — "why is this PO fully received" is a question asked of the PO.
+  await audit(tx, {
+    entityType: 'PO', entityId: poId, action: 'TRANSITION',
+    fromStatus: current, toStatus: next,
+    after: { outstanding: row.outstanding },
+    userId: actor.principal.userId, ip: actor.ip,
+    remarks: `Receipt ${grnNo} approved; ${row.outstanding} still outstanding`,
+  });
 }
 
 // =============================================================================

@@ -121,6 +121,8 @@ async function main() {
   const debitNotes = await import('../lib/services/debit-notes');
   const recon = await import('../lib/services/reconciliation');
   const accountsLedger = await import('../lib/services/ledger-accounts');
+  const dash = await import('../lib/services/dashboard');
+  const auditView = await import('../lib/services/audit-trail');
   const stock = await import('../lib/services/stock');
 
   try {
@@ -2271,6 +2273,123 @@ async function main() {
         ACC, Number(closed.id), String(closed.portal_balance),
       );
       assertEqual(confirmed.status, 'RECON_CONFIRMED_BY_VENDOR', 'confirmed');
+    });
+
+
+    // =====================================================================
+    // Dashboard and audit trail
+    // =====================================================================
+    const tile = (groups: { key: string; metrics: { key: string; value: string }[] }[], g: string, k: string) =>
+      groups.find(x => x.key === g)?.metrics.find(m => m.key === k)?.value;
+
+    await check('every dashboard tile names the query that produced it', async () => {
+      const groups = await dash.dashboard(ADMIN.principal);
+      assertEqual(groups.length, 6, 'six groups');
+
+      const metrics = groups.flatMap(g => g.metrics);
+      assert(metrics.length >= 24, `${metrics.length} metrics`);
+
+      const untraceable = metrics.filter(m => !m.query).map(m => m.key);
+      assertEqual(untraceable, [], 'every metric carries its query');
+
+      // The query name has to be a real exported function, not a label.
+      const names = [...new Set(metrics.map(m => m.query))];
+      const missing = names.filter(n => typeof (dash as Record<string, unknown>)[n] !== 'function');
+      assertEqual(missing, [], 'every named query exists');
+    });
+
+    await check('the tiles agree with the records behind them', async () => {
+      const groups = await dash.dashboard(ADMIN.principal);
+
+      // Counted independently, so a tile that drifted from the data would show.
+      const [counts] = await sql<Record<string, string>[]>`
+        SELECT
+          (SELECT count(*) FROM purchase_orders WHERE status = 'PO_DRAFT')            AS po_draft,
+          (SELECT count(*) FROM shortfall_cases WHERE decision = 'PENDING')           AS shortfalls,
+          (SELECT count(*) FROM asset_units WHERE bucket <> 'WRITTEN_OFF')            AS assets,
+          (SELECT count(*) FROM vendors WHERE status = 'VENDOR_APPROVED')             AS approved,
+          (SELECT count(*) FROM vendors WHERE status = 'VENDOR_BLOCKED')              AS blocked`;
+
+      assertEqual(tile(groups, 'procurement', 'po_unissued'), String(counts.po_draft), 'orders not issued');
+      assertEqual(tile(groups, 'receiving', 'shortfalls'), String(counts.shortfalls), 'shortfalls undecided');
+      assertEqual(tile(groups, 'inventory', 'assets'), String(counts.assets), 'serialised units');
+      assertEqual(tile(groups, 'quality', 'approved'), String(counts.approved), 'approved vendors');
+      assertEqual(tile(groups, 'quality', 'blocked'), String(counts.blocked), 'blocked vendors');
+    });
+
+    await check('a tile moves when the thing behind it moves', async () => {
+      const before = await dash.dashboard(ADMIN.principal);
+      const wasBlocked = Number(tile(before, 'quality', 'blocked'));
+
+      await vendors.blockVendor(FHEAD, polar, 'Repeated late delivery on the September orders');
+
+      const after = await dash.dashboard(ADMIN.principal);
+      assertEqual(Number(tile(after, 'quality', 'blocked')), wasBlocked + 1, 'blocked count followed');
+
+      await vendors.unblockVendor(FHEAD, polar);
+    });
+
+    await check('the dashboard shows a site manager only their own sites', async () => {
+      // Rina holds both sites; a manager at Pune alone should see less.
+      const pune = { principal: principal(managerId, ['CG_SMGR'], [bothSites[1]]), ip: null };
+
+      const wide = await dash.dashboard(ADMIN.principal);
+      const narrow = await dash.dashboard(pune.principal);
+
+      const wideAssets = Number(tile(wide, 'inventory', 'assets'));
+      const narrowAssets = Number(tile(narrow, 'inventory', 'assets'));
+
+      assert(wideAssets > 0, 'the group holds serialised units');
+      assertEqual(narrowAssets, 0, 'and none of them are at Pune');
+    });
+
+    await check('the audit trail reads, and overrides are findable', async () => {
+      const all = await auditView.auditTrail(ADMIN.principal, { limit: 500 });
+      assert(all.length > 50, `${all.length} entries recorded across the chain`);
+
+      const overrides = await auditView.auditTrail(ADMIN.principal, { action: 'OVERRIDE' });
+      assert(overrides.length > 0, 'the chain produced overrides');
+      assert(
+        overrides.every(e => e.action === 'OVERRIDE'),
+        'and the filter returns only those',
+      );
+
+      // Every override should say why. That is the whole reason it is one.
+      const silent = overrides.filter(e => !e.remarks).map(e => e.entity_type);
+      assertEqual(silent, [], 'every override carries a reason');
+    });
+
+    await check('one record’s whole history reads in order', async () => {
+      const history = await auditView.historyOf(ADMIN.principal, 'PR', prId);
+      assert(history.length >= 3, `${history.length} entries on the purchase request`);
+
+      const ids = history.map(h => Number(h.id));
+      assertEqual(ids, [...ids].sort((a, b) => a - b), 'oldest first');
+
+      const statuses = history.filter(h => h.to_status).map(h => String(h.to_status));
+      assert(statuses.includes('PR_APPROVED'), 'the approval is in it');
+      assert(statuses.includes('PO_POSTED'), 'and so is the order that followed');
+    });
+
+    await check('the audit summary counts what the trail actually holds', async () => {
+      const summary = await auditView.auditSummary(ADMIN.principal);
+
+      const [actual] = await sql<{ n: number }[]>`SELECT count(*)::int AS n FROM audit_log`;
+      assertEqual(summary.total, Number(actual.n), 'total');
+
+      const summed = summary.actions.reduce((s, a) => s + a.n, 0);
+      assertEqual(summed, summary.total, 'the action breakdown adds up to the total');
+
+      const byEntity = summary.entityTypes.reduce((s, e) => s + e.n, 0);
+      assertEqual(byEntity, summary.total, 'and so does the entity breakdown');
+    });
+
+    await check('reading the audit trail needs permission', async () => {
+      await rejects(
+        () => auditView.auditTrail(REQ.principal, {}),
+        /do not have permission to read the audit trail/i,
+        'audit permission',
+      );
     });
 
     await check('the whole chain is in the audit trail', async () => {

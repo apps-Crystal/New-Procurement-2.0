@@ -153,6 +153,90 @@ describe('money (§31)', () => {
   });
 });
 
+describe('dashboard (§24)', () => {
+  const DASHBOARD_UI = 'app/(app)/Dashboard.tsx';
+  const DASHBOARD_SERVICE = 'lib/services/dashboard.ts';
+
+  it('no dashboard figure is a hardcoded number', () => {
+    const body = readFileSync(path.join(ROOT, DASHBOARD_UI), 'utf8');
+
+    // The risk is a tile whose value is typed rather than fetched. Layout
+    // numbers (gridTemplateColumns, rows={8}) are not that, so the check is
+    // aimed at where a VALUE would sit: a JSX expression holding a bare number,
+    // or a string of digits passed as one.
+    const offenders = [
+      ...body.matchAll(/value=\{\s*-?\d/g),
+      ...body.matchAll(/value="\s*-?[\d,.]+\s*"/g),
+      ...body.matchAll(/>\s*₹\s*[\d,.]+\s*</g),
+    ].map(m => m[0]);
+
+    expect(offenders).toEqual([]);
+  });
+
+  it('the dashboard renders only what the API gave it', () => {
+    const body = readFileSync(path.join(ROOT, DASHBOARD_UI), 'utf8');
+
+    // No arithmetic on metric values in the component: summing or averaging
+    // here would produce a figure with no query behind it, which is exactly
+    // what §24 forbids.
+    expect(body).not.toMatch(/\.reduce\(/);
+    expect(body).not.toMatch(/metric\.value\s*[-+*/]/);
+    expect(body).not.toMatch(/Number\(\s*metric\.value/);
+  });
+
+  it('every metric names the query that produced it', async () => {
+    const service = readFileSync(path.join(ROOT, DASHBOARD_SERVICE), 'utf8');
+
+    // Each metric literal carries `query:`, and each group declares its query
+    // name once as `const q = '...'`. If a metric were added without one, TS
+    // would fail the build — this checks the names actually match the
+    // exported functions rather than being decorative strings.
+    const declared = [...service.matchAll(/const q = '(\w+)';/g)].map(m => m[1]);
+    expect(declared.length).toBeGreaterThan(0);
+
+    const dashboardModule = await import('@/lib/services/dashboard');
+    for (const name of declared) {
+      expect(typeof (dashboardModule as Record<string, unknown>)[name]).toBe('function');
+    }
+  });
+
+  it('dashboard queries are site-scoped', () => {
+    const service = readFileSync(path.join(ROOT, DASHBOARD_SERVICE), 'utf8');
+
+    // Every group reads the caller's sites and applies them. A group that
+    // forgot would quietly show a Site Manager the whole group's numbers while
+    // every screen behind the tiles showed less.
+    const groups = [...service.matchAll(/export async function (\w+Metrics)\(/g)].map(m => m[1]);
+    expect(groups.length).toBeGreaterThanOrEqual(6);
+
+    for (const group of groups) {
+      const start = service.indexOf(`export async function ${group}(`);
+      const end = service.indexOf('export async function', start + 1);
+      const body = service.slice(start, end === -1 ? undefined : end);
+      expect(body).toContain('scope(principal)');
+    }
+  });
+});
+
+describe('audit trail (§29)', () => {
+  it('the audit viewer never writes', () => {
+    const files = [
+      'app/(app)/audit/AuditTrail.tsx',
+      'lib/services/audit-trail.ts',
+      'app/api/audit/route.ts',
+    ].map(f => ({ file: f, body: readFileSync(path.join(ROOT, f), 'utf8') }));
+
+    // audit_log carries forbid_mutation(), so a write would fail anyway — but
+    // it should not be attempted, and no route should offer one.
+    for (const { file, body } of files) {
+      expect({ file, writes: /INSERT INTO audit_log|UPDATE audit_log|DELETE FROM audit_log/.test(body) })
+        .toEqual({ file, writes: false });
+      expect({ file, posts: /export const (POST|PATCH|PUT|DELETE)/.test(body) })
+        .toEqual({ file, posts: false });
+    }
+  });
+});
+
 describe('authorisation (§26, §31)', () => {
   it('permission keys used in navigation all exist in the matrix', async () => {
     const { PERMISSION_MATRIX } = await import('@/lib/auth/permissions');
