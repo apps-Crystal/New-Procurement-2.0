@@ -129,7 +129,13 @@ a { color: var(--accent-text); }
   position: sticky; top: 0; height: 100vh; overflow-y: auto;
 }
 .brand { display: flex; align-items: center; gap: 10px; padding: 0 8px 14px; border-bottom: 1px solid var(--nav-line); }
-.brand-mark { width: 34px; height: 34px; border-radius: 8px; background: #0B5F63; display: flex; align-items: center; justify-content: center; }
+/* The Crystal mark. No tile behind it: the artwork is already transparent, so a
+   background would only draw a square around a logo that does not have one.
+   The file is black artwork and `brightness(0) invert(1)` paints it white --
+   the nav is dark under BOTH themes (see --nav-bg above), so there is no
+   light-theme variant to switch back to. */
+.brand-mark { width: 34px; height: 34px; flex: 0 0 34px; display: flex; align-items: center; justify-content: center; }
+.brand-mark img { width: 100%; height: auto; filter: brightness(0) invert(1); }
 .brand b { display: block; font-size: 15px; }
 .brand small { color: var(--nav-muted); font-size: 12px; }
 .nav-group { display: flex; flex-direction: column; gap: 2px; }

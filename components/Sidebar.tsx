@@ -6,6 +6,7 @@
  * Crystal Core identity and site rather than static text.
  */
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import { NAV, activeHref } from '@/lib/nav';
@@ -49,9 +50,20 @@ export function Sidebar({
       <nav id="nav" className={`side${open ? ' open' : ''}`} aria-label="Main navigation">
         <div className="brand">
           <div className="brand-mark">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-              <path d="M12 2v20M4.9 6.5l14.2 11M19.1 6.5L4.9 17.5" />
-            </svg>
+            {/*
+              The Crystal mark, cut from the supplied logo with its white paper
+              turned transparent. It is black artwork; the stylesheet paints it
+              white, so one file serves both themes and there is no rectangle
+              around it on the dark nav.
+            */}
+            <Image
+              src="/crystal-mark.png"
+              alt=""
+              width={256}
+              height={162}
+              priority
+              aria-hidden="true"
+            />
           </div>
           <div>
             <b>Crystal</b>
