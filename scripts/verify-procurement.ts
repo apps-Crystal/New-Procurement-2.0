@@ -16,7 +16,7 @@
  * and that a refusal reaches the caller as a sentence. Anyone can make a happy
  * path pass; the interesting assertions here are the ones that expect failure.
  */
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import postgres from 'postgres';
 import type { Principal, RoleCode } from '../lib/auth/permissions';
@@ -123,6 +123,8 @@ async function main() {
   const accountsLedger = await import('../lib/services/ledger-accounts');
   const dash = await import('../lib/services/dashboard');
   const auditView = await import('../lib/services/audit-trail');
+  const docs = await import('../lib/services/documents');
+  const notify = await import('../lib/notify');
   const stock = await import('../lib/services/stock');
 
   try {
@@ -2522,6 +2524,312 @@ async function main() {
         /Index|Filter|Seq Scan on sites/i.test(text),
         'the plan narrows by site rather than materialising every pair',
       );
+    });
+
+
+    // =====================================================================
+    // Documents, and the C-11 gate they unblock
+    // =====================================================================
+    await check('a file is stored, hashed, and read back byte for byte', async () => {
+      const bytes = Buffer.from('%PDF-1.4\nseeded challan\n%%EOF\n');
+
+      const doc = await docs.uploadDocument(RCV, {
+        entityType: 'GATE_INWARD', entityId: giId, docType: 'CHALLAN',
+        fileName: 'challan-88213.pdf', mimeType: 'application/pdf', bytes,
+      });
+
+      assertEqual(doc.size_bytes, String(bytes.length), 'size recorded');
+      assertEqual(doc.virus_scanned, false, 'and honest about not being scanned');
+
+      const back = await docs.fetchDocument(RCV.principal, Number(doc.id));
+      assertEqual(back.fileName, 'challan-88213.pdf', 'name');
+      assertEqual(back.bytes.equals(bytes), true, 'the bytes are the ones that went in');
+    });
+
+    await check('the same file twice is one file on disk and two records', async () => {
+      const bytes = Buffer.from('%PDF-1.4\nseeded challan\n%%EOF\n');
+
+      const second = await docs.uploadDocument(WHL, {
+        entityType: 'DAMAGE', entityId: damageId, docType: 'PHOTO',
+        fileName: 'same-content.pdf', mimeType: 'application/pdf', bytes,
+      });
+
+      const rows = await sql<{ storage_path: string; n: number }[]>`
+        SELECT storage_path, count(*)::int AS n FROM documents
+         WHERE sha256 = ${String(second.sha256)}
+         GROUP BY storage_path`;
+
+      assertEqual(rows.length, 1, 'one path');
+      assertEqual(Number(rows[0].n), 2, 'two records against it');
+    });
+
+    await check('an oversized file is refused', async () => {
+      await rejects(
+        () =>
+          docs.uploadDocument(RCV, {
+            entityType: 'GATE_INWARD', entityId: giId, docType: 'PHOTO',
+            fileName: 'huge.png', mimeType: 'image/png',
+            bytes: Buffer.alloc(docs.MAX_BYTES + 1),
+          }),
+        /The limit is 10 MB/i,
+        'oversized upload',
+      );
+    });
+
+    await check('an unsupported type is refused', async () => {
+      await rejects(
+        () =>
+          docs.uploadDocument(RCV, {
+            entityType: 'GATE_INWARD', entityId: giId, docType: 'OTHER',
+            fileName: 'payload.exe', mimeType: 'application/x-msdownload',
+            bytes: Buffer.from('MZ'),
+          }),
+        /cannot be attached/i,
+        'executable upload',
+      );
+    });
+
+    await check('a name that disagrees with the type is refused', async () => {
+      await rejects(
+        () =>
+          docs.uploadDocument(RCV, {
+            entityType: 'GATE_INWARD', entityId: giId, docType: 'PHOTO',
+            fileName: 'not-really.pdf', mimeType: 'image/png',
+            bytes: Buffer.from('\x89PNG\r\n'),
+          }),
+        /the file is image\/png/i,
+        'mismatched extension',
+      );
+    });
+
+    await check('a document cannot be attached to a record that does not exist', async () => {
+      await rejects(
+        () =>
+          docs.uploadDocument(RCV, {
+            entityType: 'GATE_INWARD', entityId: 999999, docType: 'PHOTO',
+            fileName: 'orphan.png', mimeType: 'image/png', bytes: Buffer.from('\x89PNG\r\n'),
+          }),
+        /no longer exists/i,
+        'orphan upload',
+      );
+    });
+
+    await check('reading a document needs permission on what it hangs off', async () => {
+      const attached = await docs.listDocuments(RCV.principal, 'GATE_INWARD', giId);
+      assert(attached.length > 0, 'there is something to read');
+
+      await rejects(
+        () => Promise.resolve(docs.listDocuments(REQ.principal, 'GATE_INWARD', giId)),
+        /do not have permission/i,
+        'reading without permission',
+      );
+    });
+
+    await check('a file changed on disk is not served', async () => {
+      const bytes = Buffer.from('%PDF-1.4\ntamper probe\n%%EOF\n');
+      const doc = await docs.uploadDocument(RCV, {
+        entityType: 'GATE_INWARD', entityId: giId, docType: 'OTHER',
+        fileName: 'tamper.pdf', mimeType: 'application/pdf', bytes,
+      });
+
+      // Something outside the application edits the stored file. The hash
+      // recorded at upload no longer matches, and it must not be handed over
+      // as though it were the original.
+      const root = process.env.DOCUMENT_STORE ?? path.join(process.cwd(), '.documents');
+      const onDisk = path.join(root, String(doc.storage_path));
+      writeFileSync(onDisk, Buffer.from('%PDF-1.4\nSOMETHING ELSE\n%%EOF\n'));
+
+      await rejects(
+        () => docs.fetchDocument(RCV.principal, Number(doc.id)),
+        /does not match the checksum/i,
+        'tampered file',
+      );
+    });
+
+    await check('C-11 · a data-logger class cannot be signed off without its logger', async () => {
+      // The frozen class now demands one. Everything else about the chain is
+      // unchanged — this is the gate that has existed since Phase 5 and had no
+      // way to be satisfied until documents were built.
+      await sql`UPDATE item_classes SET requires_data_logger = true WHERE code = 'FRZ'`;
+
+      const { lines: coldLines } = await poSvc.getPo(coldPoId);
+      const gi = await gate.createGateInward(RCV, {
+        poId: coldPoId, vehicleNo: 'WB23AB4567', challanNo: 'CH-FRZ-LOGGER',
+        challanDate: '2026-09-24', reeferSetPointC: '-18', reeferActualC: '-17',
+        lines: [{ poLineId: Number(coldLines[0].id), qtyPerChallan: '1', qtyCounted: '1' }],
+      });
+      const loggerGiId = Number(gi.id);
+      assertEqual(gi.temp_in_tolerance, true, 'the reefer held its band this time');
+
+      await gate.sendToQc(RCV, loggerGiId);
+      const { qc, lines: qcLines } = await qcSvc.startInspection(QCI, loggerGiId);
+      await qcSvc.recordVerdict(QCI, Number(qc.id), {
+        qcLineId: Number(qcLines[0].id), qtyAccepted: '1', qtyHold: '0', qtyRejected: '0',
+      });
+
+      await rejects(
+        () => qcSvc.completeInspection(QCI, Number(qc.id)),
+        /requires a data logger file/i,
+        'completing without the logger',
+      );
+
+      // Attach it, and the same call goes through.
+      await docs.uploadDocument(RCV, {
+        entityType: 'GATE_INWARD', entityId: loggerGiId, docType: 'DATA_LOGGER',
+        fileName: 'reefer-log.csv', mimeType: 'text/csv',
+        bytes: Buffer.from('timestamp,celsius\n2026-09-24T06:00,-17.2\n'),
+      });
+
+      const done = await qcSvc.completeInspection(QCI, Number(qc.id));
+      assert(done.completed_at !== null, 'and now it completes');
+    });
+
+
+    // =====================================================================
+    // Notification outbox
+    // =====================================================================
+    await check('the chain queued notifications as it ran', async () => {
+      const rows = await sql<{ event_key: string; n: string }[]>`
+        SELECT event_key, count(*)::text AS n FROM notification_outbox
+         GROUP BY event_key ORDER BY event_key`;
+
+      const queued = new Set(rows.map(r => r.event_key));
+
+      // Each of these was wired at the moment the thing happened.
+      for (const event of [
+        'MR_DECLARED', 'PR_SUBMITTED', 'PO_ISSUED', 'GATE_INWARD_LOGGED',
+        'GRN_APPROVED', 'RTV_APPROVED', 'DAMAGE_REPORTED',
+      ]) {
+        assert(queued.has(event), `${event} was never queued`);
+      }
+
+      const all = await sql<Record<string, unknown>[]>`SELECT * FROM notification_outbox LIMIT 1`;
+      assertEqual(all[0].status, 'QUEUED', 'and nothing has been sent yet');
+    });
+
+    await check('C-14 · a flagged credit note raises its own notification', async () => {
+      const [row] = await sql<Record<string, unknown>[]>`
+        SELECT payload FROM notification_outbox
+         WHERE event_key = 'CREDIT_NOTE_VARIANCE_FLAGGED' LIMIT 1`;
+
+      assert(row !== undefined, 'the short credit note was notified');
+
+      const payload = row.payload as Record<string, unknown>;
+      assert(Number(payload.variance_pct) > 2, 'and the payload carries the variance');
+    });
+
+    await check('§28 · a rolled-back transaction queues nothing', async () => {
+      const before = await sql<{ n: string }[]>`
+        SELECT count(*)::text AS n FROM notification_outbox`;
+
+      await rejects(
+        () =>
+          damage.reportDamage(WHL, {
+            siteId: siteA, itemId: palletId, qty: '999999', cause: 'HANDLING',
+            observedOn: '2026-09-24',
+          }),
+        /cannot be quarantined/i,
+        'notification rollback',
+      );
+
+      const after = await sql<{ n: string }[]>`
+        SELECT count(*)::text AS n FROM notification_outbox`;
+      assertEqual(after[0].n, before[0].n, 'nobody is told about something that did not happen');
+    });
+
+    await check('the drain sends what is queued', async () => {
+      process.env.MAIL_TRANSPORT = 'noop';
+
+      const queued = await sql<{ n: string }[]>`
+        SELECT count(*)::text AS n FROM notification_outbox WHERE status = 'QUEUED'`;
+
+      const result = await notify.drainOutbox(500);
+      assertEqual(result.sent, Number(queued[0].n), 'everything queued went out');
+      assertEqual(result.dead, 0, 'and nothing died');
+
+      const left = await sql<{ n: string }[]>`
+        SELECT count(*)::text AS n FROM notification_outbox WHERE status = 'QUEUED'`;
+      assertEqual(left[0].n, '0', 'the queue is empty');
+
+      const [sent] = await sql<Record<string, unknown>[]>`
+        SELECT sent_at, attempts FROM notification_outbox WHERE status = 'SENT' LIMIT 1`;
+      assert(sent.sent_at !== null, 'and each one is stamped');
+    });
+
+    await check('a failing transport retries, then gives up', async () => {
+      process.env.MAIL_TRANSPORT = 'fail';
+
+      // One fresh message to work on.
+      await inTransaction(tx =>
+        notify.enqueue(tx, {
+          eventKey: 'LOW_STOCK_DIGEST', entityType: 'STOCK', entityId: siteA,
+          payload: { reference: 'Retry probe' },
+        }),
+      );
+
+      // Backoff is by age: a row waits one minute per attempt already made, so
+      // the probe ages the row between passes rather than waiting for real time.
+      for (let pass = 1; pass <= notify.MAX_ATTEMPTS; pass++) {
+        await sql`
+          UPDATE notification_outbox SET created_at = now() - interval '1 hour'
+           WHERE event_key = 'LOW_STOCK_DIGEST'`;
+
+        const result = await notify.drainOutbox(10);
+
+        if (pass < notify.MAX_ATTEMPTS) {
+          assertEqual(result.failed, 1, `pass ${pass} failed and will be retried`);
+          assertEqual(result.dead, 0, `pass ${pass} has not given up`);
+        } else {
+          assertEqual(result.dead, 1, 'the last attempt gave up');
+        }
+      }
+
+      const [row] = await sql<Record<string, unknown>[]>`
+        SELECT status, attempts, last_error FROM notification_outbox
+         WHERE event_key = 'LOW_STOCK_DIGEST'`;
+
+      assertEqual(row.status, 'DEAD', 'marked dead');
+      assertEqual(Number(row.attempts), notify.MAX_ATTEMPTS, 'after the full five attempts');
+      assert(String(row.last_error).length > 0, 'and it says why');
+
+      process.env.MAIL_TRANSPORT = 'noop';
+    });
+
+    await check('a dead message is not picked up again', async () => {
+      const result = await notify.drainOutbox(50);
+      assertEqual(result.sent + result.failed + result.dead, 0, 'the queue is left alone');
+    });
+
+    await check('a disabled event queues nothing at all', async () => {
+      await sql`UPDATE email_config SET is_enabled = false WHERE event_key = 'DAMAGE_REPORTED'`;
+
+      const before = await sql<{ n: string }[]>`
+        SELECT count(*)::text AS n FROM notification_outbox WHERE event_key = 'DAMAGE_REPORTED'`;
+
+      await damage.reportDamage(WHL, {
+        siteId: siteA, itemId: palletId, qty: '1', cause: 'EXPIRY',
+        observedOn: '2026-09-24',
+      });
+
+      const after = await sql<{ n: string }[]>`
+        SELECT count(*)::text AS n FROM notification_outbox WHERE event_key = 'DAMAGE_REPORTED'`;
+
+      assertEqual(after[0].n, before[0].n, 'turning the event off stops it being recorded');
+
+      await sql`UPDATE email_config SET is_enabled = true WHERE event_key = 'DAMAGE_REPORTED'`;
+    });
+
+    await check('an unknown event key never breaks the thing it described', async () => {
+      // The foreign key to email_config would abort the whole transaction over
+      // an email, so enqueue swallows it and returns null.
+      const queued = await inTransaction(tx =>
+        notify.enqueue(tx, {
+          eventKey: 'NO_SUCH_EVENT', entityType: 'MR', entityId: mrId,
+          payload: { reference: 'probe' },
+        }),
+      );
+
+      assertEqual(queued, null, 'nothing was queued, and nothing threw');
     });
 
     await check('the whole chain is in the audit trail', async () => {

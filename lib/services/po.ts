@@ -23,6 +23,7 @@
  */
 import { inTransaction, sql, type Tx } from '@/lib/db';
 import { audit } from '@/lib/audit';
+import { enqueue } from '@/lib/notify';
 import { assertTransition } from '@/lib/transitions';
 import { nextDocumentNoForSite } from '@/lib/doc-no';
 import { can, type Principal } from '@/lib/auth/permissions';
@@ -264,6 +265,10 @@ export async function issuePo(actor: Actor, poId: number, tallyPoRef: string): P
       after: { tally_po_ref: ref },
       userId: actor.principal.userId, ip: actor.ip,
       remarks: `Issued against Tally reference ${ref}`,
+    });
+    await enqueue(tx, {
+      eventKey: 'PO_ISSUED', entityType: 'PO', entityId: poId,
+      payload: { reference: String(po.po_no), tally_ref: ref },
     });
 
     // The purchase request moved too, and its own history has to say so —

@@ -23,6 +23,7 @@
  */
 import { inTransaction, sql, type Tx } from '@/lib/db';
 import { audit } from '@/lib/audit';
+import { enqueue } from '@/lib/notify';
 import { assertTransition } from '@/lib/transitions';
 import { nextDocumentNoForSite } from '@/lib/doc-no';
 import { can, type Principal } from '@/lib/auth/permissions';
@@ -336,6 +337,14 @@ export async function submitPr(actor: Actor, prId: number): Promise<{ pr: Row; l
       after: { total_incl_gst: totals.total_incl_gst, levels: levels.map(l => l.required_role) },
       userId: actor.principal.userId, ip: actor.ip,
       remarks: `Routed to ${levels.map(l => l.required_role).join(' then ')}`,
+    });
+    await enqueue(tx, {
+      eventKey: 'PR_SUBMITTED', entityType: 'PR', entityId: prId,
+      payload: {
+        reference: String(pr.pr_no),
+        value: String(totals.total_incl_gst),
+        awaiting: levels.map(l => l.required_role).join(' then '),
+      },
     });
 
     return { pr: updated, levels: levels as unknown as Row[] };

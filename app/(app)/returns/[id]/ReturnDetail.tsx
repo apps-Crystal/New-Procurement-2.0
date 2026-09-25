@@ -19,6 +19,7 @@ import {
 } from '@/components/ui';
 import { api } from '@/lib/client/api';
 import { useMutation, useResource } from '@/lib/client/use-resource';
+import { Documents } from '@/components/Documents';
 
 interface Row { [k: string]: unknown }
 
@@ -189,6 +190,13 @@ export function ReturnDetail({ id, granted, userId }: { id: number; granted: str
           ))}
         </div>
       </Card>
+
+      <Documents
+        entityType="RTV"
+        entityId={rtv.id}
+        offered={['GATE_PASS', 'PRN', 'PHOTO', 'EWAY_BILL']}
+        canAttach={rtv.status !== 'RTV_CANCELLED'}
+      />
 
       <Card title="What happens next" label="Actions">
         <div className="pad">

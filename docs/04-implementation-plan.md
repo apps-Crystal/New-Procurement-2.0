@@ -431,17 +431,85 @@ reports the first handler it meets.
   `v_stock_position` is shown to narrow by site rather than materialising every
   site × item pair (conflict C-21).
 
-### Not done, and why
+### The three Phase 2 leftovers, now closed
 
-- **Document upload** (a Phase 2 item) is still outstanding. The C-11
-  data-logger gate is implemented and will refuse a `requires_data_logger`
-  class until a file is attached — but nothing can attach one, so that path is
-  unreachable. No item class in use sets the flag.
-- **Notification outbox.** `notification_outbox` and `email_config` are seeded
-  and the schema is ready; no worker drains them.
-- **Load testing.** The performance checks are smoke tests against an
-  accidental cross join, not benchmarks. Real figures need production-shaped
-  volumes.
+All three were outstanding when Phase 10 first finished. They are done.
+
+**Document upload.** `lib/services/documents.ts` stores files on disk under a
+directory the deployment chooses, named by their own SHA-256 so the same file
+uploaded twice is one file and two records. An allow-list of types, a 10 MB
+ceiling checked twice — once against the declared length before the body is
+read, once against the bytes actually received — and the extension must agree
+with the declared MIME type, because a `.pdf` announced as an image is either a
+mistake or an attempt.
+
+The hash is re-checked on the way out. A file changed on disk by something
+outside the application is refused rather than served as the original, which is
+proved by a check that edits a stored file and asserts the download fails.
+
+Downloads carry `Content-Disposition: attachment` and `X-Content-Type-Options:
+nosniff`. An HTML or SVG file served inline would run in the application's own
+origin — which is how an uploaded document becomes a stored cross-site script.
+
+On virus scanning: there is no scanner on a localhost box, and defaulting
+`virus_scanned` to true would be worse than leaving it false. It stays false,
+and `SCAN_MODE=require` refuses to serve an unscanned file where a deployment
+has one.
+
+**This closes C-11.** The data-logger gate has existed since Phase 5 with no
+way to satisfy it. A check now flips `FRZ` to `requires_data_logger`, proves
+the inspection cannot be completed, attaches the logger, and proves the same
+call then succeeds.
+
+**Notification outbox.** `lib/notify.ts` writes to `notification_outbox` inside
+the caller's transaction, which is what the schema's own comment asks for:
+*"a failed send never blocks the transaction"*. Eight events are wired at the
+moment the thing happens. Sending is a separate process
+(`npm run drain:outbox`, `--watch` to keep going), because a user waiting on an
+SMTP handshake is waiting on somebody else's infrastructure.
+
+Retry, backoff and dead-lettering are real and tested: a failing transport
+retries five times with a minute of backoff per attempt, then marks the message
+DEAD and stops. `enqueue` never throws for a business reason — an unknown event
+key is logged and swallowed, because the foreign key to `email_config` would
+otherwise abort a goods receipt over an email.
+
+`MAIL_TRANSPORT` chooses the transport: `log` (default) prints what would have
+been sent, `noop` drops it, `fail` always fails so the retry machinery can be
+proved. A real SMTP transport is a small addition at one marked point.
+
+**Load testing.** `npm run verify:performance` builds a database the size
+Crystal will run — 12 sites, 2,000 items, 60,000 ledger entries, 40,000 audit
+rows, 2,000 orders with their full MR → PR → PO line chain — and times the
+queries a screen waits on, each against a budget. Seeding is raw SQL via
+`generate_series`: 60,000 entries through `post_stock_movement()` would take an
+hour and would not answer the question, which is how the READS behave when the
+tables are large.
+
+Measured on the development machine:
+
+| Query | Time | Budget |
+|---|---|---|
+| dashboard, group-wide (6 queries) | 184ms | 2500ms |
+| dashboard, one site | 31ms | 2500ms |
+| stock position, one site (800 rows) | 25ms | 1200ms |
+| stock ledger, newest 200 | 51ms | 800ms |
+| audit trail, newest 200 | 14ms | 800ms |
+| audit summary | 23ms | 1500ms |
+| expected deliveries (1500 rows) | 170ms | 1500ms |
+
+The actual figure is printed whether or not it passes, because a query that has
+quietly gone from 40ms to 900ms is worth seeing well before it reaches its
+budget.
+
+### Still not done
+
+- **A real mail transport.** The outbox, its retry and its dead-lettering are
+  built and tested; what is missing is SMTP or a provider, which is one
+  function at a marked point in `lib/notify.ts`.
+- **A virus scanner.** Same shape: the flag, the gate and the refusal are
+  built; no scanner runs.
+- **Crystal Core SSO and deployment**, both excluded by instruction.
 
 ---
 

@@ -27,6 +27,7 @@
  */
 import { inTransaction, sql, type Tx } from '@/lib/db';
 import { audit } from '@/lib/audit';
+import { enqueue } from '@/lib/notify';
 import { assertTransition, lockAndReadStatus } from '@/lib/transitions';
 import { nextDocumentNoForSite } from '@/lib/doc-no';
 import { can } from '@/lib/auth/permissions';
@@ -241,6 +242,15 @@ export async function createGateInward(actor: Actor, input: GateInwardInput): Pr
       remarks: band.required
         ? `Cold chain ${band.minC} to ${band.maxC} °C — read ${actual} °C`
         : 'Ambient load',
+    });
+    await enqueue(tx, {
+      eventKey: 'GATE_INWARD_LOGGED', entityType: 'GATE_INWARD', entityId: Number(gi.id),
+      payload: {
+        reference: giNo,
+        vendor: String(po.vendor_name),
+        challan: challanNo,
+        temperature: tempInTolerance === null ? 'not applicable' : String(tempInTolerance),
+      },
     });
 
     return gi;

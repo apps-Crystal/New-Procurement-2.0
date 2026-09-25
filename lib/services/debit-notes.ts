@@ -31,6 +31,7 @@
  */
 import { inTransaction, sql, type Tx } from '@/lib/db';
 import { audit } from '@/lib/audit';
+import { enqueue } from '@/lib/notify';
 import { assertTransition } from '@/lib/transitions';
 import { nextDocumentNoForSite } from '@/lib/doc-no';
 import { can } from '@/lib/auth/permissions';
@@ -360,6 +361,20 @@ export async function recordCreditNote(
         ? `Short by ${cn.variance_pct}% — ₹${value.toFixed(2)} against ₹${dn.total} debited`
         : `₹${value.toFixed(2)} against ₹${dn.total} debited`,
     });
+    if (cn.variance_flagged === true) {
+      // Conflict C-14: somebody has to decide whether to accept the shortfall,
+      // and nothing else in the system will tell them it is waiting.
+      await enqueue(tx, {
+        eventKey: 'CREDIT_NOTE_VARIANCE_FLAGGED', entityType: 'DEBIT_NOTE', entityId: dnId,
+        payload: {
+          reference: String(dn.dn_no),
+          credit_note: cnNo,
+          debited: String(dn.total),
+          credited: value.toFixed(2),
+          variance_pct: String(cn.variance_pct),
+        },
+      });
+    }
 
     return { debitNote: updated, creditNote: cn };
   });

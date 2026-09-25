@@ -17,6 +17,7 @@ import {
 } from '@/components/ui';
 import { api } from '@/lib/client/api';
 import { useMutation, useResource } from '@/lib/client/use-resource';
+import { Documents } from '@/components/Documents';
 
 interface Row { [k: string]: unknown }
 
@@ -189,6 +190,21 @@ export function GateInwardDetail({ id, granted, userId }: { id: number; granted:
           </div>
         )}
       </Card>
+
+      <Documents
+        entityType="GATE_INWARD"
+        entityId={gi.id}
+        required={
+          band.requiresDataLogger
+            ? [{
+                type: 'DATA_LOGGER',
+                why: `${band.classes.join(', ')} needs its logger file before the inspection can be completed`,
+              }]
+            : []
+        }
+        offered={['CHALLAN', 'PHOTO', 'DATA_LOGGER']}
+        canAttach={gi.status !== 'INWARD_REJECTED'}
+      />
 
       <Card title="What happens next" label="Actions">
         <div className="pad">

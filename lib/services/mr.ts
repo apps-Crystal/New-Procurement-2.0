@@ -21,6 +21,7 @@
  */
 import { inTransaction, sql, type Tx } from '@/lib/db';
 import { audit } from '@/lib/audit';
+import { enqueue } from '@/lib/notify';
 import { assertTransition } from '@/lib/transitions';
 import { nextDocumentNoForSite } from '@/lib/doc-no';
 import { can, type Principal } from '@/lib/auth/permissions';
@@ -429,6 +430,14 @@ export async function declare(actor: Actor, mrId: number, input: DeclarationInpu
       after: { version: next, budget_code_id: input.budgetCodeId, estimated_value: input.estimatedValue },
       userId: actor.principal.userId, ip: actor.ip,
       remarks: `Declaration v${next} accepted`,
+    });
+    await enqueue(tx, {
+      eventKey: 'MR_DECLARED', entityType: 'MR', entityId: mrId,
+      payload: {
+        reference: String(mr.mr_no),
+        estimated_value: input.estimatedValue,
+        declared_by: actor.principal.fullName,
+      },
     });
 
     void updated;

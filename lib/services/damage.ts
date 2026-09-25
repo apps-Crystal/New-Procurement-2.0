@@ -26,6 +26,7 @@
  */
 import { inTransaction, sql, type Tx } from '@/lib/db';
 import { audit } from '@/lib/audit';
+import { enqueue } from '@/lib/notify';
 import { assertTransition, lockAndReadStatus } from '@/lib/transitions';
 import { nextDocumentNoForSite } from '@/lib/doc-no';
 import { can, rolesAt, type RoleCode } from '@/lib/auth/permissions';
@@ -218,6 +219,15 @@ export async function reportDamage(actor: Actor, input: DamageInput): Promise<Ro
       },
       userId: actor.principal.userId, ip: actor.ip,
       remarks: `Quarantined ${input.qty} ${item.uom} of ${item.name}`,
+    });
+    await enqueue(tx, {
+      eventKey: 'DAMAGE_REPORTED', entityType: 'DAMAGE', entityId: Number(report.id),
+      payload: {
+        reference: dmgNo,
+        item: String(item.code),
+        quantity: input.qty,
+        estimated_value: estimatedValue,
+      },
     });
 
     return withEntry;

@@ -41,6 +41,7 @@ import { nextDocumentNoForSite } from '@/lib/doc-no';
 import { can } from '@/lib/auth/permissions';
 import { badRequest, conflict, forbidden, notFound } from '@/lib/errors';
 import { coldChainBand } from '@/lib/services/gate-inward';
+import { hasDocument } from '@/lib/services/documents';
 import type { Actor, Row } from '@/lib/services/masters';
 import type { Principal } from '@/lib/auth/permissions';
 
@@ -349,10 +350,8 @@ export async function completeInspection(actor: Actor, qcId: number): Promise<Ro
     // C-11, second gate: a data-logger class needs its logger attached.
     const band = await coldChainBand(tx, lines.map(l => Number(l.po_line_id)));
     if (band.requiresDataLogger) {
-      const [logger] = await tx<Row[]>`
-        SELECT id FROM documents
-         WHERE entity_type = 'GATE_INWARD' AND entity_id = ${gi.id as number} AND doc_type = 'DATA_LOGGER'`;
-      if (!logger) {
+      const attached = await hasDocument(tx, 'GATE_INWARD', Number(gi.id), 'DATA_LOGGER');
+      if (!attached) {
         throw conflict(
           `${band.classes.join(', ')} requires a data logger file. Attach it to the gate inward before completing the inspection.`,
         );

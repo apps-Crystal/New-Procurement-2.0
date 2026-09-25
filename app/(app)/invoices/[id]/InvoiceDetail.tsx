@@ -19,6 +19,7 @@ import {
 } from '@/components/ui';
 import { api } from '@/lib/client/api';
 import { useMutation, useResource } from '@/lib/client/use-resource';
+import { Documents } from '@/components/Documents';
 
 interface Row { [k: string]: unknown }
 
@@ -166,6 +167,13 @@ export function InvoiceDetail({ id, granted }: { id: number; granted: string[] }
           </div>
         )}
       </Card>
+
+      <Documents
+        entityType="INVOICE"
+        entityId={invoice.id}
+        offered={['INVOICE', 'EWAY_BILL', 'OTHER']}
+        canAttach={invoice.status !== 'INV_PAID'}
+      />
 
       <Card title="What happens next" label="Actions">
         <div className="pad">

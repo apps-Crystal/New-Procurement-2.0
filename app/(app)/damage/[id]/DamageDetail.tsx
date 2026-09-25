@@ -21,6 +21,7 @@ import {
 } from '@/components/ui';
 import { api } from '@/lib/client/api';
 import { useMutation, useResource } from '@/lib/client/use-resource';
+import { Documents } from '@/components/Documents';
 import { DecisionCard } from '@/app/(app)/damage/[id]/DecisionCard';
 
 interface Row { [k: string]: unknown }
@@ -214,6 +215,13 @@ export function DamageDetail({
           </div>
         </Card>
       )}
+
+      <Documents
+        entityType="DAMAGE"
+        entityId={report.id}
+        offered={['PHOTO', 'INSPECTION_REPORT', 'INSURANCE_CLAIM']}
+        canAttach={report.status !== 'DMG_CLOSED'}
+      />
 
       <Card
         title="Joint inspection"

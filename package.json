@@ -17,7 +17,9 @@
     "verify:db": "tsx --env-file=.env.local scripts/verify-db.ts",
     "verify:procurement": "tsx --env-file=.env.local scripts/verify-procurement.ts",
     "verify:permissions": "tsx --env-file=.env.local scripts/verify-permissions.ts",
-    "verify:all": "npm run typecheck && npm test && npm run verify:db && npm run verify:permissions && npm run verify:procurement"
+    "verify:all": "npm run typecheck && npm test && npm run verify:db && npm run verify:permissions && npm run verify:procurement && npm run verify:performance",
+    "drain:outbox": "tsx --env-file=.env.local scripts/drain-outbox.ts",
+    "verify:performance": "tsx --env-file=.env.local scripts/verify-performance.ts"
   },
   "dependencies": {
     "googleapis": "^181.0.0",

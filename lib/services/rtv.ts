@@ -35,6 +35,7 @@
  */
 import { inTransaction, sql, type Tx } from '@/lib/db';
 import { audit } from '@/lib/audit';
+import { enqueue } from '@/lib/notify';
 import { assertTransition, lockAndReadStatus } from '@/lib/transitions';
 import { nextDocumentNoForSite } from '@/lib/doc-no';
 import { can } from '@/lib/auth/permissions';
@@ -369,6 +370,10 @@ export async function approveRtv(actor: Actor, rtvId: number): Promise<{ rtv: Ro
       remarks: postsReversal(source)
         ? `Stock drained from damaged hold — ${entries.length} ${entries.length === 1 ? 'entry' : 'entries'}`
         : 'No stock movement: this material never entered inventory',
+    });
+    await enqueue(tx, {
+      eventKey: 'RTV_APPROVED', entityType: 'RTV', entityId: rtvId,
+      payload: { reference: String(rtv.rtv_no), prn: prnNo, gate_pass: gatePassNo },
     });
 
     return { rtv: updated, entries };

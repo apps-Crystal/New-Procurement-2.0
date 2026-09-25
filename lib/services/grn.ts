@@ -31,6 +31,7 @@
  */
 import { inTransaction, sql, type Tx } from '@/lib/db';
 import { audit } from '@/lib/audit';
+import { enqueue } from '@/lib/notify';
 import { assertTransition, lockAndReadStatus } from '@/lib/transitions';
 import { nextDocumentNoForSite } from '@/lib/doc-no';
 import { can } from '@/lib/auth/permissions';
@@ -318,6 +319,10 @@ export async function approveGrn(actor: Actor, grnId: number): Promise<{ grn: Ro
       after: { entries, lines: lines.length },
       userId: actor.principal.userId, ip: actor.ip,
       remarks: `Stock posted — ${lines.length} ${lines.length === 1 ? 'line' : 'lines'}`,
+    });
+    await enqueue(tx, {
+      eventKey: 'GRN_APPROVED', entityType: 'GRN', entityId: grnId,
+      payload: { reference: String(grn.grn_no), lines: lines.length },
     });
 
     return { grn: updated, entries };
