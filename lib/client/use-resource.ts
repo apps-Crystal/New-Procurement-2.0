@@ -28,6 +28,32 @@ export function useResource<T>(url: string | null, deps: unknown[] = []): Resour
   // A slow response must never overwrite a newer one.
   const latest = useRef(0);
 
+  /**
+   * When the url changes, the data in hand belongs to the OLD url. The fetch is
+   * started by an effect, and an effect does not run until after this render
+   * has committed — so without this there is one frame in which a caller that
+   * has already switched (a tab, a filter, a record) is handed the previous
+   * url's rows and renders them as if they were its own.
+   *
+   * On the master-data screen that frame put budget-code rows through the
+   * users-and-roles table, where every row keyed to `undefined`, collided, and
+   * React dropped one. The other tables hid it only because they key on `id`
+   * and stale rows happen to have unique ones — they were still rendering the
+   * wrong tab's data for that frame.
+   *
+   * Adjusting state during render is React's documented answer to exactly this:
+   * it re-renders immediately, before any child sees the mismatch. `reload()`
+   * goes through `nonce` instead and deliberately does NOT clear, so refreshing
+   * after a mutation does not blink.
+   */
+  const [shownUrl, setShownUrl] = useState(url);
+  if (url !== shownUrl) {
+    setShownUrl(url);
+    setData(null);
+    setError(null);
+    setLoading(url !== null);
+  }
+
   useEffect(() => {
     if (url === null) {
       setLoading(false);
