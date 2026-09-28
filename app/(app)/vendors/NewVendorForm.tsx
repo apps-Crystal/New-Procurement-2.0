@@ -6,11 +6,17 @@
  * Client-side checks mirror the server's so the user sees a problem before
  * submitting, but the server decides — §31. Anything the server refuses with a
  * `field` is attached to that input rather than dropped into a banner.
+ *
+ * Bank details are optional here and go through the same maker-checker route as
+ * the vendor detail screen: proposed PENDING, approved by someone else. They
+ * are a SECOND call, because the account row needs a vendor_id that does not
+ * exist until the vendor is saved — so the two cannot be one transaction, and
+ * the form says plainly when the vendor was created but the account was not.
  */
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, FieldError } from '@/components/ui';
-import { api } from '@/lib/client/api';
+import { api, ApiFailure } from '@/lib/client/api';
 import { useMutation } from '@/lib/client/use-resource';
 import { GST_STATE_CODES } from '@/lib/validate';
 
@@ -26,6 +32,12 @@ interface Draft {
   msme_number: string;
 }
 
+interface Bank {
+  account_number: string;
+  ifsc: string;
+  beneficiary_name: string;
+}
+
 const EMPTY: Draft = {
   legal_name: '',
   pan: '',
@@ -38,31 +50,88 @@ const EMPTY: Draft = {
   msme_number: '',
 };
 
-const PAN_RE = /^[A-Z]{5}[0-9]{4}[A-Z]$/;
+const EMPTY_BANK: Bank = { account_number: '', ifsc: '', beneficiary_name: '' };
 
-export function NewVendorForm({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+const PAN_RE = /^[A-Z]{5}[0-9]{4}[A-Z]$/;
+const IFSC_RE = /^[A-Z]{4}0[A-Z0-9]{6}$/;
+
+export function NewVendorForm({
+  onClose,
+  onCreated,
+  granted,
+}: {
+  onClose: () => void;
+  onCreated: () => void;
+  granted: string[];
+}) {
   const [draft, setDraft] = useState<Draft>(EMPTY);
+  const [bank, setBank] = useState<Bank>(EMPTY_BANK);
+  /** Set once the vendor row exists, so a failed bank call cannot be retried into a duplicate vendor. */
+  const [createdId, setCreatedId] = useState<number | null>(null);
+  const [bankFailure, setBankFailure] = useState<string | null>(null);
   const router = useRouter();
 
-  const set = <K extends keyof Draft>(key: K, value: Draft[K]) => setDraft(d => ({ ...d, [key]: value }));
+  const canProposeBank = granted.includes('VENDOR.BANK_PROPOSE');
 
-  const mutation = useMutation<Draft>(
-    async values => {
-      const created = await api.post<{ id: number }>('/api/vendors', values);
-      router.prefetch(`/vendors/${created.id}`);
-    },
-    { successMessage: 'Vendor created as a draft.', onDone: onCreated },
-  );
+  const set = <K extends keyof Draft>(key: K, value: Draft[K]) => setDraft(d => ({ ...d, [key]: value }));
+  const setBankField = <K extends keyof Bank>(key: K, value: Bank[K]) => setBank(b => ({ ...b, [key]: value }));
 
   // Normalised the same way the server will, so the preview matches what is stored.
   const pan = draft.pan.toUpperCase().replace(/[\s-]/g, '');
   const gstin = draft.gstin.toUpperCase().replace(/[\s-]/g, '');
+  const ifsc = bank.ifsc.toUpperCase().replace(/[\s-]/g, '');
+  const accountDigits = bank.account_number.replace(/[\s-]/g, '');
 
   const panLooksWrong = pan.length > 0 && !PAN_RE.test(pan);
   const gstinPanMismatch = gstin.length === 15 && PAN_RE.test(pan) && gstin.slice(2, 12) !== pan;
   const gstinStateMismatch = gstin.length >= 2 && gstin.slice(0, 2) !== draft.state_code;
 
-  const ready = draft.legal_name.trim() && PAN_RE.test(pan) && draft.address.trim() && !gstinPanMismatch;
+  // All three bank fields together, or none of them. A half-filled account is
+  // the one thing that must not reach the server, because the vendor would be
+  // created and the account refused.
+  const bankTouched = Boolean(accountDigits || ifsc || bank.beneficiary_name.trim());
+  const accountLooksWrong = accountDigits.length > 0 && !/^[0-9]{6,20}$/.test(accountDigits);
+  const ifscLooksWrong = ifsc.length > 0 && !IFSC_RE.test(ifsc);
+  const bankComplete = /^[0-9]{6,20}$/.test(accountDigits) && IFSC_RE.test(ifsc) && Boolean(bank.beneficiary_name.trim());
+  const bankPartial = bankTouched && !bankComplete;
+
+  const mutation = useMutation<{ draft: Draft; bank: Bank | null }>(
+    async values => {
+      setBankFailure(null);
+
+      // The vendor first — the account row cannot exist without its id.
+      const created = createdId
+        ? { id: createdId }
+        : await api.post<{ id: number }>('/api/vendors', values.draft);
+      setCreatedId(created.id);
+
+      if (values.bank) {
+        try {
+          await api.post(`/api/vendors/${created.id}/bank`, values.bank);
+        } catch (err) {
+          // The vendor exists. Saying "could not create vendor" would be a lie,
+          // and retrying the whole form would create a second one.
+          setBankFailure(
+            err instanceof ApiFailure || err instanceof Error
+              ? err.message
+              : 'The bank details could not be saved.',
+          );
+          throw err;
+        }
+      }
+
+      router.prefetch(`/vendors/${created.id}`);
+    },
+    {
+      successMessage: bankComplete
+        ? 'Vendor created as a draft. Bank details sent for approval.'
+        : 'Vendor created as a draft.',
+      onDone: onCreated,
+    },
+  );
+
+  const ready =
+    draft.legal_name.trim() && PAN_RE.test(pan) && draft.address.trim() && !gstinPanMismatch && !bankPartial;
 
   const fieldMessage = (field: string) =>
     mutation.fieldError?.field === field ? mutation.fieldError.message : null;
@@ -184,7 +253,94 @@ export function NewVendorForm({ onClose, onCreated }: { onClose: () => void; onC
         </div>
       </div>
 
-      {mutation.error && (
+      {canProposeBank ? (
+        <>
+          <h3 style={{ margin: '20px 0 0', fontSize: 15 }}>Bank details (optional)</h3>
+          <p className="sub" style={{ margin: '2px 0 0' }}>
+            Proposed here, approved by someone else before any payment can be released. Leave blank to add them later.
+          </p>
+
+          <div className="grid g3" style={{ marginTop: 12 }}>
+            <div className="field">
+              <label htmlFor="nv-bank-acct">Account number</label>
+              <input
+                id="nv-bank-acct"
+                className="inp mono"
+                value={bank.account_number}
+                onChange={e => setBankField('account_number', e.target.value)}
+                aria-invalid={accountLooksWrong || !!fieldMessage('account_number')}
+                aria-describedby="nv-bank-acct-hint"
+                autoComplete="off"
+                inputMode="numeric"
+              />
+              <span id="nv-bank-acct-hint" className={`sub ${accountLooksWrong ? 't-bad' : ''}`}>
+                {fieldMessage('account_number') ??
+                  (accountLooksWrong
+                    ? 'An account number is 6 to 20 digits.'
+                    : 'Encrypted on save; only the last four digits are ever shown.')}
+              </span>
+            </div>
+
+            <div className="field">
+              <label htmlFor="nv-bank-ifsc">IFSC</label>
+              <input
+                id="nv-bank-ifsc"
+                className="inp mono"
+                value={bank.ifsc}
+                onChange={e => setBankField('ifsc', e.target.value)}
+                aria-invalid={ifscLooksWrong || !!fieldMessage('ifsc')}
+                aria-describedby="nv-bank-ifsc-hint"
+                placeholder="HDFC0001234"
+                maxLength={13}
+              />
+              <span id="nv-bank-ifsc-hint" className={`sub ${ifscLooksWrong ? 't-bad' : ''}`}>
+                {fieldMessage('ifsc') ??
+                  (ifscLooksWrong ? 'Four letters, a zero, then six more.' : 'Eleven characters.')}
+              </span>
+            </div>
+
+            <div className="field">
+              <label htmlFor="nv-bank-benef">Beneficiary name</label>
+              <input
+                id="nv-bank-benef"
+                className="inp"
+                value={bank.beneficiary_name}
+                onChange={e => setBankField('beneficiary_name', e.target.value)}
+                aria-invalid={!!fieldMessage('beneficiary_name')}
+                aria-describedby="nv-bank-benef-hint"
+              />
+              <span id="nv-bank-benef-hint" className="sub">
+                {fieldMessage('beneficiary_name') ?? 'As printed on the bank account.'}
+              </span>
+            </div>
+          </div>
+
+          {bankPartial && (
+            <div className="banner warn" style={{ marginTop: 12 }}>
+              <span>
+                Bank details need all three fields — account number, IFSC and beneficiary name. Complete them, or clear
+                them to add the account later.
+              </span>
+            </div>
+          )}
+        </>
+      ) : (
+        <p className="sub" style={{ marginTop: 16, marginBottom: 0 }}>
+          Bank details are added by Accounts or a Buyer, on the vendor once it exists.
+        </p>
+      )}
+
+      {/* The vendor is saved and the account is not — two calls, one of which failed. */}
+      {createdId !== null && bankFailure && (
+        <div className="banner warn" style={{ marginTop: 12 }} role="alert">
+          <span>
+            <b>The vendor was created.</b> The bank details were not: {bankFailure} Nothing is lost — open the vendor
+            and add them there.
+          </span>
+        </div>
+      )}
+
+      {mutation.error && !bankFailure && (
         <div className="banner bad" style={{ marginTop: 12 }} role="alert">
           {mutation.error}
         </div>
@@ -197,16 +353,30 @@ export function NewVendorForm({ onClose, onCreated }: { onClose: () => void; onC
 
       <div className="seg" style={{ justifyContent: 'flex-end', marginTop: 14 }}>
         <button type="button" className="btn" onClick={onClose} disabled={mutation.busy}>
-          Cancel
+          {createdId !== null && bankFailure ? 'Close' : 'Cancel'}
         </button>
-        <button
-          type="button"
-          className="btn btn-primary"
-          disabled={!ready || mutation.busy}
-          onClick={() => mutation.run({ ...draft, pan, gstin })}
-        >
-          {mutation.busy ? 'Saving…' : 'Create vendor'}
-        </button>
+
+        {createdId !== null && bankFailure ? (
+          <button type="button" className="btn btn-primary" onClick={() => router.push(`/vendors/${createdId}`)}>
+            Open the vendor
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="btn btn-primary"
+            disabled={!ready || mutation.busy}
+            onClick={() =>
+              mutation.run({
+                draft: { ...draft, pan, gstin },
+                bank: bankComplete
+                  ? { account_number: accountDigits, ifsc, beneficiary_name: bank.beneficiary_name.trim() }
+                  : null,
+              })
+            }
+          >
+            {mutation.busy ? 'Saving…' : 'Create vendor'}
+          </button>
+        )}
       </div>
     </Card>
   );

@@ -38,8 +38,15 @@ if (!email || !email.includes('@')) {
   process.exit(1);
 }
 
-/** The roles the named user ends up holding at the sandbox site. */
-const ROLES: RoleCode[] = ['CG_REQ', 'CG_SMGR'];
+/**
+ * The roles the named user ends up holding at the sandbox site.
+ *
+ * CG_REQ raises a material request, CG_SMGR declares and stock-checks it,
+ * CG_BUY turns it into a purchase request and owns the vendor side — including
+ * proposing bank details, which CG_ADM deliberately cannot do (it approves
+ * them, and the schema's vba_maker_checker forbids being both).
+ */
+const ROLES: RoleCode[] = ['CG_REQ', 'CG_SMGR', 'CG_BUY'];
 
 /**
  * Two item classes and the items under them. Ambient and cold-chain, because
@@ -245,10 +252,11 @@ async function main() {
   Done. Sign in as ${email} and go to Procurement -> Material requests;
   "Raise a request" is now there.
 
-  You hold CG_ADM, CG_REQ and CG_SMGR. That is more than one person should
-  have in production -- segregation of duties is enforced server-side, so
-  some later steps (receiving then inspecting the same goods) will still
-  refuse, which is the system working, not a bug.
+  You now hold CG_ADM, CG_REQ, CG_SMGR and CG_BUY. That is far more than one
+  person should have in production -- segregation of duties is enforced
+  server-side, so some steps (receiving then inspecting the same goods,
+  approving bank details you proposed yourself) will still refuse. That is
+  the system working, not a bug.
 `);
 
   await sql.end({ timeout: 5 });

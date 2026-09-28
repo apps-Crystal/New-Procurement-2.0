@@ -115,6 +115,7 @@ export function VendorRegister({ granted }: { granted: string[] }) {
 
       {creating && (
         <NewVendorForm
+          granted={granted}
           onClose={() => setCreating(false)}
           onCreated={() => {
             setCreating(false);
