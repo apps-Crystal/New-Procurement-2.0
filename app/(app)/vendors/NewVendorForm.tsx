@@ -19,7 +19,7 @@ import { Card, FieldError } from '@/components/ui';
 import { api, ApiFailure } from '@/lib/client/api';
 import { useMutation } from '@/lib/client/use-resource';
 import { GST_STATE_CODES } from '@/lib/validate';
-import { VendorKyc } from '@/app/(app)/vendors/VendorKyc';
+import { VendorKyc, KYC_SLOTS, KYC_ACCEPT, kycFileProblem, humanSize } from '@/app/(app)/vendors/VendorKyc';
 
 interface Draft {
   legal_name: string;
@@ -70,12 +70,40 @@ export function NewVendorForm({
   /** Set once the vendor row exists, so a failed bank call cannot be retried into a duplicate vendor. */
   const [createdId, setCreatedId] = useState<number | null>(null);
   const [bankFailure, setBankFailure] = useState<string | null>(null);
+  /**
+   * KYC files chosen before the vendor exists. A document row needs an
+   * entity_id, so these are held in the browser and uploaded the moment the
+   * vendor is created — the fields belong where the user is filling the form,
+   * not on a screen they have to go and find afterwards.
+   */
+  const [kyc, setKyc] = useState<Record<string, File>>({});
+  const [kycProblem, setKycProblem] = useState<string | null>(null);
+  const [kycFailures, setKycFailures] = useState<{ label: string; message: string }[]>([]);
   const router = useRouter();
 
   const canProposeBank = granted.includes('VENDOR.BANK_PROPOSE');
 
   const set = <K extends keyof Draft>(key: K, value: Draft[K]) => setDraft(d => ({ ...d, [key]: value }));
   const setBankField = <K extends keyof Bank>(key: K, value: Bank[K]) => setBank(b => ({ ...b, [key]: value }));
+
+  function stageKyc(docType: string, file: File | null) {
+    setKycProblem(null);
+    if (!file) {
+      setKyc(k => {
+        const next = { ...k };
+        delete next[docType];
+        return next;
+      });
+      return;
+    }
+    // Refuse it here rather than after a vendor has been created for it.
+    const problem = kycFileProblem(file);
+    if (problem) {
+      setKycProblem(`${KYC_SLOTS.find(s => s.type === docType)?.label}: ${problem}`);
+      return;
+    }
+    setKyc(k => ({ ...k, [docType]: file }));
+  }
 
   // Normalised the same way the server will, so the preview matches what is stored.
   const pan = draft.pan.toUpperCase().replace(/[\s-]/g, '');
@@ -96,7 +124,7 @@ export function NewVendorForm({
   const bankComplete = /^[0-9]{6,20}$/.test(accountDigits) && IFSC_RE.test(ifsc) && Boolean(bank.beneficiary_name.trim());
   const bankPartial = bankTouched && !bankComplete;
 
-  const mutation = useMutation<{ draft: Draft; bank: Bank | null }>(
+  const mutation = useMutation<{ draft: Draft; bank: Bank | null; kyc: Record<string, File> }>(
     async values => {
       setBankFailure(null);
 
@@ -121,9 +149,41 @@ export function NewVendorForm({
         }
       }
 
+      // KYC last: the vendor and its bank details are the record. A document
+      // that fails to attach is recoverable in place, so it must not throw and
+      // make the whole thing look like it failed.
+      const staged = Object.entries(values.kyc);
+      if (staged.length > 0) {
+        const failures: { label: string; message: string }[] = [];
+
+        for (const [docType, file] of staged) {
+          const form = new FormData();
+          form.set('entity_type', 'VENDOR');
+          form.set('entity_id', String(created.id));
+          form.set('doc_type', docType);
+          form.set('file', file);
+
+          try {
+            // Not through lib/client/api: multipart needs the browser's own boundary.
+            const res = await fetch('/api/documents', { method: 'POST', body: form });
+            const body = await res.json();
+            if (!body.ok) throw new Error(body.error?.message ?? 'That upload failed.');
+          } catch (e) {
+            failures.push({
+              label: KYC_SLOTS.find(sl => sl.type === docType)?.label ?? docType,
+              message: e instanceof Error ? e.message : 'That upload failed.',
+            });
+          }
+        }
+        setKycFailures(failures);
+      }
+
       router.prefetch(`/vendors/${created.id}`);
     },
     {
+      // Deliberately says nothing about the KYC files: this string is fixed
+      // before the uploads run, so any count in it would be a guess. The panel
+      // below reports what actually landed, slot by slot.
       successMessage: bankComplete
         ? 'Vendor created as a draft. Bank details sent for approval.'
         : 'Vendor created as a draft.',
@@ -143,7 +203,11 @@ export function NewVendorForm({
    * row exists. Rather than send the user away to a second screen, the form
    * becomes the KYC step once the vendor is saved.
    */
-  if (createdId !== null && !bankFailure) {
+  // `mutation.busy` matters: createdId is set as soon as the vendor row exists,
+  // but the KYC uploads run after it. Switching views on createdId alone mounts
+  // the panel mid-upload, where it fetches an empty list and never looks again —
+  // so the documents land but the screen says none are held.
+  if (createdId !== null && !bankFailure && !mutation.busy) {
     return (
       <Card
         title="Vendor created"
@@ -154,6 +218,16 @@ export function NewVendorForm({
         {mutation.success && (
           <div className="banner ok" style={{ marginTop: 12 }} role="status">
             {mutation.success}
+          </div>
+        )}
+
+        {kycFailures.length > 0 && (
+          <div className="banner warn" style={{ marginTop: 12 }} role="alert">
+            <span>
+              <b>Some documents did not attach.</b>{' '}
+              {kycFailures.map(f => `${f.label} — ${f.message}`).join(' ')}
+            </span>
+            <span>The vendor is saved. Choose those files again below.</span>
           </div>
         )}
 
@@ -366,6 +440,64 @@ export function NewVendorForm({
         </p>
       )}
 
+      <h3 style={{ margin: '20px 0 0', fontSize: 15 }}>KYC documents (optional)</h3>
+      <p className="sub" style={{ margin: '2px 0 0' }}>
+        Chosen now, attached the moment the vendor is created. PDF or image, up to 10 MB each.
+      </p>
+
+      {kycProblem && (
+        <div className="banner bad" style={{ marginTop: 12 }} role="alert">
+          {kycProblem}
+        </div>
+      )}
+
+      <div className="col" style={{ gap: 10, marginTop: 12 }}>
+        {KYC_SLOTS.map(slot => {
+          const file = kyc[slot.type];
+          return (
+            <div key={slot.type} className="kyc-slot">
+              <span className={`kyc-dot ${file ? 'is-held' : ''}`} aria-hidden="true" />
+
+              <div style={{ minWidth: 0 }}>
+                <div className="b">{slot.label}</div>
+                <div className="sub">
+                  {file ? `${file.name} · ${humanSize(file.size)} · attaches on create` : slot.hint}
+                </div>
+              </div>
+
+              <div className="seg" style={{ gap: 6, margin: 0 }}>
+                {file && (
+                  <button
+                    type="button"
+                    className="btn btn-sm"
+                    onClick={() => stageKyc(slot.type, null)}
+                    aria-label={`Remove the ${slot.label}`}
+                  >
+                    Remove
+                  </button>
+                )}
+                <div className="field" style={{ margin: 0 }}>
+                  <label htmlFor={`nv-kyc-${slot.type}`} className="btn btn-sm kyc-choose">
+                    {file ? 'Change' : 'Choose file'}
+                  </label>
+                  <input
+                    id={`nv-kyc-${slot.type}`}
+                    type="file"
+                    className="kyc-file"
+                    accept={KYC_ACCEPT}
+                    aria-label={`Choose the ${slot.label}`}
+                    onChange={e => {
+                      stageKyc(slot.type, e.target.files?.[0] ?? null);
+                      e.target.value = '';
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
       {/* The vendor is saved and the account is not — two calls, one of which failed. */}
       {createdId !== null && bankFailure && (
         <div className="banner warn" style={{ marginTop: 12 }} role="alert">
@@ -412,6 +544,7 @@ export function NewVendorForm({
                 bank: bankComplete
                   ? { account_number: accountDigits, ifsc, beneficiary_name: bank.beneficiary_name.trim() }
                   : null,
+                kyc,
               })
             }
           >

@@ -43,11 +43,27 @@ export const KYC_SLOTS = [
   { type: 'KYC_MSME', label: 'MSME Certificate', hint: 'Only if the vendor is registered under MSME' },
 ] as const;
 
-function humanSize(bytes: string): string {
+export const KYC_ACCEPT = '.pdf,.jpg,.jpeg,.png,.webp';
+const KYC_MIME = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
+const KYC_MAX_BYTES = 10 * 1024 * 1024;
+
+export function humanSize(bytes: number | string): string {
   const n = Number(bytes);
   if (n < 1024) return `${n} B`;
   if (n < 1024 * 1024) return `${(n / 1024).toFixed(0)} KB`;
   return `${(n / 1024 / 1024).toFixed(1)} MB`;
+}
+
+/**
+ * Mirrors the server's allow-list and ceiling to save a round trip. The server
+ * still decides — this only exists so an obviously wrong file is caught BEFORE
+ * a vendor is created, rather than after.
+ */
+export function kycFileProblem(file: File): string | null {
+  if (file.size === 0) return 'That file is empty.';
+  if (file.size > KYC_MAX_BYTES) return `That file is ${humanSize(file.size)}. The limit is 10 MB.`;
+  if (!KYC_MIME.includes(file.type)) return 'A KYC document must be a PDF or an image.';
+  return null;
 }
 
 export function VendorKyc({
@@ -134,7 +150,7 @@ export function VendorKyc({
                     type="file"
                     className="kyc-file"
                     disabled={busy !== null}
-                    accept=".pdf,.jpg,.jpeg,.png,.webp"
+                    accept={KYC_ACCEPT}
                     aria-label={`${doc ? 'Replace' : 'Upload'} the ${slot.label}`}
                     onChange={e => {
                       const file = e.target.files?.[0];
