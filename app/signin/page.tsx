@@ -7,6 +7,7 @@
  * Deliberately ugly-honest rather than polished: it should never be mistaken
  * for a real login screen, and the banner says so.
  */
+import Image from 'next/image';
 import { redirect } from 'next/navigation';
 import { localAuthAvailable, authMode } from '@/lib/auth/mode';
 import { SignInPicker } from '@/app/signin/SignInPicker';
@@ -36,9 +37,9 @@ export default async function SignInPage() {
       <div className="col" style={{ width: 'min(520px, 100%)', gap: 14 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div className="brand-mark">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-              <path d="M12 2v20M4.9 6.5l14.2 11M19.1 6.5L4.9 17.5" />
-            </svg>
+            {/* The same mark as the nav. Here it is on the page surface rather
+                than the dark nav, so it takes its colour from --mark-filter. */}
+            <Image src="/crystal-mark.png" alt="" width={256} height={162} priority aria-hidden="true" />
           </div>
           <div>
             <div style={{ fontWeight: 700, fontSize: 16 }}>Crystal</div>

@@ -39,6 +39,7 @@
   --nav-ink: #D5D9E1;
   --nav-muted: #A7AFBD;
   --nav-line: #2C3544;
+  --mark-filter: brightness(0);
   --sans: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
   box-sizing: border-box;
@@ -75,6 +76,7 @@
     --nav-ink: #D5D9E1;
     --nav-muted: #8C95A5;
     --nav-line: #222A35;
+    --mark-filter: brightness(0) invert(1);
   }
 }
 
@@ -105,6 +107,7 @@
   --nav-bg: #0C1016;
   --nav-ink: #D5D9E1;
   --nav-muted: #8C95A5;
+  --mark-filter: brightness(0) invert(1);
   --nav-line: #222A35;
 }
 
@@ -126,16 +129,29 @@ a { color: var(--accent-text); }
   width: 240px; flex-shrink: 0;
   background: var(--nav-bg); color: var(--nav-ink);
   padding: 20px 14px; display: flex; flex-direction: column; gap: 12px;
-  position: sticky; top: 0; height: 100vh; overflow-y: auto;
+  position: sticky; top: 0; height: 100vh; overflow: hidden;
+}
+/* The links scroll; the brand and the footer do not. `min-height: 0` is what
+   actually allows this to shrink -- a flex item defaults to min-height: auto
+   and would otherwise push the footer off the bottom instead of scrolling. */
+.nav-scroll {
+  flex: 1; min-height: 0; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 12px;
+  scrollbar-width: thin; scrollbar-color: var(--nav-line) transparent;
 }
 .brand { display: flex; align-items: center; gap: 10px; padding: 0 8px 14px; border-bottom: 1px solid var(--nav-line); }
 /* The Crystal mark. No tile behind it: the artwork is already transparent, so a
    background would only draw a square around a logo that does not have one.
-   The file is black artwork and `brightness(0) invert(1)` paints it white --
-   the nav is dark under BOTH themes (see --nav-bg above), so there is no
-   light-theme variant to switch back to. */
+   The file is black artwork and a filter colours it, which is why one file
+   serves every surface.
+
+   Two different surfaces use this: the nav, and the sign-in page. The nav is
+   dark under BOTH themes (see --nav-bg), so there the mark is always white.
+   The sign-in page sits on --bg, which flips -- so it follows --mark-filter,
+   and a white mark never lands on a white page. */
 .brand-mark { width: 34px; height: 34px; flex: 0 0 34px; display: flex; align-items: center; justify-content: center; }
-.brand-mark img { width: 100%; height: auto; filter: brightness(0) invert(1); }
+.brand-mark img { width: 100%; height: auto; filter: var(--mark-filter); }
+.side .brand-mark img { filter: brightness(0) invert(1); }
 .brand b { display: block; font-size: 15px; }
 .brand small { color: var(--nav-muted); font-size: 12px; }
 .nav-group { display: flex; flex-direction: column; gap: 2px; }
@@ -143,9 +159,22 @@ a { color: var(--accent-text); }
 .nav-link { display: block; text-decoration: none; color: var(--nav-ink); padding: 8px 10px; border-radius: 7px; font-size: 14px; }
 .nav-link:hover { background: rgba(255,255,255,.06); }
 .nav-link[aria-current='page'] { background: #0B5F63; color: #fff; font-weight: 600; }
-.nav-foot { margin-top: auto; padding: 12px 10px; border-top: 1px solid var(--nav-line); font-size: 12px; color: var(--nav-muted); }
+.nav-foot { flex-shrink: 0; padding: 12px 10px; border-top: 1px solid var(--nav-line); font-size: 12px; color: var(--nav-muted); }
 .nav-foot b { display: block; color: var(--nav-ink); font-size: 13px; font-weight: 500; }
-.theme-btn { margin-top: 8px; background: transparent; border: 1px solid var(--nav-line); color: var(--nav-ink); border-radius: 6px; padding: 6px 10px; cursor: pointer; min-height: 32px; }
+/* Light / Dark / Auto, as one joined control so it reads as a single choice
+   of three rather than three unrelated buttons. Styled for the nav rather than
+   reusing .btn, which is drawn for the light page surfaces behind it. */
+.theme-seg { display: flex; margin-top: 10px; border: 1px solid var(--nav-line); border-radius: 7px; overflow: hidden; }
+.theme-seg button {
+  flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; gap: 4px;
+  background: transparent; border: 0; border-left: 1px solid var(--nav-line);
+  color: var(--nav-muted); font-size: 11px; line-height: 1; padding: 7px 2px;
+  min-height: 30px; cursor: pointer;
+}
+.theme-seg button:first-child { border-left: 0; }
+.theme-seg button:hover { background: rgba(255, 255, 255, .07); color: var(--nav-ink); }
+.theme-seg button[aria-checked='true'] { background: var(--accent); color: var(--accent-ink); }
+.theme-seg svg { flex: 0 0 auto; }
 .topbar { display: none; }
 main { flex: 1; min-width: 0; padding: 26px 32px 40px; display: flex; flex-direction: column; gap: 16px; }
 
@@ -317,6 +346,7 @@ textarea.inp { height: auto; min-height: 96px; padding: 10px 12px; resize: verti
     background: var(--nav-bg); color: var(--nav-ink);
   }
   .topbar button { background: transparent; border: 1px solid var(--nav-line); color: var(--nav-ink); border-radius: 8px; min-height: 44px; min-width: 44px; cursor: pointer; }
+  .theme-seg button { min-height: 44px; font-size: 12px; }
   .app { flex-direction: column; }
   main { padding: 18px 16px 32px; }
   .row { flex-direction: column; }
