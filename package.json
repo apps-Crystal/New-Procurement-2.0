@@ -12,6 +12,7 @@
     "verify:schema": "node scripts/verify-schema.mjs",
     "bootstrap:admin": "tsx --env-file=.env.local scripts/bootstrap-admin.ts",
     "seed:sandbox": "tsx --env-file=.env.local scripts/seed-sandbox.ts",
+    "seed:users": "tsx --env-file=.env.local scripts/seed-users.ts",
     "dev:session": "tsx --env-file=.env.local scripts/dev-session.ts",
     "db:create": "node --env-file=.env.local scripts/create-db.mjs",
     "migrate": "node --env-file=.env.local scripts/migrate.mjs",
