@@ -19,6 +19,7 @@ import { Card, FieldError } from '@/components/ui';
 import { api, ApiFailure } from '@/lib/client/api';
 import { useMutation } from '@/lib/client/use-resource';
 import { GST_STATE_CODES } from '@/lib/validate';
+import { VendorKyc } from '@/app/(app)/vendors/VendorKyc';
 
 interface Draft {
   legal_name: string;
@@ -126,7 +127,8 @@ export function NewVendorForm({
       successMessage: bankComplete
         ? 'Vendor created as a draft. Bank details sent for approval.'
         : 'Vendor created as a draft.',
-      onDone: onCreated,
+      // Deliberately no onDone: the panel stays open on the KYC step. The
+      // register is refreshed when the user closes it.
     },
   );
 
@@ -135,6 +137,40 @@ export function NewVendorForm({
 
   const fieldMessage = (field: string) =>
     mutation.fieldError?.field === field ? mutation.fieldError.message : null;
+
+  /**
+   * A document needs an entity_id, so KYC cannot be uploaded until the vendor
+   * row exists. Rather than send the user away to a second screen, the form
+   * becomes the KYC step once the vendor is saved.
+   */
+  if (createdId !== null && !bankFailure) {
+    return (
+      <Card
+        title="Vendor created"
+        subtitle={`${draft.legal_name.trim()} is a draft. Attach its KYC documents now, or close and do it later.`}
+        pad
+        label="Vendor created"
+      >
+        {mutation.success && (
+          <div className="banner ok" style={{ marginTop: 12 }} role="status">
+            {mutation.success}
+          </div>
+        )}
+
+        <h3 style={{ margin: '18px 0 10px', fontSize: 15 }}>KYC documents</h3>
+        <VendorKyc vendorId={createdId} canAttach bare />
+
+        <div className="seg" style={{ justifyContent: 'flex-end', marginTop: 16 }}>
+          <button type="button" className="btn" onClick={onCreated}>
+            Done
+          </button>
+          <button type="button" className="btn btn-primary" onClick={() => router.push(`/vendors/${createdId}`)}>
+            Open the vendor
+          </button>
+        </div>
+      </Card>
+    );
+  }
 
   return (
     <Card title="New vendor" subtitle="Saved as a draft; a second person approves it before it can be ordered from" pad label="New vendor">
@@ -352,7 +388,12 @@ export function NewVendorForm({
       )}
 
       <div className="seg" style={{ justifyContent: 'flex-end', marginTop: 14 }}>
-        <button type="button" className="btn" onClick={onClose} disabled={mutation.busy}>
+        <button
+          type="button"
+          className="btn"
+          onClick={createdId !== null ? onCreated : onClose}
+          disabled={mutation.busy}
+        >
           {createdId !== null && bankFailure ? 'Close' : 'Cancel'}
         </button>
 

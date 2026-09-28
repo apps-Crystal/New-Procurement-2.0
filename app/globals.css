@@ -336,6 +336,23 @@ textarea.inp { height: auto; min-height: 96px; padding: 10px 12px; resize: verti
 @media (prefers-reduced-motion: reduce) { .skeleton { animation: none; } }
 .err-text { font-size: 12px; color: var(--bad); }
 
+/* --- KYC document slots ------------------------------------------------------- */
+/* A row per document rather than a list of what happens to be attached: the
+   useful question for KYC is which of the four are still missing. */
+.kyc-slot {
+  display: grid; grid-template-columns: 22px 1fr auto; align-items: center; gap: 12px;
+  padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-2);
+}
+.kyc-dot { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--input); display: block; }
+.kyc-dot.is-held { border-color: var(--ok); background: var(--ok-bg); }
+/* The input itself is hidden and driven by its own <label>, which is the only
+   way to style a file picker. It stays focusable and keyboard-operable -- it is
+   positioned off the visible box, never display:none. */
+.kyc-file { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.kyc-choose { cursor: pointer; display: inline-flex; align-items: center; justify-content: center; white-space: nowrap; }
+.kyc-file:focus-visible + .kyc-choose, .kyc-choose:has(+ .kyc-file:focus-visible) { outline: 2px solid var(--accent-text); outline-offset: 2px; }
+.field:has(> .kyc-file) { position: relative; }
+
 /* --- Mobile ---------------------------------------------------------------------- */
 @media (max-width: 900px) {
   .side { position: fixed; left: 0; top: 0; bottom: 0; z-index: 40; transform: translateX(-100%); transition: transform .2s; padding-top: calc(20px + env(safe-area-inset-top, 0px)); }

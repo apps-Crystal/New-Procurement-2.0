@@ -671,3 +671,44 @@ answers HTTP 403 where 409 is the truth — which also means a client cannot tel
 
 **Rule** — `forbidden` means the caller may not; `conflict` means nobody may,
 in this state. All seven are now `conflict`.
+
+---
+
+## 🟠 C-31 — the KYC design offers "or paste a link"; `documents` cannot hold one
+
+**Found by** the vendor KYC reference design, which gives every document slot a
+**Choose file** button *and* an **or paste link…** box.
+
+`documents` has no column a link could go in, and that is not an oversight:
+
+| Column | | |
+|---|---|---|
+| `storage_path` | `text NOT NULL` | where the bytes are |
+| `sha256` | `char(64) NOT NULL` | re-checked on every download |
+| `size_bytes` | `bigint NOT NULL CHECK (size_bytes > 0 …)` | |
+| `mime_type` | `text NOT NULL` | |
+| `retention_class` | `NOT NULL DEFAULT 'STATUTORY_8Y'` | |
+
+A URL has no bytes to hash, no size, and no mime type until something fetches
+it. Making those nullable to admit one would remove the guarantee the whole
+document service is built on — `fetchDocument` re-computes the hash and refuses
+a file that changed on disk, which is the check that makes a stored document
+evidence rather than a copy.
+
+It matters most for exactly this case. KYC papers are what proves a vendor is
+who they claim to be, and the moment they are needed is a dispute or an audit
+years later. A link is a promise that somebody else's server still exists, still
+serves the same file, and still lets us read it. `STATUTORY_8Y` says how long
+that promise has to hold.
+
+**Rule** — KYC documents are uploaded, not linked. The four slots
+(`KYC_GST`, `KYC_PAN`, `KYC_CHEQUE`, `KYC_MSME`) ride the existing
+`documents` table and `/api/documents`, so the hash check, the 10 MB ceiling,
+the type allow-list and the retention class all apply unchanged. The **named
+slots** from the design are kept, because "which of the four is missing" is the
+question KYC actually asks; only the link box is dropped.
+
+If linking is genuinely wanted later, the honest shape is a separate
+`external_url` column with its own nullable columns and a `source` discriminator
+— never by loosening the NOT NULLs on the stored-file path.
+

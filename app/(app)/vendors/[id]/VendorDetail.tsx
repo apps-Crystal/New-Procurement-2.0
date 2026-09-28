@@ -15,6 +15,7 @@ import { Card, Chip, ErrorState, LoadingState, StatusChip, Tile, fmtDateTime } f
 import { api } from '@/lib/client/api';
 import { useMutation, useResource } from '@/lib/client/use-resource';
 import { stateName } from '@/lib/validate';
+import { VendorKyc } from '@/app/(app)/vendors/VendorKyc';
 
 interface Vendor {
   id: number;
@@ -146,6 +147,8 @@ export function VendorDetail({
               <Tile label="Phone" value={vendor.contact_phone ?? '—'} />
             </div>
           </Card>
+
+          <VendorKyc vendorId={vendorId} canAttach={granted.includes('VENDOR.EDIT')} />
         </div>
 
         <aside className="col side-w" style={{ width: 380, flexShrink: 0 }}>
