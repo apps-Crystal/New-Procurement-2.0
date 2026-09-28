@@ -41,6 +41,51 @@ type Actor = { principal: Principal; ip: string | null };
 const money = (n: unknown) =>
   `₹${Number(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
+/**
+ * The chain in order. `--upto <stage>` runs to that point and stops, leaving the
+ * next step waiting in the UI for you to do by hand. That is the difference
+ * between watching the chain and operating it.
+ */
+const STAGES = [
+  'vendor', 'mr', 'stock-check', 'declare', 'approve-mr',
+  'pr', 'submit-pr', 'approve-pr', 'quote', 'award', 'po',
+  'gate', 'qc', 'hold', 'grn', 'receipt',
+] as const;
+type Stage = (typeof STAGES)[number];
+
+const uptoArg = (() => {
+  const i = process.argv.indexOf('--upto');
+  return i !== -1 ? process.argv[i + 1] : undefined;
+})();
+
+if (uptoArg && !STAGES.includes(uptoArg as Stage)) {
+  console.error(`
+  Unknown stage "${uptoArg}". One of:
+    ${STAGES.join(', ')}
+`);
+  process.exit(1);
+}
+
+const stopAfter = uptoArg ? STAGES.indexOf(uptoArg as Stage) : STAGES.length - 1;
+
+/** True while this stage is still within the requested range. */
+const upto = (stage: Stage) => STAGES.indexOf(stage) <= stopAfter;
+
+/** Announce where it stopped and what is now waiting for a person. */
+function parked(next: string, who: string, where: string): never {
+  console.log(`
+  Stopped after "${uptoArg}", as asked.
+
+  Waiting for you: ${next}
+  Sign in as       ${who}
+  Go to            ${where}
+
+  Everything before this point is committed and readable in the UI.
+`);
+  void sql.end({ timeout: 5 });
+  process.exit(0);
+}
+
 let step = 0;
 function say(who: string, what: string, detail?: string) {
   step += 1;
@@ -144,7 +189,7 @@ async function main() {
   let approved = await sql<{ id: string; legal_name: string }[]>`
     SELECT id, legal_name FROM vendors WHERE status = 'VENDOR_APPROVED' ORDER BY id`;
 
-  if (approved.length === 0) {
+  if (approved.length === 0 && upto('vendor')) {
     const draft = await sql<{ id: string; legal_name: string; status: string; created_by: string }[]>`
       SELECT id, legal_name, status, created_by FROM vendors
        WHERE status IN ('VENDOR_DRAFT', 'VENDOR_PENDING') ORDER BY id LIMIT 3`;
@@ -168,6 +213,10 @@ async function main() {
   // =========================================================================
   // 1 — the need
   // =========================================================================
+  if (!upto('mr'))
+    parked('raising the material request', 'requester@crystalgroup.in',
+           'Material requests -> Raise a request');
+
   const mr = await mrSvc.createMr(REQ, {
     siteId, category: 'CONSUMABLES', requiredBy: '2026-11-15', urgency: 'PLANNED',
     lines: [
@@ -178,6 +227,8 @@ async function main() {
   const mrId = Number(mr.id);
   say('Requester', `raised ${String(mr.mr_no)}`, `${itemA.code} × 40, ${itemB.code} × 25`);
 
+  if (!upto('stock-check')) parked('the stock check on the new material request', 'site.manager@crystalgroup.in', 'Material requests -> open it -> Run stock check');
+
   const { lines: checked } = await mrSvc.runStockCheck(SMGR, mrId);
   // runStockCheck reports a computed view; the rows the PR is built from are
   // the stored mr_lines, which carry qty_purchase once the check has run.
@@ -185,6 +236,8 @@ async function main() {
   const toBuy = mrLines.filter(l => Number(l.qty_purchase) > 0);
   say('Site Manager', 'ran the stock check',
       `${toBuy.length} of ${checked.length} line(s) must be bought; the rest could come from group stock`);
+
+  if (!upto('declare')) parked('the business impact declaration', 'requester@crystalgroup.in', 'Material requests -> open it -> Declare');
 
   await mrSvc.declare(REQ, mrId, {
     businessImpact:
@@ -194,12 +247,16 @@ async function main() {
   });
   say('Requester', 'declared the business impact', `charged to ${budget.code}, 100% to this site`);
 
+  if (!upto('approve-mr')) parked('approval of the material request', 'site.manager@crystalgroup.in', 'Material requests -> open it -> Approve');
+
   await mrSvc.decideMr(SMGR, mrId, true);
   say('Site Manager', 'approved the request', 'mr_self_approval — the requester could not have done this');
 
   // =========================================================================
   // 2 — the purchase request, and its approval band
   // =========================================================================
+  if (!upto('pr')) parked('raising the purchase request', 'buyer@crystalgroup.in', 'Purchase requests -> Raise a purchase request');
+
   const pr = await prSvc.createPr(BUY, {
     mrId, procurementType: 'MATERIAL',
     purpose: 'Restock cold chain consumables at ' + site.name,
@@ -213,9 +270,13 @@ async function main() {
   const prId = Number(pr.id);
   say('Buyer', `raised ${String(pr.pr_no)} from ${String(mr.mr_no)}`, 'only the quantities the stock check said to buy');
 
+  if (!upto('submit-pr')) parked('submitting the purchase request for approval', 'buyer@crystalgroup.in', 'Purchase requests -> open it -> Submit');
+
   const { levels } = await prSvc.submitPr(BUY, prId);
   say('Buyer', 'submitted it for approval',
       `value routed it to ${levels.length} level(s): ${levels.map(l => l.required_role).join(' then ')}`);
+
+  if (!upto('approve-pr')) parked('approving the purchase request', 'whoever each level names', 'Pending approvals');
 
   for (const level of levels) {
     const who = level.required_role === 'CG_FHEAD' ? FHEAD
@@ -231,6 +292,8 @@ async function main() {
   // 3 — quotations, and the award
   // =========================================================================
   const { lines: prLines } = await prSvc.getPr(prId);
+
+  if (!upto('quote')) parked('recording vendor quotations', 'buyer@crystalgroup.in', 'Purchase requests -> open the approved PR -> Record a quotation');
 
   let rate = 1150;
   for (const v of approved.slice(0, 3)) {
@@ -248,12 +311,16 @@ async function main() {
   say('—', 'the comparison ranked them by LANDED cost',
       `L1 is ${best.vendorName ?? 'the lowest'} — freight and tax included, not the headline rate`);
 
+  if (!upto('award')) parked('awarding a quotation', 'buyer@crystalgroup.in', 'Vendor quotations -> the PR -> compare, then Award');
+
   await quotes.award(BUY, { prId, quotationId: best.quotationId });
   say('Buyer', 'awarded the lowest quotation', 'the others are marked lost, never deleted');
 
   // =========================================================================
   // 4 — the order
   // =========================================================================
+  if (!upto('po')) parked('raising and issuing the purchase order', 'buyer@crystalgroup.in', 'Purchase requests -> the awarded PR -> Raise purchase order');
+
   const po = await poSvc.createPo(BUY, { prId, expectedDelivery: '2026-11-15' });
   const poId = Number(po.id);
   const issued = await poSvc.issuePo(BUY, poId, `TALLY/PO/26-27/${poId}`);
@@ -263,6 +330,8 @@ async function main() {
   // 5 — receiving: three people, deliberately
   // =========================================================================
   const { lines: poLines } = await poSvc.getPo(poId);
+
+  if (!upto('gate')) parked('logging the delivery at the gate', 'receiver@crystalgroup.in', 'Gate inward -> Log a delivery');
 
   const gi = await gate.createGateInward(RCV, {
     poId,
@@ -281,6 +350,8 @@ async function main() {
 
   await gate.sendToQc(RCV, giId);
   say('Site Receiver', 'handed it to QC', 'nothing is stock yet — it has only been counted');
+
+  if (!upto('qc')) parked('the QC inspection', 'qc@crystalgroup.in', 'QA/QC inspection -> See deliveries awaiting QC');
 
   const { qc } = await qcSvc.startInspection(QCI, giId);
   const qcId = Number(qc.id);
@@ -305,6 +376,8 @@ async function main() {
   // A hold is not a verdict, it is a question — and the inspector who raised it
   // is not allowed to answer it. Until a site manager decides, no receipt can
   // be raised at all, which is where this chain stops if nobody does.
+  if (!upto('hold')) parked('a decision on the held quantity', 'site.manager@crystalgroup.in', 'QA/QC inspection -> Conditional holds');
+
   const holds = await qcSvc.pendingHolds(SMGR.principal);
   for (const h of holds.filter(x => Number(x.qc_id) === qcId)) {
     const decision = await qcSvc.decideHold(
@@ -315,9 +388,13 @@ async function main() {
         `${decision.decision} for ${decision.qty} — the inspector who raised it could not`);
   }
 
+  if (!upto('grn')) parked('drafting the goods receipt', 'warehouse@crystalgroup.in', 'QA/QC inspection -> the completed inspection -> Raise goods receipt');
+
   const grn = await grnSvc.createGrn(WHL, { qcId });
   const grnId = Number(grn.id);
   say('Warehouse Lead', `drafted ${grn.grn_no}`, 'only what QC accepted can be receipted');
+
+  if (!upto('receipt')) parked('approving the receipt, which is what creates stock', 'site.manager@crystalgroup.in', 'Goods receipt (GRN) -> open the draft -> Approve');
 
   const { entries } = await grnSvc.approveGrn(SMGR, grnId);
   say('Site Manager', 'approved the receipt — stock exists now',
