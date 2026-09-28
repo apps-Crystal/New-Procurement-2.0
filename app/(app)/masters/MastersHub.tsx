@@ -12,11 +12,15 @@ import { useState } from 'react';
 import { Card, EmptyState, ErrorState, LoadingState, StatusChip, fmtQty } from '@/components/ui';
 import { useResource } from '@/lib/client/use-resource';
 import { stateName } from '@/lib/validate';
-import { label, CATEGORY_LABELS, SITE_TYPE_LABELS } from '@/lib/labels';
+import { label, CATEGORY_LABELS, SITE_TYPE_LABELS, ROLE_LABELS } from '@/lib/labels';
 import { NewSiteForm } from '@/app/(app)/masters/NewSiteForm';
 import { NewItemForm } from '@/app/(app)/masters/NewItemForm';
+import { GrantRoleForm } from '@/app/(app)/masters/GrantRoleForm';
+import { api } from '@/lib/client/api';
+import { useMutation } from '@/lib/client/use-resource';
+import type { RoleCode } from '@/lib/auth/permissions';
 
-type TabKey = 'sites' | 'item-classes' | 'items' | 'budget-codes' | 'locations';
+type TabKey = 'sites' | 'item-classes' | 'items' | 'budget-codes' | 'locations' | 'user-roles';
 
 interface TabDef {
   key: TabKey;
@@ -32,6 +36,7 @@ const TABS: TabDef[] = [
   { key: 'item-classes', label: 'Item classes', url: '/api/master/item-classes', manage: 'MASTER.ITEM_MANAGE' },
   { key: 'items', label: 'Items', url: '/api/master/items', manage: 'MASTER.ITEM_MANAGE' },
   { key: 'budget-codes', label: 'Budget codes', url: '/api/master/budget-codes', manage: 'MASTER.BUDGET_MANAGE' },
+  { key: 'user-roles', label: 'Users & roles', url: '/api/master/user-roles', manage: 'MASTER.USER_ROLE_MANAGE' },
 ];
 
 export function MastersHub({ granted }: { granted: string[] }) {
@@ -42,7 +47,7 @@ export function MastersHub({ granted }: { granted: string[] }) {
   const { data, loading, error, reload } = useResource<Record<string, unknown>[]>(tab.url, [active]);
 
   const canManage = granted.includes(tab.manage);
-  const canAdd = canManage && (active === 'sites' || active === 'items');
+  const canAdd = canManage && (active === 'sites' || active === 'items' || active === 'user-roles');
 
   return (
     <>
@@ -65,7 +70,7 @@ export function MastersHub({ granted }: { granted: string[] }) {
         ))}
         {canAdd && (
           <button type="button" className="btn btn-primary" style={{ marginLeft: 'auto' }} onClick={() => setAdding(v => !v)}>
-            Add {active === 'sites' ? 'site' : 'item'}
+            {active === 'user-roles' ? 'Grant a role' : `Add ${active === 'sites' ? 'site' : 'item'}`}
           </button>
         )}
       </div>
@@ -83,6 +88,15 @@ export function MastersHub({ granted }: { granted: string[] }) {
         <NewItemForm
           onClose={() => setAdding(false)}
           onCreated={() => {
+            setAdding(false);
+            reload();
+          }}
+        />
+      )}
+      {adding && active === 'user-roles' && (
+        <GrantRoleForm
+          onClose={() => setAdding(false)}
+          onGranted={() => {
             setAdding(false);
             reload();
           }}
@@ -108,13 +122,15 @@ export function MastersHub({ granted }: { granted: string[] }) {
             ? 'Every record in Procurement belongs to a site, so this is the first thing to set up.'
             : active === 'items'
               ? 'Items need an item class first — that is what carries the cold-chain band and the QC checklist.'
-              : 'Nothing has been added here yet.'}
+              : active === 'user-roles'
+                ? 'Nobody holds a role yet, so nobody can do anything. A role is always granted at a site.'
+                : 'Nothing has been added here yet.'}
         </EmptyState>
       )}
 
       {!loading && !error && (data?.length ?? 0) > 0 && (
         <Card label={tab.label}>
-          <Table tab={active} rows={data!} />
+          <Table tab={active} rows={data!} canManage={canManage} onChanged={reload} />
         </Card>
       )}
 
@@ -127,7 +143,19 @@ export function MastersHub({ granted }: { granted: string[] }) {
   );
 }
 
-function Table({ tab, rows }: { tab: TabKey; rows: Record<string, unknown>[] }) {
+function Table({
+  tab,
+  rows,
+  canManage,
+  onChanged,
+}: {
+  tab: TabKey;
+  rows: Record<string, unknown>[];
+  canManage: boolean;
+  onChanged: () => void;
+}) {
+  if (tab === 'user-roles') return <UserRoleTable rows={rows} canManage={canManage} onChanged={onChanged} />;
+
   if (tab === 'sites') {
     const cols = '90px 1.6fr 130px 150px 1fr 110px';
     return (
@@ -258,5 +286,101 @@ function Table({ tab, rows }: { tab: TabKey; rows: Record<string, unknown>[] }) 
         </div>
       ))}
     </div>
+  );
+}
+
+/**
+ * Who holds what, and where.
+ *
+ * One row per grant rather than per person, because a grant is the thing that
+ * gets revoked. The same person appears once per (site, role) they hold, which
+ * is also how `user_site_roles` stores it.
+ */
+function UserRoleTable({
+  rows,
+  canManage,
+  onChanged,
+}: {
+  rows: Record<string, unknown>[];
+  canManage: boolean;
+  onChanged: () => void;
+}) {
+  const [pending, setPending] = useState<string | null>(null);
+
+  const revoke = useMutation<{ user_id: number; site_id: number; role: string }>(
+    body => api.del('/api/master/user-roles', body),
+    { successMessage: 'Role revoked.', onDone: onChanged },
+  );
+
+  const cols = canManage ? '1.6fr 1fr 1.3fr 130px 110px' : '1.6fr 1fr 1.3fr 130px';
+
+  return (
+    <>
+      {revoke.error && (
+        <div className="banner bad" style={{ marginBottom: 12 }} role="alert">
+          {revoke.error}
+        </div>
+      )}
+
+      <div className="tbl">
+        <div className="tr th" style={{ gridTemplateColumns: cols }}>
+          <div>Person</div>
+          <div>Site</div>
+          <div>Role</div>
+          <div>Granted</div>
+          {canManage && <div />}
+        </div>
+        {rows.map(r => {
+          const key = `${r.user_id}:${r.site_id}:${r.role}`;
+          const role = String(r.role) as RoleCode;
+          const busy = revoke.busy && pending === key;
+
+          return (
+            <div className="tr" style={{ gridTemplateColumns: cols }} key={key}>
+              <div>
+                <div className="b">{String(r.full_name)}</div>
+                <div className="sub">{String(r.email)}</div>
+              </div>
+              <div>
+                <div className="mono b" style={{ fontSize: 12 }}>{String(r.site_code)}</div>
+                <div className="sub">{String(r.site_name)}</div>
+              </div>
+              <div>
+                <div>{ROLE_LABELS[role] ?? role}</div>
+                <div className="sub mono" style={{ fontSize: 11 }}>{role}</div>
+              </div>
+              <div className="sub mono" style={{ fontSize: 12 }}>
+                {String(r.granted_at).slice(0, 10)}
+              </div>
+              {canManage && (
+                <div>
+                  <button
+                    type="button"
+                    className="btn btn-sm"
+                    disabled={revoke.busy}
+                    aria-label={`Revoke ${ROLE_LABELS[role] ?? role} from ${String(r.full_name)} at ${String(r.site_code)}`}
+                    onClick={() => {
+                      setPending(key);
+                      revoke.run({
+                        user_id: Number(r.user_id),
+                        site_id: Number(r.site_id),
+                        role,
+                      });
+                    }}
+                  >
+                    {busy ? 'Revoking…' : 'Revoke'}
+                  </button>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      <p className="sub" style={{ marginTop: 12, marginBottom: 0 }}>
+        A role is always held at a site — that is what every permission check reads. CG_ADM and CG_DIR are the
+        exceptions: they carry across every site, whichever one they are recorded against.
+      </p>
+    </>
   );
 }

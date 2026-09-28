@@ -459,6 +459,36 @@ export async function revokeRole(actor: Actor, input: { userId: number; siteId: 
   invalidatePrincipal();
 }
 
+/**
+ * Everyone who can sign in, each with the grants they already hold.
+ *
+ * Gated on USER_ROLE_MANAGE rather than MASTER.VIEW: the only reason to need a
+ * list of people is to grant or revoke something. A directory of every employee
+ * is not something the rest of the application should be able to read.
+ *
+ * Users with no grants at all are included — they are exactly the ones someone
+ * has come here to fix. A list of only those who already have roles would hide
+ * every person who cannot get in.
+ */
+export async function listUsers(actor: Actor): Promise<Row[]> {
+  requirePermission(actor, 'MASTER.USER_ROLE_MANAGE');
+
+  return sql<Row[]>`
+    SELECT u.id, u.email, u.full_name, u.status,
+           COALESCE(
+             json_agg(
+               json_build_object('site_id', usr.site_id, 'site_code', s.code, 'role', usr.role)
+               ORDER BY s.code, usr.role
+             ) FILTER (WHERE usr.role IS NOT NULL),
+             '[]'::json
+           ) AS grants
+      FROM app_users u
+      LEFT JOIN user_site_roles usr ON usr.user_id = u.id
+      LEFT JOIN sites s             ON s.id = usr.site_id
+     GROUP BY u.id, u.email, u.full_name, u.status
+     ORDER BY u.full_name, u.email`;
+}
+
 export const listUserRoles = (): Promise<Row[]> => sql<Row[]>`
   SELECT usr.user_id, usr.site_id, usr.role, usr.granted_at,
          u.email, u.full_name, s.code AS site_code, s.name AS site_name
