@@ -22,7 +22,7 @@ import { audit } from '@/lib/audit';
 import { can, type Principal } from '@/lib/auth/permissions';
 import { badRequest, conflict, forbidden, notFound } from '@/lib/errors';
 import { normaliseText } from '@/lib/validate';
-import { openApprovalChain } from '@/lib/services/approvals';
+import { decide, openApprovalChain, type ApprovableEntity } from '@/lib/services/approvals';
 import { assertVendorOrderable } from '@/lib/services/vendors';
 import type { Actor, Row } from '@/lib/services/masters';
 
@@ -192,6 +192,12 @@ export interface Comparison {
   /** True when fewer quotations were received than the minimum — needs a waiver. */
   needsWaiver: boolean;
   awarded: Row | null;
+  /** The award clears a purchase order. False while a waiver or non-lowest chain is pending. */
+  cleared: boolean;
+  /** Why it is not cleared, in words for the person reading the screen. */
+  clearedReason: string | null;
+  /** The order raised from this award, if there is one. One per request (C-17). */
+  po: Row | null;
 }
 
 /**
@@ -279,12 +285,26 @@ export async function buildComparison(prId: number): Promise<Comparison> {
       JOIN app_users u  ON u.id = a.awarded_by
      WHERE a.pr_id = ${prId}`;
 
+  // Whether the award actually clears a purchase order is not something the
+  // screen can work out from the award row. "Lowest" is not the same as
+  // "cleared": a lowest award made on too few quotations still opens a waiver
+  // chain, and until that is approved no PO can be raised.
+  const clearance = awarded ? await awardCleared(prId) : null;
+
+  // One order per request (C-17). Knowing whether it already exists is what
+  // lets the screen offer a link instead of a button that would be refused.
+  const [po] = await sql<Row[]>`
+    SELECT id, po_no, status FROM purchase_orders WHERE pr_id = ${prId}`;
+
   return {
     pr,
     quotes,
     minRequired: DEFAULT_MIN_QUOTES,
     needsWaiver: quotes.length < DEFAULT_MIN_QUOTES,
     awarded: awarded ?? null,
+    cleared: clearance?.cleared ?? false,
+    clearedReason: clearance?.reason ?? null,
+    po: po ?? null,
   };
 }
 
@@ -402,6 +422,76 @@ export async function award(actor: Actor, input: AwardInput): Promise<{ award: R
     });
 
     return { award: created, needsApproval };
+  });
+}
+
+/**
+ * Decide the approval an award opened.
+ *
+ * `award()` opens a NON_LOWEST_AWARD or QUOTE_WAIVER chain, and those chains
+ * had no way to be decided — nothing called `decide()` for either type, so an
+ * award that needed signing off could never get it and its purchase request
+ * could never become an order. The chain appeared in the queue and stayed
+ * there.
+ *
+ * The originator is whoever made the award, so the same segregation applies as
+ * everywhere else: a buyer cannot approve their own departure from the lowest
+ * price. A rejection leaves the award in place but never cleared — the buyer
+ * has to award a different quotation, which is the honest outcome, because
+ * silently undoing an award would lose the record that it was made.
+ */
+export async function decideAward(
+  actor: Actor,
+  awardId: number,
+  approve: boolean,
+  remarks?: string,
+): Promise<{ award: Row; complete: boolean; rejected: boolean; levelNo: number }> {
+  return inTransaction(async tx => {
+    const [a] = await tx<Row[]>`
+      SELECT a.*, p.site_id, p.pr_no
+        FROM quote_awards a
+        JOIN purchase_requests p ON p.id = a.pr_id
+       WHERE a.id = ${awardId}
+       FOR UPDATE OF a`;
+
+    if (!a) throw notFound('That award no longer exists.');
+
+    const entityType: ApprovableEntity | null = !a.is_lowest
+      ? 'NON_LOWEST_AWARD'
+      : a.waiver_reason
+        ? 'QUOTE_WAIVER'
+        : null;
+
+    if (!entityType) {
+      throw conflict(
+        `The award on ${a.pr_no} was the lowest quotation on enough quotes, so there is nothing to approve.`,
+      );
+    }
+
+    const result = await decide(tx, {
+      entityType,
+      entityId: awardId,
+      siteId: Number(a.site_id),
+      originatorId: Number(a.awarded_by),
+      principal: actor.principal,
+      approve,
+      remarks,
+      ip: actor.ip,
+    });
+
+    await audit(tx, {
+      entityType: 'QUOTE_AWARD',
+      entityId: awardId,
+      action: 'TRANSITION',
+      after: { decision: approve ? 'APPROVED' : 'REJECTED', level_no: result.decided.level_no },
+      userId: actor.principal.userId,
+      ip: actor.ip,
+      remarks: `${entityType === 'QUOTE_WAIVER' ? 'Quotation waiver' : 'Non-lowest award'} on ${a.pr_no} ${
+        approve ? 'approved' : 'rejected'
+      } at level ${result.decided.level_no}`,
+    });
+
+    return { award: a, complete: result.complete, rejected: result.rejected, levelNo: result.decided.level_no };
   });
 }
 
