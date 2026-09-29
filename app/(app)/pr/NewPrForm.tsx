@@ -12,10 +12,10 @@
  * Payment terms must total 100%, or carry an override note saying why they
  * cannot be expressed as percentages (`pr_payment_terms_total`).
  */
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Banner, Card, FieldError, fmtMoney, fmtQty } from '@/components/ui';
 import { api } from '@/lib/client/api';
-import { useMutation, useResource } from '@/lib/client/use-resource';
+import { useMutation, useResource, useSession } from '@/lib/client/use-resource';
 import { ENUMS } from '@/lib/enums';
 
 interface ReadyMr {
@@ -61,6 +61,7 @@ export function NewPrForm({
   onCreated: () => void;
 }) {
   const ready = useResource<ReadyMr[]>('/api/mr/ready-for-pr');
+  const session = useSession();
 
   const [mrId, setMrId] = useState(initialMrId ?? '');
   const mr = useResource<MrView>(mrId ? `/api/mr/${mrId}` : null, [mrId]);
@@ -110,6 +111,41 @@ export function NewPrForm({
 
   const err = (field: string) => (create.fieldError?.field === field ? create.fieldError.message : null);
   const ratesMissing = lines.some(l => !rates[l.id]?.rate);
+
+  /**
+   * Development only: fill the three things that keep the button grey — the
+   * purpose, the wanted-by date, and an estimated rate per line — so the form
+   * is submittable on load.
+   *
+   * Nothing is relaxed. `ratesMissing` still gates the button, the server still
+   * validates, and `pr_lines_qty_lock` still ties the quantity to the material
+   * request's purchase balance. What goes is the typing, not the rule.
+   *
+   * The rate is deliberately a round 1000: obviously a placeholder, so nobody
+   * mistakes it for a real quotation. The real number arrives when vendors quote.
+   */
+  const [prefilledFor, setPrefilledFor] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!session.data?.devOpenAccess) return;
+    if (!mrId || mr.loading || lines.length === 0) return;
+    if (prefilledFor === mrId) return; // once per material request, not once ever
+
+    const mrNo = mr.data?.mr.mr_no ?? 'the material request';
+    const what = lines.length === 1 ? lines[0].item_name : `${lines.length} lines`;
+
+    setPurpose(p => p || `Restock ${what} at the requesting site, against ${mrNo}.`);
+    setExpectedDelivery(d => d || String(mr.data?.mr.required_by ?? '').slice(0, 10));
+    setRates(prev => {
+      const next = { ...prev };
+      for (const l of lines) {
+        if (!next[l.id]?.rate) next[l.id] = { rate: '1000', gst: l.default_gst_rate ?? '18' };
+      }
+      return next;
+    });
+
+    setPrefilledFor(mrId);
+  }, [session.data?.devOpenAccess, mrId, mr.loading, mr.data, lines, prefilledFor]);
 
   return (
     <Card
