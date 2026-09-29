@@ -24,6 +24,7 @@
  * and carries that one through, so runs do not collide.
  */
 import { sql } from '../lib/db';
+import { openAccess, openApprovals } from '../lib/auth/permissions';
 import * as masters from '../lib/services/masters';
 import * as mrSvc from '../lib/services/mr';
 import * as prSvc from '../lib/services/pr';
@@ -153,6 +154,18 @@ async function main() {
     ['QA/QC', QCI], ['Warehouse Lead', WHL], ['Functional Head', FHEAD], ['Administrator', ADMIN],
   ] as [string, Actor][]) {
     console.log(`    ${label.padEnd(17)} ${a.principal.email}`);
+  }
+
+  // The header above promises each step succeeds BECAUSE that person holds the
+  // role. A development switch makes that untrue, and a demo that quietly
+  // overclaims is worse than one that admits what it is proving.
+  if (openAccess() || openApprovals()) {
+    console.log(
+      `\n  NOTE: ${openAccess() ? 'OPEN_ACCESS' : 'OPEN_APPROVALS'} is set, so these steps are not proving that` +
+        '\n        each person HOLDS the role — any role at the site would pass. What it' +
+        '\n        still proves is the part no flag can reach: nobody signs off their own' +
+        '\n        work. Unset it for an honest run of the role rules.',
+    );
   }
   console.log('');
 

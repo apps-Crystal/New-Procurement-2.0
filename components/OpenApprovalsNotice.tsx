@@ -19,7 +19,7 @@ import { useEffect, useState } from 'react';
 
 const KEY = 'open-approvals-notice-dismissed';
 
-export function OpenApprovalsNotice() {
+export function OpenApprovalsNotice({ level }: { level: 'access' | 'approvals' }) {
   // Rendered hidden on the server and on the first client pass, then shown once
   // sessionStorage has been read — otherwise the markup would differ between
   // the two and React would report a hydration mismatch.
@@ -39,8 +39,18 @@ export function OpenApprovalsNotice() {
     <div className="dev-notice" role="status">
       <span className="dev-notice-dot" aria-hidden="true" />
       <span>
-        <b>Approvals are open.</b> Any role at a site may take any decision there. Approving your own work is still
-        refused. Development only — unset <code>OPEN_APPROVALS</code> to put it back.
+        {level === 'access' ? (
+          <>
+            <b>All permissions are open.</b> Any role at a site may do anything there — raise, buy, receive, inspect,
+            pay, administer. Approving your own work is still refused, and so is a site you hold nothing at.
+            Development only — unset <code>OPEN_ACCESS</code> to put it back.
+          </>
+        ) : (
+          <>
+            <b>Approvals are open.</b> Any role at a site may take any decision there. Approving your own work is still
+            refused. Development only — unset <code>OPEN_APPROVALS</code> to put it back.
+          </>
+        )}
       </span>
       <button
         type="button"

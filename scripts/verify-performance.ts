@@ -19,6 +19,15 @@
  * script is asking about — what is under test is how the READS behave when the
  * tables are large.
  */
+// A development shortcut must never change what the verification reports.
+// OPEN_APPROVALS widens who may take a decision, and `pendingFor()` folds it
+// straight into its WHERE clause — with the flag set the predicate becomes
+// `AND (true OR …)`, the planner drops the role filter, and the approvals-queue
+// timing below measures a different query returning every pending row. Cleared
+// before anything can read it.
+delete process.env.OPEN_APPROVALS;
+delete process.env.OPEN_ACCESS;
+
 import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import postgres from 'postgres';

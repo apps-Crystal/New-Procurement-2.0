@@ -45,40 +45,58 @@ export const GROUP_WIDE_ROLES: readonly RoleCode[] = ['CG_ADM', 'CG_DIR'];
  * Head of Supply Chain / Operations / Finance all read as CG_FHEAD.
  */
 /**
- * DEVELOPMENT ONLY — let any role take any decision.
+ * DEVELOPMENT ONLY — two switches that widen who may do what.
  *
- * Set `OPEN_APPROVALS=1` in .env.local. Walking a chain that needs eight
- * different people is slow, and being stuck because the one account holding
- * CG_FHEAD is not the one you are signed in as is rarely what you are trying
- * to test.
+ *   OPEN_APPROVALS=1   any role at a site may take any DECISION there
+ *   OPEN_ACCESS=1      any role at a site may do ANYTHING there
  *
- * It opens two things: the decision keys listed below, and the approval
- * engine's "you must hold this level's role at this site" check.
+ * `OPEN_ACCESS` includes `OPEN_APPROVALS`. Setting it is the "stop asking me
+ * which hat I am wearing" switch: all 124 permission keys answer yes, so one
+ * account can raise, buy, receive, inspect, receipt, pay and administer.
  *
- * It does NOT open approving your own work, and could not. That lives in three
- * database CHECK constraints — `mr_self_approval`, `rtv_self_approval`,
- * `vba_maker_checker` — and two triggers, where no application setting can
- * reach it. Whoever raised something still needs somebody else to sign it off.
+ * THREE THINGS IT DOES NOT OPEN, and two of them it could not:
  *
- * Guarded twice: the flag AND local sign-in, which is the same condition that
- * permits passwordless accounts. Point this at Crystal Core and the switch
- * turns itself off whatever the flag says.
+ *  1. Approving your own work. `mr_self_approval`, `rtv_self_approval` and
+ *     `vba_maker_checker` are database CHECK constraints, plus two triggers.
+ *     No environment variable reaches a CHECK constraint. Whoever raised
+ *     something still needs somebody else to sign it off.
+ *
+ *  2. Acting at a site you hold nothing at. Both switches keep the
+ *     site-membership floor — they open WHICH role may act, not whether a
+ *     stranger may. A user with no grant at a site is still a stranger to it,
+ *     and a user with no grant anywhere still lands on /no-access.
+ *
+ *  3. The state machine. An approved purchase request is still frozen, a
+ *     receipt still cannot be raised over an undecided hold. Those are about
+ *     the record's state, not the caller's rights.
+ *
+ * Guarded three ways: the flag, local sign-in being the auth mode, and never
+ * in a production build. That last one is not negotiable by ALLOW_LOCAL_AUTH —
+ * a deployment that genuinely runs without an identity provider is exactly the
+ * one that must not also have its permission matrix switched off.
  */
-export function openApprovals(): boolean {
-  return process.env.OPEN_APPROVALS === '1' && localAuthAvailable();
+function devSwitch(name: 'OPEN_ACCESS' | 'OPEN_APPROVALS'): boolean {
+  if (process.env[name] !== '1') return false;
+  if (process.env.NODE_ENV === 'production') return false;
+  return localAuthAvailable();
 }
 
-const ALL_ROLES: readonly RoleCode[] = [
-  'CG_REQ', 'CG_SMGR', 'CG_BUY', 'CG_RCV', 'CG_QC',
-  'CG_WHL', 'CG_ACC', 'CG_ADM', 'CG_FHEAD', 'CG_DIR',
-];
+/** Every permission key answers yes (subject to the site floor). */
+export function openAccess(): boolean {
+  return devSwitch('OPEN_ACCESS');
+}
+
+/** Every DECISION key answers yes. Implied by `openAccess()`. */
+export function openApprovals(): boolean {
+  return openAccess() || devSwitch('OPEN_APPROVALS');
+}
 
 /**
- * The keys the switch widens: every "decide this" step.
+ * The keys OPEN_APPROVALS widens: every "decide this" step.
  *
- * Deliberately not everything. Raising, editing, issuing, blocking and paying
- * are untouched — the point is to stop a chain stalling for want of an
- * approver, not to let every role do every job.
+ * Deliberately not everything — raising, editing, issuing, blocking and paying
+ * are untouched. That is the narrow switch. OPEN_ACCESS ignores this list and
+ * opens the lot.
  */
 const DECISION_KEYS: readonly string[] = [
   'MR.APPROVE', 'MR.TRANSFER_DECIDE', 'TRANSFER.DECIDE',
@@ -377,12 +395,13 @@ export function can(principal: Principal | null, key: PermissionKey, siteId?: nu
   const held = siteId === null || siteId === undefined ? allRolesAnywhere(principal) : rolesAt(principal, siteId);
 
   // The matrix itself is never widened — anything reading PERMISSION_MATRIX
-  // still sees the real duty split, including the test that asserts it. The
-  // switch only changes the answer here, and only for a decision.
+  // still sees the real duty split, including the tests that assert it. The
+  // switches only change the answer here.
   //
-  // `held.length > 0` still matters: it opens WHICH role may decide, not
-  // whether a stranger may. Somebody with no grant at this site is still a
-  // stranger to it.
+  // `held.length > 0` is the floor both of them keep: they open WHICH role may
+  // act, not whether a stranger may. Somebody with no grant at this site is
+  // still a stranger to it.
+  if (openAccess()) return held.length > 0;
   if (openApprovals() && DECISION_KEYS.includes(key)) return held.length > 0;
 
   return held.some(r => granted.includes(r));
@@ -399,10 +418,28 @@ export function scopedSiteIds(principal: Principal | null): number[] | null {
   return principal.sites.map(s => s.siteId);
 }
 
-/** Every permission key the principal holds somewhere — for the client session payload. */
+/**
+ * Every permission key the principal holds somewhere — for the client session
+ * payload and for hiding controls the caller cannot use.
+ *
+ * This MUST honour the development switches for the same reason `can()` does.
+ * It reads the matrix rather than calling `can()`, so without this a widened
+ * `can()` would open every API while leaving every button hidden and the nav
+ * half empty — the server saying yes while the screen says no. A switch that
+ * opens one and not the other is worse than no switch at all.
+ *
+ * A principal holding nothing anywhere still gets nothing: the same floor.
+ */
 export function grantedKeys(principal: Principal | null): string[] {
   if (!principal) return [];
-  return Object.entries(PERMISSION_MATRIX)
-    .filter(([, roles]) => principal.roles.some(r => roles.includes(r)))
-    .map(([key]) => key);
+
+  const held = (key: string) => principal.roles.some(r => PERMISSION_MATRIX[key].includes(r));
+  const keys = Object.keys(PERMISSION_MATRIX);
+
+  if (principal.roles.length > 0) {
+    if (openAccess()) return keys;
+    if (openApprovals()) return keys.filter(key => DECISION_KEYS.includes(key) || held(key));
+  }
+
+  return keys.filter(held);
 }

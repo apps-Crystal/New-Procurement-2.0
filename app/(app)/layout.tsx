@@ -6,7 +6,7 @@
  */
 import { redirect } from 'next/navigation';
 import { getCurrentPrincipal, hasAnyAccess } from '@/lib/auth/current-user';
-import { grantedKeys, openApprovals } from '@/lib/auth/permissions';
+import { grantedKeys, openAccess, openApprovals } from '@/lib/auth/permissions';
 import { Sidebar } from '@/components/Sidebar';
 import { OpenApprovalsNotice } from '@/components/OpenApprovalsNotice';
 import { roleSummary } from '@/lib/labels';
@@ -30,7 +30,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       />
       <main id="view">
         {/* Visible, but one line and dismissible — see the component. */}
-        {openApprovals() && <OpenApprovalsNotice />}
+        {openApprovals() && <OpenApprovalsNotice level={openAccess() ? 'access' : 'approvals'} />}
         {children}
       </main>
     </div>

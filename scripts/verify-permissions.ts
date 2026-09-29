@@ -26,6 +26,7 @@
 // OPEN_APPROVALS widens who may take a decision; this suite exists to prove
 // the real duty split, so it is cleared before anything can read it.
 delete process.env.OPEN_APPROVALS;
+delete process.env.OPEN_ACCESS;
 
 import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';

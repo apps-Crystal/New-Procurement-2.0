@@ -9,7 +9,7 @@
  * else's job rather than their decision, and approving your own work.
  */
 import { sql } from '../lib/db';
-import { can, openApprovals, PERMISSION_MATRIX } from '../lib/auth/permissions';
+import { can, grantedKeys, openAccess, openApprovals, PERMISSION_MATRIX } from '../lib/auth/permissions';
 import type { Principal, RoleCode } from '../lib/auth/permissions';
 
 function principal(userId: number, roles: RoleCode[], siteId: number): Principal {
@@ -27,42 +27,63 @@ const ok = (name: string, cond: boolean, note = '') => {
 };
 
 async function main() {
-  console.log(`\n  OPEN_APPROVALS is ${openApprovals() ? 'ON' : 'off'}\n`);
+  const decisions = openApprovals();
+  const everything = openAccess();
+  const level = everything ? 'OPEN_ACCESS (everything)' : decisions ? 'OPEN_APPROVALS (decisions only)' : 'off';
+  console.log(`\n  Development access switch: ${level}\n`);
 
   const SITE = 1;
   const requester = principal(1, ['CG_REQ'], SITE);
   const qc = principal(2, ['CG_QC'], SITE);
   const stranger = principal(3, [], 999);          // no grant at this site
 
-  // --- what the switch opens -------------------------------------------------
-  const open = openApprovals();
-  const expected = open ? 'may' : 'may not';
+  // --- decisions: opened by either switch ------------------------------------
+  const d = decisions ? 'may' : 'may not';
 
-  ok(`a Requester ${expected} approve a material request`,
-     can(requester, 'MR.APPROVE', SITE) === open,
+  ok(`a Requester ${d} approve a material request`,
+     can(requester, 'MR.APPROVE', SITE) === decisions,
      'the matrix says CG_SMGR / CG_FHEAD / CG_DIR');
 
-  ok(`a QA/QC inspector ${expected} approve a goods receipt`,
-     can(qc, 'GRN.APPROVE', SITE) === open,
+  ok(`a QA/QC inspector ${d} approve a goods receipt`,
+     can(qc, 'GRN.APPROVE', SITE) === decisions,
      'the matrix says CG_SMGR');
 
-  ok(`a Requester ${expected} approve a vendor`,
-     can(requester, 'VENDOR.APPROVE', SITE) === open);
+  ok(`a Requester ${d} approve a vendor`,
+     can(requester, 'VENDOR.APPROVE', SITE) === decisions);
 
-  // --- what it must NOT open -------------------------------------------------
+  // --- non-decisions: opened only by OPEN_ACCESS -----------------------------
+  const e = everything ? 'may' : 'may not';
+
+  ok(`a Requester ${e} issue a purchase order`,
+     can(requester, 'PO.ISSUE', SITE) === everything,
+     'not a decision — OPEN_APPROVALS leaves it shut');
+
+  ok(`a QA/QC inspector ${e} create a vendor`,
+     can(qc, 'VENDOR.CREATE', SITE) === everything);
+
+  ok(`a Requester ${e} manage users and roles`,
+     can(requester, 'MASTER.USER_ROLE_MANAGE', SITE) === everything,
+     everything ? 'OPEN_ACCESS grants this — anyone can re-role themselves' : 'the matrix says CG_ADM');
+
+  // --- the site floor, which neither switch lifts -----------------------------
   ok('somebody with no grant at the site still cannot decide',
      !can(stranger, 'MR.APPROVE', SITE),
-     'it opens which role, not whether a stranger may');
+     'it opens which role may act, not whether a stranger may');
 
-  ok('a Requester still cannot issue a purchase order',
-     !can(requester, 'PO.ISSUE', SITE),
-     'not a decision — untouched');
+  ok('somebody with no grant at the site still cannot do anything else either',
+     !can(stranger, 'PO.ISSUE', SITE) && !can(stranger, 'MASTER.USER_ROLE_MANAGE', SITE));
 
-  ok('a QA/QC inspector still cannot create a vendor',
-     !can(qc, 'VENDOR.CREATE', SITE));
+  // --- the screen and the server must agree -----------------------------------
+  // grantedKeys() drives which buttons render. If it disagreed with can(), the
+  // API would accept calls the UI gives you no way to make.
+  const keysForRequester = grantedKeys(requester);
+  ok('grantedKeys agrees with can() for the requester',
+     keysForRequester.includes('MR.APPROVE') === decisions &&
+       keysForRequester.includes('PO.ISSUE') === everything,
+     `${keysForRequester.length} of ${Object.keys(PERMISSION_MATRIX).length} keys granted`);
 
-  ok('a Requester still cannot manage users and roles',
-     !can(requester, 'MASTER.USER_ROLE_MANAGE', SITE));
+  ok('grantedKeys still gives nothing to somebody holding nothing',
+     grantedKeys(principal(4, [], SITE)).length === 0);
 
   // --- the matrix itself is untouched ---------------------------------------
   ok('PERMISSION_MATRIX still records the real duty split',
