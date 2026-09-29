@@ -16,6 +16,11 @@
  * and that a refusal reaches the caller as a sentence. Anyone can make a happy
  * path pass; the interesting assertions here are the ones that expect failure.
  */
+// A development shortcut must never change what the verification reports.
+// OPEN_APPROVALS widens who may take a decision; this suite exists to prove
+// the real duty split, so it is cleared before anything can read it.
+delete process.env.OPEN_APPROVALS;
+
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import postgres from 'postgres';

@@ -22,6 +22,11 @@
  * checking the permission would otherwise answer NOT_FOUND to everyone and the
  * probe would prove nothing.
  */
+// A development shortcut must never change what the verification reports.
+// OPEN_APPROVALS widens who may take a decision; this suite exists to prove
+// the real duty split, so it is cleared before anything can read it.
+delete process.env.OPEN_APPROVALS;
+
 import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import postgres from 'postgres';

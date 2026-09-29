@@ -89,6 +89,8 @@ email and re-points the row, keeping all of that user's history.
 | [`docs/03-screen-api-map.md`](docs/03-screen-api-map.md) | Screen → entity → API, validation table, stock movement table |
 | [`docs/04-implementation-plan.md`](docs/04-implementation-plan.md) | Phases and their gates |
 | [`docs/05-sheets-architecture.md`](docs/05-sheets-architecture.md) | Superseded. Kept for what it measured about spreadsheet stores. |
+| [`docs/06-operating-guide.md`](docs/06-operating-guide.md) | Walking the chain by hand: who signs in, which screen, what to press |
+| [`docs/07-user-guide.md`](docs/07-user-guide.md) | How the system works, for the people who use it |
 
 ---
 

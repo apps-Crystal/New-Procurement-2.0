@@ -15,6 +15,7 @@
  * Fails closed: any lookup error yields no permissions at all.
  */
 import { sql, withDbRetry } from '@/lib/db';
+import { localAuthAvailable } from '@/lib/auth/mode';
 
 export type RoleCode =
   | 'CG_REQ'
@@ -43,6 +44,56 @@ export const GROUP_WIDE_ROLES: readonly RoleCode[] = ['CG_ADM', 'CG_DIR'];
  * Role mapping from prototype labels is fixed by docs/00-decisions.md D-04:
  * Head of Supply Chain / Operations / Finance all read as CG_FHEAD.
  */
+/**
+ * DEVELOPMENT ONLY — let any role take any decision.
+ *
+ * Set `OPEN_APPROVALS=1` in .env.local. Walking a chain that needs eight
+ * different people is slow, and being stuck because the one account holding
+ * CG_FHEAD is not the one you are signed in as is rarely what you are trying
+ * to test.
+ *
+ * It opens two things: the decision keys listed below, and the approval
+ * engine's "you must hold this level's role at this site" check.
+ *
+ * It does NOT open approving your own work, and could not. That lives in three
+ * database CHECK constraints — `mr_self_approval`, `rtv_self_approval`,
+ * `vba_maker_checker` — and two triggers, where no application setting can
+ * reach it. Whoever raised something still needs somebody else to sign it off.
+ *
+ * Guarded twice: the flag AND local sign-in, which is the same condition that
+ * permits passwordless accounts. Point this at Crystal Core and the switch
+ * turns itself off whatever the flag says.
+ */
+export function openApprovals(): boolean {
+  return process.env.OPEN_APPROVALS === '1' && localAuthAvailable();
+}
+
+const ALL_ROLES: readonly RoleCode[] = [
+  'CG_REQ', 'CG_SMGR', 'CG_BUY', 'CG_RCV', 'CG_QC',
+  'CG_WHL', 'CG_ACC', 'CG_ADM', 'CG_FHEAD', 'CG_DIR',
+];
+
+/**
+ * The keys the switch widens: every "decide this" step.
+ *
+ * Deliberately not everything. Raising, editing, issuing, blocking and paying
+ * are untouched — the point is to stop a chain stalling for want of an
+ * approver, not to let every role do every job.
+ */
+const DECISION_KEYS: readonly string[] = [
+  'MR.APPROVE', 'MR.TRANSFER_DECIDE', 'TRANSFER.DECIDE',
+  'PR.APPROVE',
+  'AWARD.APPROVE_NON_LOWEST', 'AWARD.APPROVE_WAIVER',
+  'QC.HOLD_DECIDE',
+  'GRN.APPROVE',
+  'SHORTFALL.DECIDE',
+  'DAMAGE.DECIDE', 'DAMAGE.APPROVE_DECISION',
+  'RTV.APPROVE',
+  'VENDOR.APPROVE', 'VENDOR.BANK_APPROVE',
+  'CREDIT_NOTE.ACCEPT_SHORT',
+  'INVOICE.RELEASE',
+];
+
 export const PERMISSION_MATRIX: Record<string, readonly RoleCode[]> = {
   // --- Material request -------------------------------------------------------
   'MR.VIEW': ['CG_REQ', 'CG_SMGR', 'CG_BUY', 'CG_WHL', 'CG_FHEAD', 'CG_DIR', 'CG_ADM'],
@@ -324,6 +375,16 @@ export function can(principal: Principal | null, key: PermissionKey, siteId?: nu
     return false; // fail closed on a typo
   }
   const held = siteId === null || siteId === undefined ? allRolesAnywhere(principal) : rolesAt(principal, siteId);
+
+  // The matrix itself is never widened — anything reading PERMISSION_MATRIX
+  // still sees the real duty split, including the test that asserts it. The
+  // switch only changes the answer here, and only for a decision.
+  //
+  // `held.length > 0` still matters: it opens WHICH role may decide, not
+  // whether a stranger may. Somebody with no grant at this site is still a
+  // stranger to it.
+  if (openApprovals() && DECISION_KEYS.includes(key)) return held.length > 0;
+
   return held.some(r => granted.includes(r));
 }
 

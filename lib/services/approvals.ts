@@ -25,7 +25,7 @@
  */
 import { inTransaction, sql, type Tx } from '@/lib/db';
 import { audit } from '@/lib/audit';
-import { can, type Principal, type RoleCode } from '@/lib/auth/permissions';
+import { can, openApprovals, type Principal, type RoleCode } from '@/lib/auth/permissions';
 import { badRequest, conflict, forbidden, notFound } from '@/lib/errors';
 import { ROLE_LABELS } from '@/lib/labels';
 import type { Row } from '@/lib/services/masters';
@@ -174,7 +174,14 @@ export async function decide(tx: Tx, input: DecisionInput): Promise<DecisionResu
   }
 
   // The level names a role; the caller must hold it at this site.
-  const holdsRole = rolesAtSite(principal, siteId).includes(level.required_role);
+  //
+  // With OPEN_APPROVALS set (development only) any role at the site will do —
+  // the level still exists, still has to be taken in order, and is still
+  // recorded against whoever decided it. Only WHO may decide is relaxed.
+  const atSite = rolesAtSite(principal, siteId);
+  const holdsRole = openApprovals()
+    ? atSite.length > 0
+    : atSite.includes(level.required_role);
   if (!holdsRole) {
     throw forbidden(
       `Approval level ${level.level_no} needs ${ROLE_LABELS[level.required_role]} at this site, which you do not hold.`,
@@ -256,7 +263,7 @@ export async function pendingFor(
     SELECT a.entity_type, a.entity_id, a.level_no, a.required_role, a.created_at
       FROM approvals a
      WHERE a.state = 'PENDING'
-       AND a.required_role = ANY(${roles}::role_code[])
+       AND (${openApprovals()} OR a.required_role = ANY(${roles}::role_code[]))
        -- only the lowest pending level of each chain is actionable
        AND a.level_no = (
          SELECT min(b.level_no) FROM approvals b
@@ -282,7 +289,8 @@ export async function pendingFor(
 
 /** Can this principal decide the current level, ignoring who raised it? */
 export function canDecideLevel(principal: Principal, level: ApprovalRow, siteId: number): boolean {
-  return rolesAtSite(principal, siteId).includes(level.required_role);
+  const roles = rolesAtSite(principal, siteId);
+  return openApprovals() ? roles.length > 0 : roles.includes(level.required_role);
 }
 
 export { can };
