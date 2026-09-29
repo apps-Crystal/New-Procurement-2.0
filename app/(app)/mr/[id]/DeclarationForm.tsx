@@ -16,7 +16,7 @@
  * Per conflict C-05 the budget code belongs to the declaration rather than the
  * request, which is why it is asked for here and not on the MR form.
  */
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Banner, Card, FieldError } from '@/components/ui';
 import { api } from '@/lib/client/api';
 import { useMutation, useResource, useSession } from '@/lib/client/use-resource';
@@ -59,6 +59,8 @@ export function DeclarationForm({
   const [impact, setImpact] = useState('');
   const [budgetCodeId, setBudgetCodeId] = useState('');
   const [estimatedValue, setEstimatedValue] = useState('');
+  /** So a prefill never overwrites something the user has started typing. */
+  const [prefilled, setPrefilled] = useState(false);
   const [allocations, setAllocations] = useState<Allocation[]>([
     { siteId: String(siteId), costHead: '', pct: '100' },
   ]);
@@ -81,9 +83,46 @@ export function DeclarationForm({
     [allocations],
   );
 
-  if (!DECLARABLE.has(status)) return null;
-
   const sites = session.data?.sites ?? [];
+  const siteName = sites.find(s => s.siteId === siteId)?.siteName ?? 'this site';
+
+  /**
+   * Development only: start the box with a usable justification so the button
+   * is live on load. Typing forty characters of business impact to reach the
+   * next screen is the friction, not the rule — which still stands, in the
+   * service and in `mr_declarations_business_impact_check`.
+   *
+   * Fires once, and never over anything already typed. The text is meant to be
+   * replaced: it describes a real consequence, so a demo record does not end up
+   * carrying "test test test" in a declaration kept for eight years.
+   */
+  useEffect(() => {
+    if (prefilled || !session.data?.devOpenAccess) return;
+    // Wait for the budget codes, so the whole form fills in one go rather than
+    // leaving a required select still on "Choose…".
+    if (budgets.loading) return;
+
+    if (impact.length === 0) {
+      setImpact(
+        `Cold chain consumables at ${siteName} are below reorder level. ` +
+          'Without them, despatch packing stops and outbound loads cannot be sealed.',
+      );
+    }
+    // The other two fields are `required`, so filling only the impact would
+    // light the button up and then have the browser refuse the submit.
+    if (!budgetCodeId && budgets.data?.[0]) setBudgetCodeId(String(budgets.data[0].id));
+    if (!estimatedValue) setEstimatedValue('100000');
+    setAllocations(prev =>
+      prev.map((a, i) => (i === 0 && !a.costHead ? { ...a, costHead: 'Warehouse operations' } : a)),
+    );
+
+    setPrefilled(true);
+  }, [
+    session.data?.devOpenAccess, siteName, prefilled,
+    budgets.loading, budgets.data, impact.length, budgetCodeId, estimatedValue,
+  ]);
+
+  if (!DECLARABLE.has(status)) return null;
   const err = (field: string) => (declare.fieldError?.field === field ? declare.fieldError.message : null);
 
   const short = impact.trim().length < MIN_IMPACT;

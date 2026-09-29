@@ -151,6 +151,12 @@ export interface Session {
   groupWide: boolean;
   sites: { siteId: number; siteCode: string; siteName: string; roles: string[] }[];
   granted: string[];
+  /**
+   * A development switch is relaxing access (OPEN_ACCESS / OPEN_APPROVALS).
+   * Screens use it only to smooth testing — prefilling a field, say — never to
+   * decide whether something is allowed. That is still `granted` and the server.
+   */
+  devOpenAccess: boolean;
 }
 
 export function useSession(): Resource<Session> {
