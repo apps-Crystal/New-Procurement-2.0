@@ -52,11 +52,14 @@ export function PrDetail({
   granted,
   userId,
   roles,
+  devOpen = false,
 }: {
   id: number;
   granted: string[];
   userId: number;
   roles: string[];
+  /** OPEN_ACCESS is lifting the role and self-approval rules. Development only. */
+  devOpen?: boolean;
 }) {
   const { data, loading, error, reload } = useResource<PrView>(`/api/pr/${id}`);
   const [rejecting, setRejecting] = useState(false);
@@ -81,11 +84,16 @@ export function PrDetail({
   // The first level still pending is the only one that can act. The server
   // checks this too — an out-of-order decision is refused there.
   const current = approvals.find(a => a.state === 'PENDING') ?? null;
+
+  // With a development switch on, the server will accept a decision from any
+  // role at the site, and from the person who raised it. The card has to follow
+  // or the screen hides an action the API would allow — see the note in
+  // lib/auth/permissions.ts. The server still decides; this only stops the UI
+  // disagreeing with it.
   const myTurn =
     current !== null &&
     pr.status === 'PR_SUBMITTED' &&
-    !isOriginator &&
-    roles.includes(current.required_role);
+    (devOpen || (!isOriginator && roles.includes(current.required_role)));
 
   return (
     <>
@@ -195,9 +203,16 @@ export function PrDetail({
             </>
           )}
 
-          {pr.status === 'PR_SUBMITTED' && isOriginator && (
+          {pr.status === 'PR_SUBMITTED' && isOriginator && !devOpen && (
             <Banner kind="warn">
               You raised this request, so you cannot approve it. It is with {current?.required_role ?? 'the approver'}.
+            </Banner>
+          )}
+
+          {pr.status === 'PR_SUBMITTED' && isOriginator && devOpen && (
+            <Banner kind="warn">
+              You raised this request. Normally somebody else would have to approve it — OPEN_ACCESS is lifting that,
+              for development only.
             </Banner>
           )}
 

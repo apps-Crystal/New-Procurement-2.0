@@ -1,7 +1,7 @@
 import { PageHead } from '@/components/ui';
 import { PrDetail } from '@/app/(app)/pr/[id]/PrDetail';
 import { getCurrentPrincipal } from '@/lib/auth/current-user';
-import { grantedKeys } from '@/lib/auth/permissions';
+import { grantedKeys, openAccess } from '@/lib/auth/permissions';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,6 +17,7 @@ export default async function PrDetailPage({ params }: { params: Promise<{ id: s
         granted={grantedKeys(principal)}
         userId={principal?.userId ?? 0}
         roles={principal?.roles ?? []}
+        devOpen={openAccess()}
       />
     </>
   );

@@ -25,7 +25,7 @@
  */
 import { inTransaction, sql, type Tx } from '@/lib/db';
 import { audit } from '@/lib/audit';
-import { can, openApprovals, type Principal, type RoleCode } from '@/lib/auth/permissions';
+import { can, openAccess, openApprovals, type Principal, type RoleCode } from '@/lib/auth/permissions';
 import { badRequest, conflict, forbidden, notFound } from '@/lib/errors';
 import { ROLE_LABELS } from '@/lib/labels';
 import type { Row } from '@/lib/services/masters';
@@ -153,7 +153,16 @@ export async function decide(tx: Tx, input: DecisionInput): Promise<DecisionResu
   const { entityType, entityId, siteId, originatorId, principal } = input;
 
   // Segregation of duty, before anything else — see the note at the top.
-  if (principal.userId === originatorId) {
+  //
+  // OPEN_ACCESS lifts it, development only, and ONLY here. This engine covers
+  // the purely value-banded entities — purchase requests, write-offs, awards,
+  // waivers — none of which has a database constraint behind the rule (conflict
+  // register C-16 records that gap deliberately).
+  //
+  // It does not and cannot lift the same rule on a material request, a return
+  // or a vendor bank account: `mr_self_approval`, `rtv_self_approval` and
+  // `vba_maker_checker` are CHECK constraints, and no switch reaches those.
+  if (principal.userId === originatorId && !openAccess()) {
     throw forbidden(
       `You raised this ${friendly(entityType)}, so you cannot approve it. It has to be someone else.`,
     );
@@ -370,7 +379,9 @@ export async function pendingApprovals(principal: Principal): Promise<PendingIte
       const pr = prs.find(p => Number(p.id) === r.entityId);
       if (!pr) continue;
       if (!principal.groupWide && !siteIds.has(Number(pr.site_id))) continue;
-      if (Number(pr.requester_id) === principal.userId) continue;
+      // Your own request is hidden because you could not decide it anyway.
+      // Once OPEN_ACCESS says you can, hiding it would just be confusing.
+      if (Number(pr.requester_id) === principal.userId && !openAccess()) continue;
 
       out.push({
         entityType: 'PR',
@@ -391,7 +402,7 @@ export async function pendingApprovals(principal: Principal): Promise<PendingIte
       const award = awards.find(a => Number(a.id) === r.entityId);
       if (!award) continue;
       if (!principal.groupWide && !siteIds.has(Number(award.site_id))) continue;
-      if (Number(award.awarded_by) === principal.userId) continue;
+      if (Number(award.awarded_by) === principal.userId && !openAccess()) continue;
 
       out.push({
         entityType: r.entityType,
