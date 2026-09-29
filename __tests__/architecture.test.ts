@@ -295,6 +295,40 @@ describe('authorisation (§26, §31)', () => {
     expect(empty).toEqual([]);
   });
 
+  /**
+   * A screen that tests a key which does not exist fails SILENTLY. `granted` is
+   * a plain string array, so an unknown key is simply `false` — nothing throws,
+   * nothing is logged, and the control is invisible to everybody in every
+   * configuration.
+   *
+   * That is exactly what happened to the quotation panel: it asked for
+   * QUOTATION.CREATE and QUOTATION.AWARD, which the matrix has never had, so
+   * "Record a quotation" and "Award" could never render and the quotation step
+   * was unreachable from the UI. `can()` logs an unknown key; this path cannot,
+   * which is why it needs a test rather than a runtime guard.
+   */
+  it('every permission key a screen tests actually exists', async () => {
+    const { PERMISSION_MATRIX } = await import('@/lib/auth/permissions');
+    const known = new Set(Object.keys(PERMISSION_MATRIX));
+
+    const offenders: string[] = [];
+    const patterns = [
+      /(?:granted|held)\s*\.(?:includes|has)\(\s*'([A-Z_]+\.[A-Z_]+)'\s*\)/g,
+      /needs=\{?'([A-Z_]+\.[A-Z_]+)'/g, // <PermissionGate needs="…">
+    ];
+
+    for (const { file, body } of sourceFiles()) {
+      if (!file.endsWith('.tsx')) continue;
+      for (const re of patterns) {
+        for (const m of code(body).matchAll(re)) {
+          if (!known.has(m[1])) offenders.push(`${file}: ${m[1]}`);
+        }
+      }
+    }
+
+    expect(offenders).toEqual([]);
+  });
+
   it('every permission_key in the reference data exists in the matrix', async () => {
     const { PERMISSION_MATRIX } = await import('@/lib/auth/permissions');
     const sql = readFileSync(path.join(ROOT, 'db/migrations/0002_reference_data.sql'), 'utf8');

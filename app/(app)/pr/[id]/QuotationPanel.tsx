@@ -111,8 +111,12 @@ export function QuotationPanel({
   if (!data) return null;
 
   const { quotes, minRequired, needsWaiver, awarded } = data;
-  const canRecord = granted.includes('QUOTATION.CREATE') && !awarded && prStatus === 'PR_APPROVED';
-  const canAward = granted.includes('QUOTATION.AWARD') && !awarded && prStatus === 'PR_APPROVED' && quotes.length > 0;
+  // These must be the keys the SERVICES enforce, or the button silently never
+  // renders: `granted` is a plain array, so an unknown key is just `false` with
+  // nothing logged. recordQuotation() checks QUOTATION.MANAGE and award()
+  // checks AWARD.CREATE.
+  const canRecord = granted.includes('QUOTATION.MANAGE') && !awarded && prStatus === 'PR_APPROVED';
+  const canAward = granted.includes('AWARD.CREATE') && !awarded && prStatus === 'PR_APPROVED' && quotes.length > 0;
 
   const chosen = awarding === null ? null : quotes.find(q => q.quotationId === awarding) ?? null;
   const nonLowest = chosen !== null && chosen.rank !== 1;
