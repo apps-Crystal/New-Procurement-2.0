@@ -16,6 +16,7 @@ import { api } from '@/lib/client/api';
 import { useMutation, useResource, useSession } from '@/lib/client/use-resource';
 import { stateName } from '@/lib/validate';
 import { VendorKyc } from '@/app/(app)/vendors/VendorKyc';
+import { EditVendorForm } from '@/app/(app)/vendors/[id]/EditVendorForm';
 
 interface Vendor {
   id: number;
@@ -67,6 +68,7 @@ export function VendorDetail({
   currentUserId: number;
 }) {
   const { data, loading, error, reload } = useResource<Payload>(`/api/vendors/${vendorId}`);
+  const [editing, setEditing] = useState(false);
 
   if (loading) return <LoadingState rows={8} label="Loading vendor" />;
   if (error) {
@@ -98,8 +100,26 @@ export function VendorDetail({
             <StatusChip status={vendor.status} />
           </h1>
         </div>
-        <LifecycleActions vendor={vendor} granted={granted} currentUserId={currentUserId} onDone={reload} />
+        <div className="seg" style={{ alignItems: 'flex-start' }}>
+          {granted.includes('VENDOR.EDIT') && (
+            <button type="button" className="btn" onClick={() => setEditing(v => !v)}>
+              {editing ? 'Close' : 'Edit'}
+            </button>
+          )}
+          <LifecycleActions vendor={vendor} granted={granted} currentUserId={currentUserId} onDone={reload} />
+        </div>
       </div>
+
+      {editing && (
+        <EditVendorForm
+          vendor={vendor}
+          onClose={() => setEditing(false)}
+          onSaved={() => {
+            setEditing(false);
+            reload();
+          }}
+        />
+      )}
 
       {vendor.status === 'VENDOR_BLOCKED' && vendor.blocked_reason && (
         <div className="banner bad">
