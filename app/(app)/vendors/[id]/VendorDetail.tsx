@@ -493,6 +493,8 @@ function ProposeBankForm({
   const normalisedIfsc = ifsc.toUpperCase().replace(/[\s-]/g, '');
   const ifscLooksWrong = normalisedIfsc.length > 0 && !/^[A-Z]{4}0[A-Z0-9]{6}$/.test(normalisedIfsc);
   const digits = account.replace(/[\s-]/g, '');
+  // Mirrors validateBankAccountNumber() on the server, which is what decides.
+  const accountLooksWrong = digits.length > 0 && !/^[0-9]{6,20}$/.test(digits);
   const ready = /^[0-9]{6,20}$/.test(digits) && !ifscLooksWrong && normalisedIfsc.length === 11 && beneficiary.trim();
 
   const fieldMessage = (field: string) => (mutation.fieldError?.field === field ? mutation.fieldError.message : null);
@@ -507,10 +509,25 @@ function ProposeBankForm({
             className="inp mono"
             value={account}
             onChange={e => setAccount(e.target.value)}
-            aria-invalid={!!fieldMessage('account_number')}
+            aria-invalid={accountLooksWrong || !!fieldMessage('account_number')}
+            aria-describedby="bk-acct-hint"
             autoComplete="off"
+            inputMode="numeric"
           />
-          <span className="sub">{fieldMessage('account_number') ?? 'Encrypted on save; only the last four digits are stored readable.'}</span>
+          {/*
+            This said only what happens to the number, never what a valid one
+            looks like — so a letter in it disabled the button with nothing on
+            screen explaining why. The IFSC field beside it has always said its
+            rule; this one now does too.
+          */}
+          <span id="bk-acct-hint" className={`sub ${accountLooksWrong ? 't-bad' : ''}`}>
+            {fieldMessage('account_number') ??
+              (accountLooksWrong
+                ? `Digits only, 6 to 20 of them — this has ${digits.length} character${digits.length === 1 ? '' : 's'}${
+                    /[^0-9]/.test(digits) ? ' and a non-digit' : ''
+                  }.`
+                : 'Digits only. Encrypted on save; only the last four are stored readable.')}
+          </span>
         </div>
 
         <div className="field">
