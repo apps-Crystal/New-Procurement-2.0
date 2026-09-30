@@ -72,10 +72,28 @@ function clientIp(req: NextRequest): string | null {
  * Wrap an authenticated handler. Resolves the principal, maps every thrown
  * error, and guarantees the envelope.
  */
+/**
+ * A read-only token may only read.
+ *
+ * Enforced here rather than per route, because "here" is the one place every
+ * one of the hundred routes passes through. A route that forgot would be a
+ * silent hole, and there would be no way to know which.
+ */
+function refuseWriteByReadOnlyToken(req: NextRequest, principal: Principal): void {
+  if (!principal.viaToken?.readOnly) return;
+  if (req.method === 'GET' || req.method === 'HEAD') return;
+
+  throw new AppError(
+    'FORBIDDEN',
+    'This API token is read-only. Issue a token without the read-only restriction to make changes.',
+  );
+}
+
 export function handler<T>(fn: (ctx: Ctx) => Promise<T>) {
   return async (req: NextRequest): Promise<NextResponse> => {
     try {
       const principal = await requirePrincipal();
+      refuseWriteByReadOnlyToken(req, principal);
       const data = await fn({
         req,
         principal,
@@ -94,6 +112,7 @@ export function handlerWithParams<P, T>(fn: (ctx: Ctx & { params: P }) => Promis
   return async (req: NextRequest, { params }: { params: Promise<P> }): Promise<NextResponse> => {
     try {
       const principal = await requirePrincipal();
+      refuseWriteByReadOnlyToken(req, principal);
       const data = await fn({
         req,
         principal,

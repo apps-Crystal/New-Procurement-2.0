@@ -318,6 +318,48 @@ broken — it belongs to somebody else's job.
 
 ---
 
+## Letting another system in
+
+Everything the screens do goes through an API, and that API is open to other
+software — a Tally bridge, a mobile client, a scheduled export — through an
+**API token**.
+
+**Administration → Master data → API tokens**, then *Issue a token*.
+
+A token **acts as a person you choose**. It can do what they can do, at the
+sites they hold a role at, and nothing else. So pick the narrowest account that
+does the job: a token for a reporting dashboard should act as somebody who can
+only read reports.
+
+Two things are worth understanding before you issue one.
+
+**Read-only is the default, and usually right.** Most integrations only need to
+read. A read-only token is refused anything but a GET, which is the difference
+between a leaked credential that is embarrassing and one that raises purchase
+orders.
+
+**The value is shown once.** Only its fingerprint is stored, so there is no
+screen and no support request that can recover it. Lose it and you revoke that
+token and issue another — which is the same reason nobody can read yours.
+
+Using one looks like this:
+
+```
+Authorization: Bearer cgp_…
+```
+
+against any address under `/api`.
+
+Revoking takes effect immediately, and revoked tokens stay on the list: a
+credential that existed and was used is part of the history of what happened.
+
+> A token is never widened by the development access switches. Those exist so a
+> person testing a chain is not stopped by which hat they are wearing; a token
+> is a long-lived credential that could outlive the session that made it, so it
+> always gets the real permission rules.
+
+---
+
 ## If something looks wrong
 
 The figures are calculated from the records, so a wrong figure means a wrong

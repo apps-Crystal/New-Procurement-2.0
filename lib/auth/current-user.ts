@@ -6,10 +6,11 @@
  * unsigned or expired cookie is "not signed in" — identity is never taken from
  * anything the browser can forge.
  */
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import { SESSION_COOKIE, verifySession, type SessionPayload } from '@/lib/auth/session';
 import { getPrincipal, type Principal } from '@/lib/auth/permissions';
 import { AppError } from '@/lib/errors';
+import { bearerFrom, verifyToken } from '@/lib/auth/tokens';
 
 /** The Crystal Core identity in the cookie, or null. */
 export async function getSession(): Promise<SessionPayload | null> {
@@ -44,8 +45,45 @@ export function hasAnyAccess(principal: Principal | null): principal is Principa
   return principal.groupWide || principal.sites.length > 0;
 }
 
-/** As above, but throws instead of returning null. For API routes and actions. */
+/**
+ * As above, but throws instead of returning null. For API routes and actions.
+ *
+ * Two ways in, in this order:
+ *
+ *   Authorization: Bearer cgp_…   a machine, acting as the token's user
+ *   the session cookie            a person in a browser
+ *
+ * A token is checked first because a request that carries one is asking to be
+ * that token, and falling back to a cookie that happened to be attached would
+ * silently act as somebody else.
+ *
+ * Either way the result is an ordinary Principal built from the database, so
+ * everything downstream — permissions, site scope, segregation, audit — cannot
+ * tell the difference and does not need to.
+ */
 export async function requirePrincipal(): Promise<Principal> {
+  const bearer = bearerFrom((await headers()).get('authorization'));
+
+  if (bearer) {
+    const holder = await verifyToken(bearer);
+    if (!holder) {
+      // Unknown, revoked and expired are one answer on purpose — saying which
+      // tells an attacker that a guess was once real.
+      throw new AppError('UNAUTHENTICATED', 'That API token is not valid.');
+    }
+
+    const principal = await getPrincipal(holder.coreUserId);
+
+    if (!principal || !hasAnyAccess(principal)) {
+      throw new AppError(
+        'FORBIDDEN',
+        'The account this token acts as has no site access in Procurement.',
+      );
+    }
+
+    return { ...principal, viaToken: { id: holder.tokenId, readOnly: holder.readOnly } };
+  }
+
   const session = await getSession();
   if (!session) {
     throw new AppError('UNAUTHENTICATED', 'Your session has expired. Sign in again.');

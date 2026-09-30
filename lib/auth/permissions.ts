@@ -260,6 +260,8 @@ export const PERMISSION_MATRIX: Record<string, readonly RoleCode[]> = {
   'MASTER.BUDGET_MANAGE': ['CG_ADM', 'CG_FHEAD'],
   'MASTER.APPROVAL_BAND_MANAGE': ['CG_ADM'],
   'MASTER.USER_ROLE_MANAGE': ['CG_ADM'],
+  // An API token acts as a user, so issuing one is granting access.
+  'MASTER.API_TOKEN_MANAGE': ['CG_ADM'],
   'MASTER.CHECKLIST_MANAGE': ['CG_ADM', 'CG_QC'],
   'MASTER.EMAIL_CONFIG_MANAGE': ['CG_ADM'],
 
@@ -291,6 +293,13 @@ export interface Principal {
   roles: RoleCode[];
   /** True when the user holds a group-wide role (CG_ADM / CG_DIR). */
   groupWide: boolean;
+  /**
+   * Set when this request authenticated with an API token rather than a browser
+   * session. The principal is otherwise identical — a token carries no
+   * permissions of its own — so only the things that genuinely differ read it:
+   * the read-only refusal in `lib/api.ts`, and anything reporting who acted.
+   */
+  viaToken?: { id: number; readOnly: boolean };
 }
 
 // Short per-process cache so repeated queries in a warm function don't re-read.
@@ -401,8 +410,18 @@ export function can(principal: Principal | null, key: PermissionKey, siteId?: nu
   // `held.length > 0` is the floor both of them keep: they open WHICH role may
   // act, not whether a stranger may. Somebody with no grant at this site is
   // still a stranger to it.
-  if (openAccess()) return held.length > 0;
-  if (openApprovals() && DECISION_KEYS.includes(key)) return held.length > 0;
+  // A DEVELOPMENT SWITCH DOES NOT APPLY TO A MACHINE CREDENTIAL.
+  //
+  // OPEN_ACCESS exists so a person clicking through a test chain is not stopped
+  // by which hat they happen to be wearing. An API token is a different thing:
+  // long-lived, copied into config files, outliving the session that made it.
+  // Widening it would mean a read-only-looking integration token quietly
+  // holding every permission in the system, including the one that mints more
+  // tokens. So a token always gets the real matrix, in every environment.
+  if (!principal.viaToken) {
+    if (openAccess()) return held.length > 0;
+    if (openApprovals() && DECISION_KEYS.includes(key)) return held.length > 0;
+  }
 
   return held.some(r => granted.includes(r));
 }
@@ -436,7 +455,8 @@ export function grantedKeys(principal: Principal | null): string[] {
   const held = (key: string) => principal.roles.some(r => PERMISSION_MATRIX[key].includes(r));
   const keys = Object.keys(PERMISSION_MATRIX);
 
-  if (principal.roles.length > 0) {
+  // Same rule as can(): the switches never widen a token.
+  if (principal.roles.length > 0 && !principal.viaToken) {
     if (openAccess()) return keys;
     if (openApprovals()) return keys.filter(key => DECISION_KEYS.includes(key) || held(key));
   }

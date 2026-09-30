@@ -16,11 +16,12 @@ import { label, CATEGORY_LABELS, SITE_TYPE_LABELS, ROLE_LABELS } from '@/lib/lab
 import { NewSiteForm } from '@/app/(app)/masters/NewSiteForm';
 import { NewItemForm } from '@/app/(app)/masters/NewItemForm';
 import { GrantRoleForm } from '@/app/(app)/masters/GrantRoleForm';
+import { ApiTokens } from '@/app/(app)/masters/ApiTokens';
 import { api } from '@/lib/client/api';
 import { useMutation } from '@/lib/client/use-resource';
 import type { RoleCode } from '@/lib/auth/permissions';
 
-type TabKey = 'sites' | 'item-classes' | 'items' | 'budget-codes' | 'locations' | 'user-roles';
+type TabKey = 'sites' | 'item-classes' | 'items' | 'budget-codes' | 'locations' | 'user-roles' | 'api-tokens';
 
 interface TabDef {
   key: TabKey;
@@ -37,6 +38,7 @@ const TABS: TabDef[] = [
   { key: 'items', label: 'Items', url: '/api/master/items', manage: 'MASTER.ITEM_MANAGE' },
   { key: 'budget-codes', label: 'Budget codes', url: '/api/master/budget-codes', manage: 'MASTER.BUDGET_MANAGE' },
   { key: 'user-roles', label: 'Users & roles', url: '/api/master/user-roles', manage: 'MASTER.USER_ROLE_MANAGE' },
+  { key: 'api-tokens', label: 'API tokens', url: '/api/master/tokens', manage: 'MASTER.API_TOKEN_MANAGE' },
 ];
 
 export function MastersHub({ granted }: { granted: string[] }) {
@@ -47,6 +49,8 @@ export function MastersHub({ granted }: { granted: string[] }) {
   const { data, loading, error, reload } = useResource<Record<string, unknown>[]>(tab.url, [active]);
 
   const canManage = granted.includes(tab.manage);
+  // The API tokens tab renders its own create panel and its own table, so the
+  // hub's generic add button has nothing to do there.
   const canAdd = canManage && (active === 'sites' || active === 'items' || active === 'user-roles');
 
   return (
@@ -103,6 +107,11 @@ export function MastersHub({ granted }: { granted: string[] }) {
         />
       )}
 
+      {active === 'api-tokens' ? (
+        <ApiTokens canManage={canManage} />
+      ) : (
+        <>
+
       {loading && <LoadingState rows={6} label={`Loading ${tab.label.toLowerCase()}`} />}
 
       {!loading && error && (
@@ -138,6 +147,8 @@ export function MastersHub({ granted }: { granted: string[] }) {
         <p className="sub" style={{ margin: 0 }}>
           You can view this list. Changing it needs {tab.manage.replace('MASTER.', '').replace(/_/g, ' ').toLowerCase()}.
         </p>
+      )}
+        </>
       )}
     </>
   );
