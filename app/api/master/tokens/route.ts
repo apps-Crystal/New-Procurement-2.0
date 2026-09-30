@@ -7,7 +7,7 @@
  * granting somebody machine access as a user, so it is the same authority as
  * granting a role, and sits beside it.
  */
-import { handler, readJson, requireId, requireString, optionalString } from '@/lib/api';
+import { handler, readJson, requireDate, requireId, requireString } from '@/lib/api';
 import { badRequest } from '@/lib/errors';
 import { can } from '@/lib/auth/permissions';
 import { forbidden } from '@/lib/errors';
@@ -35,11 +35,21 @@ export const POST = handler(async ({ principal, ip, req }) => {
     throw badRequest('Say whether the token is read-only. Most integrations should be.', 'read_only');
   }
 
+  // `requireDate`, not a bare string. A free string reaches the INSERT and
+  // Postgres rejects the cast, which surfaces as a 500 and a logged internal
+  // error — when the truth is simply that the caller sent a bad date. Note the
+  // emptiness check is separate: `expires_at` is optional, but if it is there
+  // it has to be a date.
+  const expiresAt =
+    body.expires_at === undefined || body.expires_at === null || body.expires_at === ''
+      ? null
+      : requireDate(body.expires_at, 'expires_at');
+
   const { token, row } = await createToken({
     userId: requireId(body.user_id, 'user_id'),
     name: requireString(body.name, 'name', { min: 3, max: 80 }),
     readOnly: body.read_only,
-    expiresAt: optionalString(body.expires_at, 'expires_at', 40) ?? null,
+    expiresAt,
     createdBy: principal.userId,
     ip,
   });
