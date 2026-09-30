@@ -9,11 +9,11 @@
  * but the server refuses them regardless (§31). The same goes for approving a
  * vendor you created.
  */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Card, Chip, ErrorState, LoadingState, StatusChip, Tile, fmtDateTime } from '@/components/ui';
 import { api } from '@/lib/client/api';
-import { useMutation, useResource } from '@/lib/client/use-resource';
+import { useMutation, useResource, useSession } from '@/lib/client/use-resource';
 import { stateName } from '@/lib/validate';
 import { VendorKyc } from '@/app/(app)/vendors/VendorKyc';
 
@@ -178,7 +178,24 @@ function LifecycleActions({
   currentUserId: number;
   onDone: () => void;
 }) {
+  /**
+   * The box starts with the vendor's recorded reference. While a development
+   * switch is on it starts with a plausible one instead, so "Approve vendor" is
+   * live on load rather than needing a reference typed before it can be clicked.
+   *
+   * The rule is untouched: `approveVendor()` still refuses without a reference,
+   * and `vendors_approved_needs_ledger` is a database CHECK behind it. What goes
+   * is the typing. Overwrite it with the real Tally reference for a real vendor.
+   */
+  const session = useSession();
   const [ledgerRef, setLedgerRef] = useState(vendor.tally_ledger_ref ?? '');
+  const [seeded, setSeeded] = useState(false);
+
+  useEffect(() => {
+    if (seeded || ledgerRef || !session.data?.devOpenAccess) return;
+    setLedgerRef(`TALLY/LED/${vendor.vendor_code}`);
+    setSeeded(true);
+  }, [seeded, ledgerRef, session.data?.devOpenAccess, vendor.vendor_code]);
   const [reason, setReason] = useState('');
   const [blocking, setBlocking] = useState(false);
 
