@@ -175,8 +175,10 @@ export function NewPrForm({
             </select>
             {ready.data?.length === 0 && (
               <span className="sub">
-                No approved requests are waiting. A request appears here once it is approved and still has
-                something left to buy.
+                No approved requests are waiting. A request appears here once it is approved, still has
+                something left to buy, and does not already have a purchase request against it — one
+                request carries one order, so an approved request leaves this list as soon as its PR
+                exists.
               </span>
             )}
             {err('mr_id') && <FieldError id="pr-mr">{err('mr_id')}</FieldError>}
