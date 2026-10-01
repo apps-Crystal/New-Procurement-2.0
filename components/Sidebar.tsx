@@ -215,15 +215,25 @@ export function Sidebar({
                           href={i.href}
                           className="nav-link"
                           aria-current={current ? 'page' : undefined}
-                          onClick={() => setOpen(false)}
+                          // Clicking the row does BOTH: it goes to the screen,
+                          // and it folds the shortcuts under it. The chevron
+                          // alone was too small a target to be the only way.
+                          // Nothing is prevented here, so the link still
+                          // navigates -- this only adds the fold.
+                          onClick={() => {
+                            setOpen(false);
+                            if (kids.length > 0) toggle(i.href);
+                          }}
                         >
                           {i.label}
                         </Link>
 
                         {kids.length > 0 && (
-                          // Its own control, not the row itself: the parent is a
-                          // link to a real screen, and a click on "Purchase
-                          // requests" has to go there rather than fold the list.
+                          // Still its own button, for two reasons: it shows
+                          // which way the section is folded, and it carries the
+                          // aria-expanded/aria-controls pair that tells a screen
+                          // reader what the row is doing. A click here folds
+                          // without navigating, which is the quieter action.
                           <button
                             type="button"
                             className={`nav-toggle${current ? ' on-current' : ''}`}
