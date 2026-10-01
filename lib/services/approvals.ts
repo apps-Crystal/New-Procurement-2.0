@@ -308,8 +308,18 @@ export { can };
 // The approvals queue
 // =============================================================================
 
+/**
+ * What the queue can hold.
+ *
+ * Wider than `ApprovableEntity` on purpose. The engine handles value-banded
+ * approvals, but a material request is approved by a plain status change and is
+ * every bit as much "something waiting on you" — and this screen is named for
+ * the question, not for the mechanism behind the answer.
+ */
+export type PendingKind = ApprovableEntity | 'MR';
+
 export interface PendingItem {
-  entityType: ApprovableEntity;
+  entityType: PendingKind;
   entityId: number;
   levelNo: number;
   requiredRole: RoleCode;
@@ -348,6 +358,7 @@ export async function pendingApprovals(principal: Principal): Promise<PendingIte
   const awardIds = rows
     .filter(r => r.entityType === 'NON_LOWEST_AWARD' || r.entityType === 'QUOTE_WAIVER')
     .map(r => r.entityId);
+  const writeOffIds = rows.filter(r => r.entityType === 'WRITE_OFF').map(r => r.entityId);
 
   const prs = prIds.length
     ? await sql<Row[]>`
@@ -372,6 +383,18 @@ export async function pendingApprovals(principal: Principal): Promise<PendingIte
           JOIN app_users u         ON u.id = a.awarded_by
           LEFT JOIN v_quotation_landed_cost q ON q.quotation_id = a.quotation_id
          WHERE a.id = ANY(${awardIds})`
+    : [];
+
+  // A write-off's site and originator come from the damage report behind it, so
+  // whoever reported the damage cannot approve writing it off either.
+  const writeOffs = writeOffIds.length
+    ? await sql<Row[]>`
+        SELECT d.id, d.dmg_no, d.site_id, d.reported_by, d.estimated_value,
+               s.name AS site_name, u.full_name AS reported_by_name
+          FROM damage_reports d
+          JOIN sites s     ON s.id = d.site_id
+          JOIN app_users u ON u.id = d.reported_by
+         WHERE d.id = ANY(${writeOffIds})`
     : [];
 
   for (const r of rows) {
@@ -415,6 +438,77 @@ export async function pendingApprovals(principal: Principal): Promise<PendingIte
         siteName: String(award.site_name),
         value: award.landed_cost === null ? null : String(award.landed_cost),
         href: `/pr/${award.pr_id as number}`,
+      });
+      continue;
+    }
+
+    // WRITE_OFF chains are opened by damage.ts and were never turned into rows
+    // here, so a write-off waiting on a decision was invisible on the one screen
+    // that exists to show what is waiting. The chain was open, pendingFor
+    // returned it, and the loop silently dropped it.
+    if (r.entityType === 'WRITE_OFF') {
+      const report = writeOffs.find(d => Number(d.id) === r.entityId);
+      if (!report) continue;
+      if (!principal.groupWide && !siteIds.has(Number(report.site_id))) continue;
+      if (Number(report.reported_by) === principal.userId && !openAccess()) continue;
+
+      out.push({
+        entityType: 'WRITE_OFF',
+        entityId: r.entityId,
+        levelNo: r.levelNo,
+        requiredRole: r.requiredRole,
+        createdAt: r.createdAt,
+        reference: String(report.dmg_no),
+        originator: String(report.reported_by_name),
+        siteName: String(report.site_name),
+        value: report.estimated_value === null ? null : String(report.estimated_value),
+        href: `/damage/${r.entityId}`,
+      });
+    }
+  }
+
+  // --- Material requests ------------------------------------------------------
+  //
+  // Not part of the banded engine — an MR is approved by a plain status change,
+  // so it has no chain to queue. It is still something waiting on somebody, and
+  // this screen is named for that question, so it is gathered separately and
+  // appended. The conditions mirror `decideMr`: declared, not raised by you, and
+  // you hold MR.APPROVE at its site.
+  if (can(principal, 'MR.APPROVE', null)) {
+    const mrs = await sql<Row[]>`
+      SELECT m.id, m.mr_no, m.site_id, m.requester_id,
+             s.name AS site_name, u.full_name AS requester_name,
+             d.estimated_value, d.accepted_at AS declared_at
+        FROM material_requests m
+        JOIN sites s      ON s.id = m.site_id
+        JOIN app_users u  ON u.id = m.requester_id
+        -- The CURRENT declaration, not the locked one. A declaration locks only
+        -- once a purchase request exists, which is strictly after the approval
+        -- this row is waiting for, so joining on the locked flag returned nothing
+        -- and left the value and the date blank on every material request.
+        LEFT JOIN mr_declarations d
+               ON d.mr_id = m.id
+              AND d.version = (SELECT max(version) FROM mr_declarations WHERE mr_id = m.id)
+       WHERE m.status = 'MR_DECLARED'
+       ORDER BY d.accepted_at NULLS LAST, m.id`;
+
+    for (const mr of mrs) {
+      const siteId = Number(mr.site_id);
+      if (!principal.groupWide && !siteIds.has(siteId)) continue;
+      if (Number(mr.requester_id) === principal.userId) continue; // mr_self_approval
+      if (!can(principal, 'MR.APPROVE', siteId)) continue;
+
+      out.push({
+        entityType: 'MR',
+        entityId: Number(mr.id),
+        levelNo: 1,
+        requiredRole: 'CG_SMGR',
+        createdAt: String(mr.declared_at ?? ''),
+        reference: String(mr.mr_no),
+        originator: String(mr.requester_name),
+        siteName: String(mr.site_name),
+        value: mr.estimated_value === null ? null : String(mr.estimated_value),
+        href: `/mr/${mr.id as number}`,
       });
     }
   }

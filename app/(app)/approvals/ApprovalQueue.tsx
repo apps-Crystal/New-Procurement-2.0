@@ -30,6 +30,7 @@ interface Pending {
 const COLS = '170px 1fr 150px 90px 150px';
 
 const WHAT: Record<string, string> = {
+  MR: 'Material request',
   PR: 'Purchase request',
   NON_LOWEST_AWARD: 'Non-lowest award',
   QUOTE_WAIVER: 'Quotation waiver',
