@@ -56,7 +56,7 @@ export function MrRegister({ granted }: { granted: string[] }) {
   // the first render and the URL does not fight the user.
   const params = useSearchParams();
   const [status, setStatus] = useState(params.get('stage') ?? '');
-  const [mine, setMine] = useState(false);
+  const [mine, setMine] = useState(params.get('mine') === '1');
   const [creating, setCreating] = useState(params.get('new') === '1');
 
   const url = `/api/mr${qs({ status, mine: mine ? '1' : '' })}`;

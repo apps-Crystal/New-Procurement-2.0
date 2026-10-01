@@ -159,17 +159,19 @@ a { color: var(--accent-text); }
 .nav-link { display: block; text-decoration: none; color: var(--nav-ink); padding: 8px 10px; border-radius: 7px; font-size: 14px; }
 .nav-link:hover { background: rgba(255,255,255,.06); }
 /* A shortcut into the screen above it, not a screen of its own: indented, a
-   size down, and dimmer until hovered or current. */
+   size down, and dimmer until hovered or current. The icon is decorative — the
+   label always says the same thing — so it only has to line up, not explain. */
 .nav-sub {
-  padding-left: 24px; font-size: 13px; color: var(--nav-muted);
-  position: relative;
+  display: flex; align-items: center; gap: 9px;
+  padding-left: 26px; font-size: 13px; color: var(--nav-muted);
 }
-.nav-sub::before {
-  content: ''; position: absolute; left: 12px; top: 50%;
-  width: 6px; height: 1px; background: var(--nav-line);
-}
+.nav-sub-icon { flex: 0 0 auto; opacity: .75; }
 .nav-sub:hover { color: var(--nav-ink); }
-.nav-sub[aria-current='page'] { color: var(--nav-ink); font-weight: 500; }
+.nav-sub:hover .nav-sub-icon { opacity: 1; }
+.nav-sub[aria-current='page'] {
+  color: var(--nav-ink); font-weight: 500; background: rgba(255, 255, 255, .07);
+}
+.nav-sub[aria-current='page'] .nav-sub-icon { opacity: 1; }
 .nav-link[aria-current='page'] { background: #0B5F63; color: #fff; font-weight: 600; }
 .nav-foot { flex-shrink: 0; padding: 12px 10px; border-top: 1px solid var(--nav-line); font-size: 12px; color: var(--nav-muted); }
 .nav-foot b { display: block; color: var(--nav-ink); font-size: 13px; font-weight: 500; }

@@ -11,6 +11,9 @@
  */
 import type { PermissionKey } from '@/lib/auth/permissions';
 
+/** The marks a shortcut may carry. Decorative — the label always says it too. */
+export type NavIconName = 'plus' | 'check' | 'shield' | 'person';
+
 export interface NavItem {
   href: string;
   label: string;
@@ -39,6 +42,8 @@ export interface NavItem {
    * but not approve one sees only the first.
    */
   children?: NavItem[];
+  /** Only on a child, and only ever beside its own text. */
+  icon?: NavIconName;
 }
 
 export interface NavGroup {
@@ -72,8 +77,9 @@ export const NAV: NavGroup[] = [
         label: 'Material requests',
         permission: 'MR.VIEW',
         children: [
-          { href: '/mr?new=1', label: 'Raise a request', permission: 'MR.CREATE' },
-          { href: '/mr?stage=MR_DECLARED', label: 'Approve requests', permission: 'MR.APPROVE' },
+          { href: '/mr?new=1', label: 'Raise a request', permission: 'MR.CREATE', icon: 'plus' },
+          { href: '/mr?stage=MR_DECLARED', label: 'Approve requests', permission: 'MR.APPROVE', icon: 'check' },
+          { href: '/mr?mine=1', label: 'My requests', permission: 'MR.VIEW', icon: 'person' },
         ],
       },
       { href: '/transfers', label: 'Stock transfers', permission: 'TRANSFER.VIEW' },

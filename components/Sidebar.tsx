@@ -8,9 +8,61 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useSearchParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { NAV, activeHref } from '@/lib/nav';
-import type { NavItem } from '@/lib/nav';
+import type { NavItem, NavIconName } from '@/lib/nav';
+
+/**
+ * Small marks for the shortcut links.
+ *
+ * Decorative: every one sits beside its own text label, so they are
+ * aria-hidden. An icon that repeats the word next to it should not be read out
+ * twice, and an icon alone would mean nothing to a screen reader.
+ */
+function NavIcon({ name }: { name?: NavIconName }) {
+  if (!name) return null;
+
+  const common = {
+    width: 13,
+    height: 13,
+    viewBox: '0 0 24 24',
+    fill: 'none',
+    stroke: 'currentColor',
+    strokeWidth: 2,
+    strokeLinecap: 'round' as const,
+    strokeLinejoin: 'round' as const,
+    'aria-hidden': true,
+    className: 'nav-sub-icon',
+  };
+
+  switch (name) {
+    case 'plus':
+      return (
+        <svg {...common}>
+          <path d="M12 5v14M5 12h14" />
+        </svg>
+      );
+    case 'check':
+      return (
+        <svg {...common}>
+          <path d="M20 6 9 17l-5-5" />
+        </svg>
+      );
+    case 'shield':
+      return (
+        <svg {...common}>
+          <path d="M12 2.8 20 6v6c0 4.6-3.3 8.1-8 9.2-4.7-1.1-8-4.6-8-9.2V6Z" />
+        </svg>
+      );
+    case 'person':
+      return (
+        <svg {...common}>
+          <circle cx="12" cy="8" r="3.4" />
+          <path d="M4.8 20.2a7.2 7.2 0 0 1 14.4 0" />
+        </svg>
+      );
+  }
+}
 
 export interface SidebarUser {
   fullName: string;
@@ -99,41 +151,54 @@ export function Sidebar({
           {groups.map(g => (
             <div className="nav-group" key={g.label}>
               <div className="nav-label">{g.label}</div>
-              {g.items.map(i =>
-                i.comingIn ? (
-                  // Not a link: the screen does not exist yet, and a 404 reads as
-                  // something broken rather than as something not built.
-                  <span key={i.href} className="nav-link is-pending" aria-disabled="true">
-                    {i.label}
-                    <em>{i.comingIn}</em>
-                  </span>
-                ) : (
-                  <Link
-                    key={i.href}
-                    href={i.href}
-                    className="nav-link"
-                    aria-current={i.href === active ? 'page' : undefined}
-                    onClick={() => setOpen(false)}
-                  >
-                    {i.label}
-                  </Link>
-                ),
-              )}
+              {/*
+                Each item is followed immediately by its own shortcuts. They
+                were rendered in a second pass, which put every child at the
+                bottom of the group — so "Raise a request" sat under Purchase
+                orders rather than under the screen it belongs to.
+              */}
+              {g.items.map(i => (
+                <Fragment key={i.href}>
+                  {i.comingIn ? (
+                    // Not a link: the screen does not exist yet, and a 404 reads
+                    // as something broken rather than as something not built.
+                    <span className="nav-link is-pending" aria-disabled="true">
+                      {i.label}
+                      <em>{i.comingIn}</em>
+                    </span>
+                  ) : (
+                    <Link
+                      href={i.href}
+                      className="nav-link"
+                      // Exactly one thing is current. When a shortcut below is
+                      // the exact match, the parent steps back — two elements
+                      // claiming aria-current="page" is both heavy to look at
+                      // and wrong for a screen reader.
+                      aria-current={
+                        i.href === active && !(i.children ?? []).some(c => childIsCurrent(c.href))
+                          ? 'page'
+                          : undefined
+                      }
+                      onClick={() => setOpen(false)}
+                    >
+                      {i.label}
+                    </Link>
+                  )}
 
-              {/* Shortcuts into the screen above, one indent in. */}
-              {g.items.flatMap(i =>
-                (i.children ?? []).map(c => (
-                  <Link
-                    key={c.href}
-                    href={c.href}
-                    className="nav-link nav-sub"
-                    aria-current={childIsCurrent(c.href) ? 'page' : undefined}
-                    onClick={() => setOpen(false)}
-                  >
-                    {c.label}
-                  </Link>
-                )),
-              )}
+                  {(i.children ?? []).map(c => (
+                    <Link
+                      key={c.href}
+                      href={c.href}
+                      className="nav-link nav-sub"
+                      aria-current={childIsCurrent(c.href) ? 'page' : undefined}
+                      onClick={() => setOpen(false)}
+                    >
+                      <NavIcon name={c.icon} />
+                      {c.label}
+                    </Link>
+                  ))}
+                </Fragment>
+              ))}
             </div>
           ))}
         </div>
