@@ -240,9 +240,12 @@ describe('audit trail (§29)', () => {
 describe('authorisation (§26, §31)', () => {
   it('permission keys used in navigation all exist in the matrix', async () => {
     const { PERMISSION_MATRIX } = await import('@/lib/auth/permissions');
-    const { NAV } = await import('@/lib/nav');
+    const { navItems } = await import('@/lib/nav');
 
-    const unknown = NAV.flatMap(g => g.items)
+    // navItems() includes the indented shortcuts, which name their own key —
+    // a child asking for a permission that does not exist would be invisible
+    // to everyone, silently, exactly like the quotation panel was.
+    const unknown = navItems()
       .map(i => i.permission)
       .filter(p => !(p in PERMISSION_MATRIX));
 
@@ -250,18 +253,20 @@ describe('authorisation (§26, §31)', () => {
   });
 
   it('every navigation link resolves to a page, unless marked as not yet built', async () => {
-    const { NAV } = await import('@/lib/nav');
+    const { navItems, navPath } = await import('@/lib/nav');
     const appDir = path.join(ROOT, 'app', '(app)');
 
     // A route group folder like (app) does not appear in the URL, and a
     // dynamic segment cannot be reached from a static nav href, so neither
-    // needs handling here — every nav href is a literal path.
+    // needs handling here. A child's href carries a query string that puts the
+    // screen into a state; the page it resolves to is the path before the '?'.
     const pageExists = (href: string) => {
-      const rel = href === '/' ? '' : href.slice(1);
+      const p = navPath(href);
+      const rel = p === '/' ? '' : p.slice(1);
       return statSync(path.join(appDir, rel, 'page.tsx'), { throwIfNoEntry: false }) !== undefined;
     };
 
-    const broken = NAV.flatMap(g => g.items)
+    const broken = navItems()
       .filter(i => !i.comingIn && !pageExists(i.href))
       .map(i => i.href);
 

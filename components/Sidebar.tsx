@@ -7,9 +7,10 @@
  */
 import Link from 'next/link';
 import Image from 'next/image';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { NAV, activeHref } from '@/lib/nav';
+import type { NavItem } from '@/lib/nav';
 
 export interface SidebarUser {
   fullName: string;
@@ -28,13 +29,31 @@ export function Sidebar({
   localAuth: boolean;
 }) {
   const pathname = usePathname();
+  const search = useSearchParams();
   const active = activeHref(pathname);
+
+  /**
+   * A child is current when its path matches AND every parameter it names is
+   * set. `/mr?stage=MR_DECLARED` must not light up on plain `/mr`, and two
+   * children of the same screen must not both light up.
+   */
+  const childIsCurrent = (href: string) => {
+    const [path, query] = href.split('?');
+    if (pathname !== path) return false;
+    return [...new URLSearchParams(query ?? '')].every(([k, v]) => search.get(k) === v);
+  };
   const [open, setOpen] = useState(false);
   const held = new Set(granted);
 
-  const groups = NAV.map(g => ({ ...g, items: g.items.filter(i => held.has(i.permission)) })).filter(
-    g => g.items.length > 0,
-  );
+  const visible = (i: NavItem): NavItem => ({
+    ...i,
+    children: i.children?.filter(c => held.has(c.permission)),
+  });
+
+  const groups = NAV.map(g => ({
+    ...g,
+    items: g.items.filter(i => held.has(i.permission)).map(visible),
+  })).filter(g => g.items.length > 0);
 
   return (
     <>
@@ -99,6 +118,21 @@ export function Sidebar({
                     {i.label}
                   </Link>
                 ),
+              )}
+
+              {/* Shortcuts into the screen above, one indent in. */}
+              {g.items.flatMap(i =>
+                (i.children ?? []).map(c => (
+                  <Link
+                    key={c.href}
+                    href={c.href}
+                    className="nav-link nav-sub"
+                    aria-current={childIsCurrent(c.href) ? 'page' : undefined}
+                    onClick={() => setOpen(false)}
+                  >
+                    {c.label}
+                  </Link>
+                )),
               )}
             </div>
           ))}

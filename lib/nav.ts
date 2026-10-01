@@ -27,6 +27,18 @@ export interface NavItem {
    * every unmarked href resolves to a page.
    */
   comingIn?: string;
+  /**
+   * Shortcuts into the same screen, shown indented beneath it.
+   *
+   * Not new pages — a child's href is the parent's path with a query string
+   * that puts the screen straight into the state the label promises. "Approve
+   * requests" is the material request list filtered to the ones waiting on a
+   * decision, not a second list.
+   *
+   * Each child names its own permission, so somebody who may raise a request
+   * but not approve one sees only the first.
+   */
+  children?: NavItem[];
 }
 
 export interface NavGroup {
@@ -55,7 +67,15 @@ export const NAV: NavGroup[] = [
   {
     label: 'Procurement',
     items: [
-      { href: '/mr', label: 'Material requests', permission: 'MR.VIEW' },
+      {
+        href: '/mr',
+        label: 'Material requests',
+        permission: 'MR.VIEW',
+        children: [
+          { href: '/mr?new=1', label: 'Raise a request', permission: 'MR.CREATE' },
+          { href: '/mr?stage=MR_DECLARED', label: 'Approve requests', permission: 'MR.APPROVE' },
+        ],
+      },
       { href: '/transfers', label: 'Stock transfers', permission: 'TRANSFER.VIEW' },
       { href: '/pr', label: 'Purchase requests', permission: 'PR.VIEW' },
       { href: '/quotations', label: 'Vendor quotations', permission: 'QUOTATION.VIEW' },
@@ -94,7 +114,15 @@ export const NAV: NavGroup[] = [
 ];
 
 /** Longest matching href wins, so /inventory/ledger doesn't light up /inventory. */
+/** Every item, parents and children alike. */
+export const navItems = (): NavItem[] => NAV.flatMap(g => g.items.flatMap(i => [i, ...(i.children ?? [])]));
+
+/** A child's href carries a query string; the page it resolves to does not. */
+export const navPath = (href: string): string => href.split('?')[0];
+
 export function activeHref(pathname: string): string | null {
+  // Parents only. A child is highlighted from the query string too, which the
+  // pathname does not carry — the Sidebar does that with the live search params.
   const all = NAV.flatMap(g => g.items.map(i => i.href));
   const matches = all.filter(h => (h === '/' ? pathname === '/' : pathname === h || pathname.startsWith(`${h}/`)));
   if (matches.length === 0) return null;

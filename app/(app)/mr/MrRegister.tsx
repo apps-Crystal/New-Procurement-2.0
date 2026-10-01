@@ -9,6 +9,7 @@
  */
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import {
   Card, EmptyState, ErrorState, Kpi, Kpis, LoadingState, StatusChip, fmtDate, fmtQty,
 } from '@/components/ui';
@@ -49,9 +50,14 @@ const URGENCY_TONE: Record<string, string> = {
 };
 
 export function MrRegister({ granted }: { granted: string[] }) {
-  const [status, setStatus] = useState('');
+  // The sidebar's shortcuts arrive as a query string: ?stage= puts the list
+  // straight into that stage, ?new=1 opens the form. Read once as the initial
+  // state rather than kept in sync, so the filter buttons stay in charge after
+  // the first render and the URL does not fight the user.
+  const params = useSearchParams();
+  const [status, setStatus] = useState(params.get('stage') ?? '');
   const [mine, setMine] = useState(false);
-  const [creating, setCreating] = useState(false);
+  const [creating, setCreating] = useState(params.get('new') === '1');
 
   const url = `/api/mr${qs({ status, mine: mine ? '1' : '' })}`;
   const { data, loading, error, reload } = useResource<Mr[]>(url, [status, mine]);
