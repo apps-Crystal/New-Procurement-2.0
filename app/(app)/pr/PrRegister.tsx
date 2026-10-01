@@ -8,12 +8,14 @@
  * the figure the approval band routes on have to be one number, and the only
  * way to guarantee that is for there to be one source (§10, conflict C-04).
  *
- * `?from_mr=<id>` opens the new-request form against that material request —
- * that is the link the MR screen offers once a request is approved.
+ * The query string drives the screen: `?new=1` opens the form, `?stage=` picks
+ * a stage, `?mine=1` narrows to the caller's own, and `?from_mr=<id>` opens the
+ * form against that material request — the link the MR screen offers once a
+ * request is approved. The sidebar shortcuts are those same parameters.
  */
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
   Card, EmptyState, ErrorState, Kpi, Kpis, LoadingState, StatusChip, fmtDate, fmtMoney,
 } from '@/components/ui';
@@ -50,12 +52,38 @@ const FILTERS = [
 ];
 
 export function PrRegister({ granted }: { granted: string[] }) {
-  const search = useSearchParams();
-  const fromMr = search.get('from_mr');
+  /**
+   * The URL is the state, not a seed for it.
+   *
+   * Same reason as the material request register: a sidebar shortcut is a
+   * CLIENT-SIDE navigation, so this component never remounts and a useState
+   * initialiser would not run again — the address bar would change and the
+   * screen would sit there unchanged. Deriving also makes the view shareable
+   * and the back button work through filter changes.
+   */
+  const params = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
 
-  const [status, setStatus] = useState('');
-  const [mine, setMine] = useState(false);
-  const [creating, setCreating] = useState(fromMr !== null);
+  const fromMr = params.get('from_mr');
+  const status = params.get('stage') ?? '';
+  const mine = params.get('mine') === '1';
+  const creating = params.get('new') === '1' || fromMr !== null;
+
+  const setParams = (patch: Record<string, string | null>) => {
+    const next = new URLSearchParams(params.toString());
+    for (const [k, v] of Object.entries(patch)) {
+      if (v === null || v === '') next.delete(k);
+      else next.set(k, v);
+    }
+    const query = next.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+  };
+
+  const setStatus = (v: string) => setParams({ stage: v || null });
+  const setMine = (v: boolean) => setParams({ mine: v ? '1' : null });
+  // Closing has to drop from_mr too, or the form reopens on the next render.
+  const setCreating = (v: boolean) => setParams({ new: v ? '1' : null, from_mr: v ? fromMr : null });
 
   const url = `/api/pr${qs({ status, mine: mine ? '1' : '' })}`;
   const { data, loading, error, reload } = useResource<Pr[]>(url, [status, mine]);
@@ -137,7 +165,7 @@ export function PrRegister({ granted }: { granted: string[] }) {
           title={filtered ? 'No requests match that' : 'No purchase requests yet'}
           action={
             filtered ? (
-              <button type="button" className="btn" onClick={() => { setStatus(''); setMine(false); }}>
+              <button type="button" className="btn" onClick={() => setParams({ stage: null, mine: null })}>
                 Clear filters
               </button>
             ) : (

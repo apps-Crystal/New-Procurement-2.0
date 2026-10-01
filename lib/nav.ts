@@ -83,7 +83,16 @@ export const NAV: NavGroup[] = [
         ],
       },
       { href: '/transfers', label: 'Stock transfers', permission: 'TRANSFER.VIEW' },
-      { href: '/pr', label: 'Purchase requests', permission: 'PR.VIEW' },
+      {
+        href: '/pr',
+        label: 'Purchase requests',
+        permission: 'PR.VIEW',
+        children: [
+          { href: '/pr?new=1', label: 'Raise a request', permission: 'PR.CREATE', icon: 'plus' },
+          { href: '/pr?stage=PR_SUBMITTED', label: 'Approve requests', permission: 'PR.APPROVE', icon: 'check' },
+          { href: '/pr?mine=1', label: 'My requests', permission: 'PR.VIEW', icon: 'person' },
+        ],
+      },
       { href: '/quotations', label: 'Vendor quotations', permission: 'QUOTATION.VIEW' },
       { href: '/po', label: 'Purchase orders', permission: 'PO.VIEW' },
     ],
