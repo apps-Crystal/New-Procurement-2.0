@@ -7,9 +7,9 @@
  * through stock check, transfer, declaration and approval, and the chips are in
  * that order rather than alphabetical, so the list reads as a pipeline.
  */
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
   Card, EmptyState, ErrorState, Kpi, Kpis, LoadingState, StatusChip, fmtDate, fmtQty,
 } from '@/components/ui';
@@ -50,14 +50,41 @@ const URGENCY_TONE: Record<string, string> = {
 };
 
 export function MrRegister({ granted }: { granted: string[] }) {
-  // The sidebar's shortcuts arrive as a query string: ?stage= puts the list
-  // straight into that stage, ?new=1 opens the form. Read once as the initial
-  // state rather than kept in sync, so the filter buttons stay in charge after
-  // the first render and the URL does not fight the user.
+  /**
+   * The URL is the state, not a seed for it.
+   *
+   * These were read once into useState, which looked right and was wrong: a
+   * sidebar shortcut is a CLIENT-SIDE navigation, so the component never
+   * remounts, the initialiser never runs again, and the address bar changed
+   * while the screen did not. Clicking "Raise a request" from /mr did nothing
+   * at all.
+   *
+   * Deriving them instead fixes that and gives three things for free: the view
+   * is shareable, the browser's back button works through filter changes, and
+   * clicking the same shortcut twice behaves the same both times.
+   */
   const params = useSearchParams();
-  const [status, setStatus] = useState(params.get('stage') ?? '');
-  const [mine, setMine] = useState(params.get('mine') === '1');
-  const [creating, setCreating] = useState(params.get('new') === '1');
+  const router = useRouter();
+  const pathname = usePathname();
+
+  const status = params.get('stage') ?? '';
+  const mine = params.get('mine') === '1';
+  const creating = params.get('new') === '1';
+
+  /** Rewrite the query string. `replace`, so filtering does not fill history. */
+  const setParams = (patch: Record<string, string | null>) => {
+    const next = new URLSearchParams(params.toString());
+    for (const [k, v] of Object.entries(patch)) {
+      if (v === null || v === '') next.delete(k);
+      else next.set(k, v);
+    }
+    const query = next.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+  };
+
+  const setStatus = (v: string) => setParams({ stage: v || null });
+  const setMine = (v: boolean) => setParams({ mine: v ? '1' : null });
+  const setCreating = (v: boolean) => setParams({ new: v ? '1' : null });
 
   const url = `/api/mr${qs({ status, mine: mine ? '1' : '' })}`;
   const { data, loading, error, reload } = useResource<Mr[]>(url, [status, mine]);
