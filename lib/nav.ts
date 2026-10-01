@@ -132,6 +132,19 @@ export const NAV: NavGroup[] = [
 /** Every item, parents and children alike. */
 export const navItems = (): NavItem[] => NAV.flatMap(g => g.items.flatMap(i => [i, ...(i.children ?? [])]));
 
+/**
+ * The cookie that remembers which parents the user has collapsed.
+ *
+ * A cookie rather than localStorage because the sidebar is rendered on the
+ * server: localStorage cannot be read until after hydration, which would mean
+ * the shortcuts flashed open and then vanished on every page load.
+ */
+export const NAV_COLLAPSED_COOKIE = 'nav_collapsed';
+
+/** Hrefs are separated by a pipe; neither a path nor a query string holds one. */
+export const parseCollapsed = (raw: string | undefined): string[] =>
+  (raw ?? '').split('|').filter(Boolean);
+
 /** A child's href carries a query string; the page it resolves to does not. */
 export const navPath = (href: string): string => href.split('?')[0];
 

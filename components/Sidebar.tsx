@@ -9,7 +9,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { Fragment, useEffect, useState } from 'react';
-import { NAV, activeHref } from '@/lib/nav';
+import { NAV, NAV_COLLAPSED_COOKIE, activeHref } from '@/lib/nav';
 import type { NavItem, NavIconName } from '@/lib/nav';
 
 /**
@@ -64,6 +64,16 @@ function NavIcon({ name }: { name?: NavIconName }) {
   }
 }
 
+/** The disclosure on a parent that has shortcuts under it. */
+function Chevron() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+         strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="m6 9 6 6 6-6" />
+    </svg>
+  );
+}
+
 export interface SidebarUser {
   fullName: string;
   /** e.g. "Site Receiver · Dhulagarh" */
@@ -74,11 +84,14 @@ export function Sidebar({
   user,
   granted,
   localAuth,
+  collapsed: initialCollapsed,
 }: {
   user: SidebarUser;
   granted: string[];
   /** Local development sign-in rather than Crystal Core. */
   localAuth: boolean;
+  /** Parent hrefs whose shortcuts are hidden, read from the cookie server-side. */
+  collapsed: string[];
 }) {
   const pathname = usePathname();
   const search = useSearchParams();
@@ -95,6 +108,24 @@ export function Sidebar({
     return [...new URLSearchParams(query ?? '')].every(([k, v]) => search.get(k) === v);
   };
   const [open, setOpen] = useState(false);
+
+  /**
+   * Seeded from the server's value, so the first client render matches the
+   * HTML exactly and nothing moves. Writing the cookie rather than calling the
+   * server keeps the toggle instant -- the next navigation renders it right.
+   */
+  const [collapsed, setCollapsed] = useState(initialCollapsed);
+
+  const toggle = (href: string) => {
+    const next = collapsed.includes(href) ? collapsed.filter(h => h !== href) : [...collapsed, href];
+    setCollapsed(next);
+    try {
+      document.cookie = `${NAV_COLLAPSED_COOKIE}=${encodeURIComponent(next.join('|'))}; path=/; max-age=31536000; samesite=lax`;
+    } catch {
+      /* cookies blocked -- the choice still holds for this page */
+    }
+  };
+
   const held = new Set(granted);
 
   const visible = (i: NavItem): NavItem => ({
@@ -156,49 +187,76 @@ export function Sidebar({
                 were rendered in a second pass, which put every child at the
                 bottom of the group — so "Raise a request" sat under Purchase
                 orders rather than under the screen it belongs to.
-              */}
-              {g.items.map(i => (
-                <Fragment key={i.href}>
-                  {i.comingIn ? (
-                    // Not a link: the screen does not exist yet, and a 404 reads
-                    // as something broken rather than as something not built.
-                    <span className="nav-link is-pending" aria-disabled="true">
-                      {i.label}
-                      <em>{i.comingIn}</em>
-                    </span>
-                  ) : (
-                    <Link
-                      href={i.href}
-                      className="nav-link"
-                      // Exactly one thing is current. When a shortcut below is
-                      // the exact match, the parent steps back — two elements
-                      // claiming aria-current="page" is both heavy to look at
-                      // and wrong for a screen reader.
-                      aria-current={
-                        i.href === active && !(i.children ?? []).some(c => childIsCurrent(c.href))
-                          ? 'page'
-                          : undefined
-                      }
-                      onClick={() => setOpen(false)}
-                    >
-                      {i.label}
-                    </Link>
-                  )}
 
-                  {(i.children ?? []).map(c => (
-                    <Link
-                      key={c.href}
-                      href={c.href}
-                      className="nav-link nav-sub"
-                      aria-current={childIsCurrent(c.href) ? 'page' : undefined}
-                      onClick={() => setOpen(false)}
-                    >
-                      <NavIcon name={c.icon} />
-                      {c.label}
-                    </Link>
-                  ))}
-                </Fragment>
-              ))}
+                The shortcuts sit in a panel the parent's disclosure controls,
+                so a user who does not want them can fold them away.
+              */}
+              {g.items.map(i => {
+                const kids = i.children ?? [];
+                // The parent steps back when a shortcut below it is the exact
+                // match -- two elements claiming aria-current="page" is both
+                // heavy to look at and wrong for a screen reader.
+                const current = i.href === active && !kids.some(c => childIsCurrent(c.href));
+                const shut = collapsed.includes(i.href);
+                const panelId = `nav-kids-${i.href.replace(/[^a-z0-9]+/gi, '-')}`;
+
+                return (
+                  <Fragment key={i.href}>
+                    {i.comingIn ? (
+                      // Not a link: the screen does not exist yet, and a 404 reads
+                      // as something broken rather than as something not built.
+                      <span className="nav-link is-pending" aria-disabled="true">
+                        {i.label}
+                        <em>{i.comingIn}</em>
+                      </span>
+                    ) : (
+                      <div className={kids.length > 0 ? 'nav-item' : undefined}>
+                        <Link
+                          href={i.href}
+                          className="nav-link"
+                          aria-current={current ? 'page' : undefined}
+                          onClick={() => setOpen(false)}
+                        >
+                          {i.label}
+                        </Link>
+
+                        {kids.length > 0 && (
+                          // Its own control, not the row itself: the parent is a
+                          // link to a real screen, and a click on "Purchase
+                          // requests" has to go there rather than fold the list.
+                          <button
+                            type="button"
+                            className={`nav-toggle${current ? ' on-current' : ''}`}
+                            aria-expanded={!shut}
+                            aria-controls={panelId}
+                            aria-label={`${shut ? 'Show' : 'Hide'} ${i.label} shortcuts`}
+                            onClick={() => toggle(i.href)}
+                          >
+                            <Chevron />
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    {kids.length > 0 && (
+                      <div className="nav-children" id={panelId} hidden={shut}>
+                        {kids.map(c => (
+                          <Link
+                            key={c.href}
+                            href={c.href}
+                            className="nav-link nav-sub"
+                            aria-current={childIsCurrent(c.href) ? 'page' : undefined}
+                            onClick={() => setOpen(false)}
+                          >
+                            <NavIcon name={c.icon} />
+                            {c.label}
+                          </Link>
+                        ))}
+                      </div>
+                    )}
+                  </Fragment>
+                );
+              })}
             </div>
           ))}
         </div>

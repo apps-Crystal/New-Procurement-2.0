@@ -158,6 +158,32 @@ a { color: var(--accent-text); }
 .nav-label { font-size: 11px; letter-spacing: .06em; color: var(--nav-muted); padding: 0 10px 4px; text-transform: uppercase; }
 .nav-link { display: block; text-decoration: none; color: var(--nav-ink); padding: 8px 10px; border-radius: 7px; font-size: 14px; }
 .nav-link:hover { background: rgba(255,255,255,.06); }
+/* A parent that has shortcuts under it. The disclosure is laid OVER the link's
+   right padding rather than placed beside it: the current-page pill then stays
+   the full width of the row, and rows with and without a toggle line up. */
+.nav-item { position: relative; }
+.nav-item > .nav-link { padding-right: 32px; }
+.nav-toggle {
+  position: absolute; right: 5px; top: 50%; transform: translateY(-50%);
+  display: flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; padding: 0;
+  background: none; border: 0; border-radius: 5px; cursor: pointer;
+  color: var(--nav-muted);
+}
+.nav-toggle:hover { color: var(--nav-ink); background: rgba(255,255,255,.1); }
+.nav-toggle:focus-visible { outline: 2px solid var(--nav-ink); outline-offset: 1px; }
+/* On the teal current-page pill the muted grey all but disappears. */
+.nav-toggle.on-current { color: rgba(255,255,255,.8); }
+.nav-toggle.on-current:hover { color: #fff; background: rgba(255,255,255,.18); }
+.nav-toggle svg { transition: transform .15s ease; }
+.nav-toggle[aria-expanded='false'] svg { transform: rotate(-90deg); }
+/* The panel the disclosure controls. [hidden] has to be restated: the UA rule
+   that honours it is weaker than the display here, so without it the attribute
+   would be announced to a screen reader while the links stayed on screen. */
+.nav-children { display: flex; flex-direction: column; gap: 2px; }
+.nav-children[hidden] { display: none; }
+@media (prefers-reduced-motion: reduce) { .nav-toggle svg { transition: none; } }
+
 /* A shortcut into the screen above it, not a screen of its own: indented, a
    size down, and dimmer until hovered or current. The icon is decorative — the
    label always says the same thing — so it only has to line up, not explain. */
