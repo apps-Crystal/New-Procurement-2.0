@@ -313,6 +313,11 @@ textarea.inp { height: auto; min-height: 96px; padding: 10px 12px; resize: verti
 
 /* --- Grids and tiles ---------------------------------------------------------- */
 .grid { display: grid; gap: 12px; }
+/* Blocks stacked inside a form need rhythm of their own. .field spaces its own
+   label, input and hint, and .grid spaces its columns, but nothing separated
+   one block from the NEXT -- so a field carrying a long hint ran straight into
+   the label beneath it with no gap at all. */
+form.pad > * + * { margin-top: 14px; }
 .g2 { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
 .g3 { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
 .g4 { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }

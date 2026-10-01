@@ -148,6 +148,37 @@ export const parseCollapsed = (raw: string | undefined): string[] =>
 /** A child's href carries a query string; the page it resolves to does not. */
 export const navPath = (href: string): string => href.split('?')[0];
 
+/** Anything with a .get, so both URLSearchParams and Next's readonly one fit. */
+interface Params { get(key: string): string | null }
+
+/**
+ * Which ONE shortcut of a screen is current, or null.
+ *
+ * A shortcut matches when its path matches and every parameter it NAMES is set,
+ * so /mr?stage=MR_DECLARED does not light up on plain /mr.
+ *
+ * Matching is not enough to be current. Opening the form while a stage filter
+ * is set gives /pr?stage=PR_SUBMITTED&new=1, which satisfies both "Raise a
+ * request" and "Approve requests" — and two lit at once is wrong to look at and
+ * wrong for a screen reader, which hears two current pages. So the most
+ * specific match wins: the one naming the most parameters. A tie goes to the
+ * one listed first, which is why the most direct action is listed first.
+ */
+export function currentChildHref(kids: NavItem[], pathname: string, params: Params): string | null {
+  let best: { href: string; named: number } | null = null;
+
+  for (const child of kids) {
+    const [path, query] = child.href.split('?');
+    if (pathname !== path) continue;
+
+    const named = [...new URLSearchParams(query ?? '')];
+    if (!named.every(([k, v]) => params.get(k) === v)) continue;
+    if (!best || named.length > best.named) best = { href: child.href, named: named.length };
+  }
+
+  return best?.href ?? null;
+}
+
 /**
  * Which top-level item is lit.
  *

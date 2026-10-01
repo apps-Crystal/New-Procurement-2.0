@@ -237,6 +237,77 @@ describe('audit trail (§29)', () => {
   });
 });
 
+describe('navigation shortcuts', () => {
+  /**
+   * Only ever ONE current page.
+   *
+   * This shipped broken: a shortcut was current whenever every parameter it
+   * NAMED was set, so /pr?stage=PR_SUBMITTED&new=1 -- which you get by opening
+   * the form while a stage filter is on -- lit up both "Raise a request" and
+   * "Approve requests" at once. The test is here rather than in the Sidebar
+   * because nothing about it needs React, and because the same class of fault
+   * (a nav rule that is silently wrong on screen) has now happened twice.
+   */
+  it('at most one shortcut is current, however the parameters combine', async () => {
+    const { NAV, currentChildHref } = await import('@/lib/nav');
+
+    const parents = NAV.flatMap(g => g.items).filter(i => (i.children ?? []).length > 0);
+    expect(parents.length).toBeGreaterThan(0);
+
+    for (const parent of parents) {
+      const kids = parent.children ?? [];
+
+      // Every combination of the parameters the shortcuts name, including the
+      // combined ones no single shortcut asks for.
+      const names = kids.flatMap(c => [...new URLSearchParams(c.href.split('?')[1] ?? '')]);
+
+      for (let mask = 0; mask < 2 ** names.length; mask++) {
+        const params = new URLSearchParams();
+        names.forEach(([k, v], bit) => { if (mask & (1 << bit)) params.set(k, v); });
+
+        const lit = currentChildHref(kids, parent.href, params);
+        if (lit !== null) expect(kids.map(c => c.href)).toContain(lit);
+      }
+    }
+  });
+
+  it('a shortcut is not current on the bare screen, nor on another one', async () => {
+    const { NAV, currentChildHref } = await import('@/lib/nav');
+    const parents = NAV.flatMap(g => g.items).filter(i => (i.children ?? []).length > 0);
+
+    for (const parent of parents) {
+      const kids = parent.children ?? [];
+      const bare = currentChildHref(kids, parent.href, new URLSearchParams());
+
+      // Nothing with a query string may light up on the plain screen.
+      if (bare !== null) expect(bare.includes('?')).toBe(false);
+
+      // And nothing at all lights up on someone else's screen.
+      expect(currentChildHref(kids, '/somewhere-else', new URLSearchParams('new=1'))).toBeNull();
+    }
+  });
+
+  it('the most specific shortcut wins when several match', async () => {
+    const { currentChildHref } = await import('@/lib/nav');
+
+    const kids = [
+      { href: '/pr?new=1', label: 'Raise', permission: 'PR.CREATE' as const },
+      { href: '/pr?stage=PR_SUBMITTED', label: 'Approve', permission: 'PR.APPROVE' as const },
+      { href: '/pr?stage=PR_SUBMITTED&mine=1', label: 'Mine to approve', permission: 'PR.APPROVE' as const },
+    ];
+
+    // One each.
+    expect(currentChildHref(kids, '/pr', new URLSearchParams('new=1'))).toBe('/pr?new=1');
+
+    // Both match on one parameter — the first listed wins, deterministically.
+    expect(currentChildHref(kids, '/pr', new URLSearchParams('stage=PR_SUBMITTED&new=1'))).toBe('/pr?new=1');
+
+    // Two parameters beat one, wherever it sits in the list.
+    expect(currentChildHref(kids, '/pr', new URLSearchParams('stage=PR_SUBMITTED&mine=1')))
+      .toBe('/pr?stage=PR_SUBMITTED&mine=1');
+  });
+});
+
 describe('authorisation (§26, §31)', () => {
   it('permission keys used in navigation all exist in the matrix', async () => {
     const { PERMISSION_MATRIX } = await import('@/lib/auth/permissions');

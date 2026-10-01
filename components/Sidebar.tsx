@@ -9,7 +9,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { Fragment, useEffect, useState } from 'react';
-import { NAV, NAV_COLLAPSED_COOKIE, activeHref } from '@/lib/nav';
+import { NAV, NAV_COLLAPSED_COOKIE, activeHref, currentChildHref } from '@/lib/nav';
 import type { NavItem, NavIconName } from '@/lib/nav';
 
 /**
@@ -97,16 +97,9 @@ export function Sidebar({
   const search = useSearchParams();
   const active = activeHref(pathname, search.get('from'));
 
-  /**
-   * A child is current when its path matches AND every parameter it names is
-   * set. `/mr?stage=MR_DECLARED` must not light up on plain `/mr`, and two
-   * children of the same screen must not both light up.
-   */
-  const childIsCurrent = (href: string) => {
-    const [path, query] = href.split('?');
-    if (pathname !== path) return false;
-    return [...new URLSearchParams(query ?? '')].every(([k, v]) => search.get(k) === v);
-  };
+  // Exactly one shortcut is ever current — the rule, and why, is in lib/nav.ts.
+  const currentChild = (kids: NavItem[]) => currentChildHref(kids, pathname, search);
+
   const [open, setOpen] = useState(false);
 
   /**
@@ -196,7 +189,8 @@ export function Sidebar({
                 // The parent steps back when a shortcut below it is the exact
                 // match -- two elements claiming aria-current="page" is both
                 // heavy to look at and wrong for a screen reader.
-                const current = i.href === active && !kids.some(c => childIsCurrent(c.href));
+                const lit = currentChild(kids);
+                const current = i.href === active && lit === null;
                 const shut = collapsed.includes(i.href);
                 const panelId = `nav-kids-${i.href.replace(/[^a-z0-9]+/gi, '-')}`;
 
@@ -255,7 +249,7 @@ export function Sidebar({
                             key={c.href}
                             href={c.href}
                             className="nav-link nav-sub"
-                            aria-current={childIsCurrent(c.href) ? 'page' : undefined}
+                            aria-current={c.href === lit ? 'page' : undefined}
                             onClick={() => setOpen(false)}
                           >
                             <NavIcon name={c.icon} />
