@@ -148,10 +148,21 @@ export const parseCollapsed = (raw: string | undefined): string[] =>
 /** A child's href carries a query string; the page it resolves to does not. */
 export const navPath = (href: string): string => href.split('?')[0];
 
-export function activeHref(pathname: string): string | null {
+/**
+ * Which top-level item is lit.
+ *
+ * `from` is the section the screen was reached from, as `?from=quotations`.
+ * A purchase request opened from the quotation desk is still quotation work,
+ * and moving the highlight to Purchase requests reads as being thrown out of
+ * the screen you were using. It only wins if it names a real nav entry, so a
+ * hand-typed parameter cannot light up something that does not exist.
+ */
+export function activeHref(pathname: string, from?: string | null): string | null {
   // Parents only. A child is highlighted from the query string too, which the
   // pathname does not carry — the Sidebar does that with the live search params.
   const all = NAV.flatMap(g => g.items.map(i => i.href));
+
+  if (from && all.includes(`/${from}`)) return `/${from}`;
   const matches = all.filter(h => (h === '/' ? pathname === '/' : pathname === h || pathname.startsWith(`${h}/`)));
   if (matches.length === 0) return null;
   return matches.reduce((a, b) => (b.length > a.length ? b : a));

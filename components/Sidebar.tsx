@@ -95,7 +95,7 @@ export function Sidebar({
 }) {
   const pathname = usePathname();
   const search = useSearchParams();
-  const active = activeHref(pathname);
+  const active = activeHref(pathname, search.get('from'));
 
   /**
    * A child is current when its path matches AND every parameter it names is

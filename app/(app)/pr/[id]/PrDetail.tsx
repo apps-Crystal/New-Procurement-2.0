@@ -12,8 +12,9 @@
  *   from `approval_bands` by value, and a level is decided one at a time in
  *   order — level 2 cannot act before level 1 has.
  */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import {
   Banner, Card, EmptyState, ErrorState, LoadingState, StatusChip, Tile,
   fmtDate, fmtDateTime, fmtMoney, fmtQty,
@@ -64,6 +65,46 @@ export function PrDetail({
   const { data, loading, error, reload } = useResource<PrView>(`/api/pr/${id}`);
   const [rejecting, setRejecting] = useState(false);
   const [remarks, setRemarks] = useState('');
+
+  /**
+   * Arriving from the quotation desk means the quotations are the errand, and
+   * they are the LAST card on this screen -- below the summary, the lines, the
+   * approval chain and the actions. Waiting on `loading` matters: the panel is
+   * not in the document until the request has come back, so scrolling any
+   * earlier finds nothing to scroll to.
+   */
+  const viaQuotations = useSearchParams().get('from') === 'quotations';
+
+  useEffect(() => {
+    if (!viaQuotations || loading) return;
+    const panel = document.getElementById('quotations');
+    if (!panel) return;
+
+    const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const go = () => panel.scrollIntoView({ behavior: still ? 'auto' : 'smooth', block: 'start' });
+    go();
+
+    // The panel fetches its own quotations AFTER this runs, and the page grows
+    // as they arrive. A scroll aimed at the short version stops short -- it did,
+    // 700px above the card -- so follow the panel until it stops resizing.
+    const observer = new ResizeObserver(go);
+    observer.observe(panel);
+
+    // ...but never fight the user. Any scroll of their own ends the chase, or
+    // the page would drag itself back while they were reading something else.
+    const stop = () => {
+      observer.disconnect();
+      window.removeEventListener('wheel', stop);
+      window.removeEventListener('touchstart', stop);
+      window.removeEventListener('keydown', stop);
+    };
+    window.addEventListener('wheel', stop, { passive: true });
+    window.addEventListener('touchstart', stop, { passive: true });
+    window.addEventListener('keydown', stop);
+    const timer = setTimeout(stop, 4000);
+
+    return () => { clearTimeout(timer); stop(); };
+  }, [viaQuotations, loading]);
 
   const act = useMutation(
     async (body: Record<string, unknown>) => api.post(`/api/pr/${id}/transition`, body),
@@ -275,7 +316,9 @@ export function PrDetail({
       </Card>
 
       {(pr.status === 'PR_APPROVED' || pr.status === 'PO_POSTED') && (
-        <QuotationPanel prId={pr.id} prStatus={pr.status} lines={lines} granted={granted} onChanged={reload} />
+        <div id="quotations">
+          <QuotationPanel prId={pr.id} prStatus={pr.status} lines={lines} granted={granted} onChanged={reload} />
+        </div>
       )}
     </>
   );

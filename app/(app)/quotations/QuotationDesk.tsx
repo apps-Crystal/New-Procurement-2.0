@@ -80,7 +80,11 @@ export function QuotationDesk() {
             {rows.map(p => {
               const days = daysUntil(p.expected_delivery);
               return (
-                <Link key={p.id} href={`/pr/${p.id}`} className="tr" style={{ gridTemplateColumns: COLS }}>
+                // ?from=quotations is not decoration: it keeps the sidebar on
+                // Vendor quotations, puts a way back in the header, and scrolls
+                // to the Quotations card -- which is the last thing on a long
+                // purchase request, so without it you land nowhere near it.
+                <Link key={p.id} href={`/pr/${p.id}?from=quotations`} className="tr" style={{ gridTemplateColumns: COLS }}>
                   <div className="mono">{p.pr_no}</div>
                   <div>
                     {p.site_name}
