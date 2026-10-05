@@ -52,6 +52,16 @@ export function AdjustForm({
 
   const onSystem = Number(item.available);
   const delta = counted === '' ? null : Number(counted) - onSystem;
+  /**
+   * What the submit button is waiting for, or null when it is ready. One
+   * sentence, shown beside it — the same way the purchase request form says
+   * "Every line needs a rate."
+   */
+  const blocked =
+    counted === '' ? 'Enter what you counted.'
+    : reason.trim().length < 4 ? 'Say what you found, in a few words.'
+    : null;
+
   const err = (field: string) => (adjust.fieldError?.field === field ? adjust.fieldError.message : null);
 
   return (
@@ -136,14 +146,17 @@ export function AdjustForm({
         </p>
 
         <div style={{ display: 'flex', gap: 10 }}>
-          <button
-            type="submit"
-            className="btn btn-primary"
-            disabled={adjust.busy || counted === '' || reason.trim().length < 4}
-          >
+          <button type="submit" className="btn btn-primary" disabled={adjust.busy || blocked !== null}>
             {adjust.busy ? 'Recording…' : delta === 0 ? 'Confirm the count' : 'Record the stock take'}
           </button>
           <button type="button" className="btn" onClick={onClose}>Cancel</button>
+          {/*
+            A disabled button has to say what it is waiting for. The textarea
+            carries required and minLength, but native validation only speaks on
+            submit — and the button being disabled means submit never happens,
+            so the rule enforced itself in total silence.
+          */}
+          {blocked && <span className="sub" style={{ alignSelf: 'center' }}>{blocked}</span>}
         </div>
       </form>
     </Card>
