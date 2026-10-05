@@ -126,7 +126,7 @@ export function PoRegister() {
               checked={needsFile}
               onChange={e => setNeedsFile(e.target.checked)}
             />
-            Only those with no file attached
+            Only those awaiting a signed copy
           </label>
         </div>
       </section>
@@ -152,7 +152,7 @@ export function PoRegister() {
         >
           {filtered
             ? needsFile
-              ? 'Every order matching has its paperwork on file.'
+              ? 'Every issued order has its signed copy on file. Drafts are not counted — nothing has been sent for signing yet.'
               : 'Try a different status.'
             : 'An order is drafted from the awarded quotation on an approved purchase request.'}
         </EmptyState>
@@ -177,13 +177,18 @@ export function PoRegister() {
                   <div className="sub">
                     {p.site_name} · from <span className="mono">{p.pr_no}</span>
                   </div>
-                  {/* Stated here so the queue of orders missing paperwork can be
-                      read without opening each one. */}
-                  <div className="sub">
-                    {Number(p.document_count ?? 0) === 0
-                      ? 'No file attached'
-                      : `${p.document_count} file${Number(p.document_count) === 1 ? '' : 's'} attached`}
-                  </div>
+                  {/*
+                    Stated here so the queue can be read without opening each
+                    order. A draft says nothing: it has not been sent, so there
+                    is no signed copy to be missing.
+                  */}
+                  {p.status !== 'PO_DRAFT' && (
+                    <div className="sub">
+                      {Number(p.document_count ?? 0) === 0
+                        ? 'Awaiting the signed copy'
+                        : `${p.document_count} file${Number(p.document_count) === 1 ? '' : 's'} attached`}
+                    </div>
+                  )}
                 </div>
                 <div>{fmtDate(p.expected_delivery)}</div>
                 <div className="r">

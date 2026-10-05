@@ -354,6 +354,18 @@ export async function cancelPo(actor: Actor, poId: number, reason: string): Prom
  */
 export const ACTIVE_PO_STATUSES = ['PO_CREATED', 'PO_PARTIALLY_RECEIVED'] as const;
 
+/**
+ * Orders that have actually been sent to the vendor.
+ *
+ * A draft has no signed copy to chase: it has not left the building, and
+ * createPo() has already done the work of proving it came from an approved
+ * request with a cleared award — the draft is simply not issued yet. Cancelled
+ * is excluded for the same reason in reverse: nobody is signing it now.
+ */
+export const ISSUED_PO_STATUSES = [
+  'PO_CREATED', 'PO_PARTIALLY_RECEIVED', 'PO_RECEIVED', 'PO_SHORT_CLOSED', 'PO_CLOSED',
+] as const;
+
 export function listPos(
   principal: Principal,
   filters: { status?: string; vendorId?: number; needsFile?: boolean } = {},
@@ -384,8 +396,9 @@ export function listPos(
        AND (${statuses}::text[] IS NULL OR po.status::text = ANY(${statuses}))
        AND (${filters.vendorId ?? null}::bigint IS NULL OR po.vendor_id = ${filters.vendorId ?? null})
        AND (${filters.needsFile ?? false} IS NOT TRUE
-            OR NOT EXISTS (SELECT 1 FROM documents d
-                            WHERE d.entity_type = 'PO' AND d.entity_id = po.id))
+            OR (po.status::text = ANY(${[...ISSUED_PO_STATUSES]})
+                AND NOT EXISTS (SELECT 1 FROM documents d
+                                 WHERE d.entity_type = 'PO' AND d.entity_id = po.id)))
      ORDER BY po.created_at DESC`;
 }
 
