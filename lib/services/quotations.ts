@@ -122,6 +122,23 @@ export async function recordQuotation(actor: Actor, input: QuotationInput): Prom
                 ${line.gstRate}::numeric, ${line.leadTimeDays ?? null}, ${line.make?.trim() || null})`;
     }
 
+    if (existing) {
+      /**
+       * The vendor's paperwork follows the revision.
+       *
+       * The row it hung off was just deleted, and a document does not cascade
+       * with it — `documents` is keyed by (entity_type, entity_id) with no
+       * foreign key, by design, because one table serves eleven entities. So
+       * without this the file is orphaned: invisible on every screen, still on
+       * disk, and still held under the eight-year retention class with nothing
+       * left to say what it belongs to.
+       */
+      await tx`
+        UPDATE documents
+           SET entity_id = ${quotation.id as number}
+         WHERE entity_type = 'QUOTATION' AND entity_id = ${existing.id as number}`;
+    }
+
     await audit(tx, {
       entityType: 'QUOTATION', entityId: Number(quotation.id), action: existing ? 'UPDATE' : 'CREATE',
       after: { pr_no: pr.pr_no, vendor_id: input.vendorId, ref: input.vendorQuoteRef },

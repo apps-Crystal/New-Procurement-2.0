@@ -96,6 +96,11 @@ export function QuotationPanel({
    * threw "rendered more hooks than during the previous render".
    */
   const [filesFor, setFilesFor] = useState<number | null>(null);
+  /**
+   * Set when a quotation saved but the file chosen with it did not attach. The
+   * form is closed by then, so the message has nowhere to live but here.
+   */
+  const [attachWarning, setAttachWarning] = useState<string | null>(null);
   const [awarding, setAwarding] = useState<number | null>(null);
   const [reasonCode, setReasonCode] = useState('');
   const [justification, setJustification] = useState('');
@@ -184,12 +189,24 @@ export function QuotationPanel({
         label="Quotations"
         right={
           canRecord ? (
-            <button type="button" className="btn btn-sm" onClick={() => setRecording(v => !v)}>
+            <button
+              type="button"
+              className="btn btn-sm"
+              onClick={() => { setRecording(v => !v); setAttachWarning(null); }}
+            >
               {recording ? 'Close' : 'Record a quotation'}
             </button>
           ) : null
         }
       >
+        {attachWarning && (
+          <div className="pad" style={{ paddingBottom: 0 }}>
+            <Banner kind="warn">
+              {attachWarning} The quotation itself was recorded — attach the file from its row.
+            </Banner>
+          </div>
+        )}
+
         {quotes.length === 0 ? (
           <EmptyState title="No quotations yet">
             Record what each vendor quoted. Only approved vendors can be quoted against, and each vendor
@@ -303,8 +320,9 @@ export function QuotationPanel({
             prId={prId}
             lines={lines}
             onClose={() => setRecording(false)}
-            onSaved={() => {
+            onSaved={warning => {
               setRecording(false);
+              setAttachWarning(warning ?? null);
               reload();
             }}
           />

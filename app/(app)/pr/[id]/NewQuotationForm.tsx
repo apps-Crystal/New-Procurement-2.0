@@ -7,8 +7,12 @@
  * a comparison between a complete quote and a partial one is not a comparison.
  * Only approved vendors appear: `check_po_vendor()` would refuse the order
  * later anyway, and finding that out at the PO stage wastes everyone's time.
+ *
+ * The vendor's own quote can be attached here, but it is a SECOND request made
+ * after the first succeeds: a document hangs off an entity id, and until the
+ * quotation is recorded there is no id to hang it on.
  */
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Banner, FieldError, fmtQty } from '@/components/ui';
 import { api, qs } from '@/lib/client/api';
 import { useMutation, useResource } from '@/lib/client/use-resource';
@@ -29,7 +33,12 @@ export function NewQuotationForm({
   prId: number;
   lines: PrLine[];
   onClose: () => void;
-  onSaved: () => void;
+  /**
+   * `warning` is set when the quotation saved but its file did not. The caller
+   * shows it, because this form is closed by then and a message left in here
+   * would go with it.
+   */
+  onSaved: (warning?: string) => void;
 }) {
   const vendors = useResource<Vendor[]>(`/api/vendors${qs({ status: 'VENDOR_APPROVED' })}`);
 
@@ -41,10 +50,20 @@ export function NewQuotationForm({
   const [paymentTerms, setPaymentTerms] = useState('');
   const [warranty, setWarranty] = useState('');
   const [rates, setRates] = useState<Record<number, { rate: string; gst: string; lead: string; make: string }>>({});
+  const [file, setFile] = useState<File | null>(null);
+
+  /**
+   * A ref, not state: it is written during the save and read by onDone in the
+   * same turn. State would not have updated by then, and re-rendering for a
+   * value nothing displays would be pointless anyway.
+   */
+  const attachFailure = useRef<string | null>(null);
 
   const save = useMutation(
-    async () =>
-      api.post('/api/quotations', {
+    async () => {
+      attachFailure.current = null;
+
+      const created = await api.post<{ id: number }>('/api/quotations', {
         pr_id: prId,
         vendor_id: Number(vendorId),
         vendor_quote_ref: quoteRef,
@@ -60,8 +79,38 @@ export function NewQuotationForm({
           lead_time_days: rates[l.id]?.lead ? Number(rates[l.id].lead) : null,
           make: rates[l.id]?.make || null,
         })),
-      }),
-    { onDone: onSaved, successMessage: 'Quotation recorded.' },
+      });
+
+      if (!file) return;
+
+      /**
+       * The quotation exists from here on, so a failed upload must NOT fail the
+       * save -- saying "that did not work" about a record that is now in the
+       * database would be a lie, and retrying would replace the quotation
+       * rather than attach the file. The warning travels up instead, and the
+       * row offers the upload again.
+       *
+       * Raw fetch, not lib/client/api: that sets a JSON content type, and a
+       * multipart body needs the browser to set its own boundary.
+       */
+      const form = new FormData();
+      form.set('entity_type', 'QUOTATION');
+      form.set('entity_id', String(created.id));
+      form.set('doc_type', 'QUOTATION');
+      form.set('file', file);
+
+      try {
+        const res = await fetch('/api/documents', { method: 'POST', body: form });
+        const body = await res.json();
+        if (!body.ok) throw new Error(body.error?.message ?? 'The file did not attach.');
+      } catch (e) {
+        attachFailure.current = e instanceof Error ? e.message : 'The file did not attach.';
+      }
+    },
+    {
+      onDone: () => onSaved(attachFailure.current ?? undefined),
+      successMessage: 'Quotation recorded.',
+    },
   );
 
   const err = (field: string) => (save.fieldError?.field === field ? save.fieldError.message : null);
@@ -191,6 +240,21 @@ export function NewQuotationForm({
             </div>
           );
         })}
+      </div>
+
+      <div className="field" style={{ marginTop: 14 }}>
+        <label htmlFor="quote-file">The vendor's quote (optional)</label>
+        <input
+          id="quote-file"
+          className="inp"
+          type="file"
+          accept=".pdf,.jpg,.jpeg,.png,.webp,.csv,.txt,.xls,.xlsx"
+          onChange={e => setFile(e.target.files?.[0] ?? null)}
+        />
+        <span className="sub">
+          Filed against this quotation once it is recorded. PDF, image, CSV or spreadsheet, up to 10 MB.
+          More can be added from the row afterwards.
+        </span>
       </div>
 
       <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
