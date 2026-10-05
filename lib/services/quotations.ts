@@ -183,6 +183,8 @@ export interface ComparisonQuote {
   warrantyMonths: number | null;
   lines: { prLineId: number; itemCode: string; itemName: string; qty: string; unitRate: string; gstRate: string; lineTotal: string; leadTimeDays: number | null; make: string | null }[];
   scorecard: { rejectionPct: string | null; returns12m: number; qtyDelivered: string } | null;
+  /** Files filed against this quote — the vendor's own PDF, usually. */
+  documents: number;
 }
 
 export interface Comparison {
@@ -224,6 +226,24 @@ export async function buildComparison(prId: number): Promise<Comparison> {
      ORDER BY c.rank_no`;
 
   const lowest = landed.find(l => Number(l.rank_no) === 1);
+
+  /**
+   * How many files each quote carries, in ONE query.
+   *
+   * The loop below already makes two round trips per quotation; counting
+   * attachments inside it would make three, for a number the screen only shows
+   * as "2 attached". A grouped count over the whole set costs one.
+   */
+  const fileCount = new Map<number, number>();
+  if (landed.length > 0) {
+    const counts = await sql<Row[]>`
+      SELECT entity_id, count(*) AS n
+        FROM documents
+       WHERE entity_type = 'QUOTATION'
+         AND entity_id = ANY(${landed.map(l => Number(l.quotation_id))})
+       GROUP BY entity_id`;
+    for (const c of counts) fileCount.set(Number(c.entity_id), Number(c.n));
+  }
 
   const quotes: ComparisonQuote[] = [];
 
@@ -267,6 +287,7 @@ export async function buildComparison(prId: number): Promise<Comparison> {
         leadTimeDays: ln.lead_time_days === null ? null : Number(ln.lead_time_days),
         make: (ln.make as string) ?? null,
       })),
+      documents: fileCount.get(Number(l.quotation_id)) ?? 0,
       scorecard: score
         ? {
             rejectionPct: (score.rejection_pct as string) ?? null,

@@ -12,7 +12,7 @@
  * (`awards_nonlow`), and awarding on fewer quotations than the minimum needs a
  * waiver. Either opens an approval chain of its own before a PO can follow.
  */
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import Link from 'next/link';
 import {
   Banner, Card, EmptyState, ErrorState, LoadingState, Tile, fmtDate, fmtMoney, fmtQty,
@@ -20,6 +20,7 @@ import {
 import { api } from '@/lib/client/api';
 import { useMutation, useResource } from '@/lib/client/use-resource';
 import { NewQuotationForm } from '@/app/(app)/pr/[id]/NewQuotationForm';
+import { Documents } from '@/components/Documents';
 
 interface Quote {
   quotationId: number;
@@ -38,6 +39,7 @@ interface Quote {
   paymentTerms: string | null;
   warrantyMonths: number | null;
   scorecard: { rejectionPct: string | null; returns12m: number; qtyDelivered: string } | null;
+  documents: number;
 }
 
 interface Comparison {
@@ -84,6 +86,16 @@ export function QuotationPanel({
 }) {
   const { data, loading, error, reload } = useResource<Comparison>(`/api/pr/${prId}/comparison`);
   const [recording, setRecording] = useState(false);
+  /**
+   * Which quote has its files open, if any. One at a time: the comparison is
+   * what this screen is for, and four unfolded panels would bury it.
+   *
+   * Up here with the other hooks, NOT beside the markup it belongs to — the
+   * early returns for loading and error sit between, and a hook after them runs
+   * on some renders and not others. React counts them, and the second render
+   * threw "rendered more hooks than during the previous render".
+   */
+  const [filesFor, setFilesFor] = useState<number | null>(null);
   const [awarding, setAwarding] = useState<number | null>(null);
   const [reasonCode, setReasonCode] = useState('');
   const [justification, setJustification] = useState('');
@@ -157,6 +169,13 @@ export function QuotationPanel({
   const chosen = awarding === null ? null : quotes.find(q => q.quotationId === awarding) ?? null;
   const nonLowest = chosen !== null && chosen.rank !== 1;
 
+  /**
+   * A quote's own paperwork can still be filed after the award. It is evidence
+   * of what was offered, not part of the decision — refusing it would only mean
+   * the PDF lives in somebody's mailbox instead.
+   */
+  const canAttach = granted.includes('QUOTATION.MANAGE');
+
   return (
     <>
       <Card
@@ -188,8 +207,8 @@ export function QuotationPanel({
               <div className="r">vs L1</div>
             </div>
             {quotes.map(q => (
+              <Fragment key={q.quotationId}>
               <div
-                key={q.quotationId}
                 className="tr"
                 style={{
                   gridTemplateColumns: '60px 1.4fr 130px 130px 110px 120px 130px',
@@ -213,6 +232,23 @@ export function QuotationPanel({
                         : `${q.scorecard.rejectionPct}% rejected on ${fmtQty(q.scorecard.qtyDelivered)} delivered · ${q.scorecard.returns12m} returns in 12 months`}
                     </div>
                   )}
+                  {/*
+                    Whether the vendor's own quote is on file, stated on the row
+                    rather than hidden behind the panel -- "did anybody keep the
+                    PDF?" is a question you ask while comparing, not after.
+                  */}
+                  <div className="sub">
+                    <button
+                      type="button"
+                      className="btn btn-sm"
+                      aria-expanded={filesFor === q.quotationId}
+                      onClick={() => setFilesFor(v => (v === q.quotationId ? null : q.quotationId))}
+                    >
+                      {q.documents === 0
+                        ? canAttach ? 'Attach the quote' : 'No file attached'
+                        : `${q.documents} file${q.documents === 1 ? '' : 's'} attached`}
+                    </button>
+                  </div>
                 </div>
                 <div className="r">₹{fmtMoney(q.taxable)}</div>
                 <div className="r">₹{fmtMoney(q.freight)}</div>
@@ -238,6 +274,26 @@ export function QuotationPanel({
                   )}
                 </div>
               </div>
+
+              {filesFor === q.quotationId && (
+                // A sibling of the row, not a cell in it. A .tr is its own grid
+                // of columns; the panel is one block the width of the table, so
+                // it belongs beside the row rather than inside it.
+                <div>
+                  <Documents
+                    entityType="QUOTATION"
+                    entityId={q.quotationId}
+                    offered={['QUOTATION', 'PRICE_LIST', 'TECHNICAL_SPEC']}
+                    canAttach={canAttach}
+                    // The count on the row comes from the comparison, so the
+                    // comparison is what has to be refetched -- the panel
+                    // reloading itself leaves the row saying "Attach the quote"
+                    // next to a file that is plainly attached.
+                    onChanged={reload}
+                  />
+                </div>
+              )}
+              </Fragment>
             ))}
           </div>
         )}

@@ -37,6 +37,12 @@ export interface DocumentsProps {
   offered?: string[];
   /** False while the record is in a state that should not gain attachments. */
   canAttach?: boolean;
+  /**
+   * Told when the attachments change, for a screen that shows a count of its
+   * own. This panel reloads its own list; it cannot know the page around it is
+   * also displaying "2 files attached" and has just gone stale.
+   */
+  onChanged?: () => void;
 }
 
 function humanSize(bytes: string): string {
@@ -52,6 +58,7 @@ export function Documents({
   required = [],
   offered = [],
   canAttach = true,
+  onChanged,
 }: DocumentsProps) {
   const url = `/api/documents${qs({ entity_type: entityType, entity_id: entityId })}`;
   const { data, loading, error, reload } = useResource<Doc[]>(url);
@@ -82,6 +89,7 @@ export function Documents({
       const body = await res.json();
       if (!body.ok) throw new Error(body.error?.message ?? 'That upload failed.');
       reload();
+      onChanged?.();
     } catch (e) {
       setProblem(e instanceof Error ? e.message : 'That upload failed.');
     } finally {
