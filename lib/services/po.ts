@@ -344,8 +344,26 @@ export async function cancelPo(actor: Actor, poId: number, reason: string): Prom
 // Reads
 // =============================================================================
 
-export function listPos(principal: Principal, filters: { status?: string; vendorId?: number } = {}): Promise<Row[]> {
+/**
+ * "Active" is not a status.
+ *
+ * It is issued OR part received — out with the vendor and not yet fully in.
+ * The register offers it as one chip because that is the question a buyer
+ * actually asks ("what is still with somebody?"), and answering it meant
+ * filtering on a SET of statuses rather than one.
+ */
+export const ACTIVE_PO_STATUSES = ['PO_CREATED', 'PO_PARTIALLY_RECEIVED'] as const;
+
+export function listPos(
+  principal: Principal,
+  filters: { status?: string; vendorId?: number; needsFile?: boolean } = {},
+): Promise<Row[]> {
   const siteIds = principal.groupWide ? null : principal.sites.map(s => s.siteId);
+
+  const statuses =
+    filters.status === 'ACTIVE' ? [...ACTIVE_PO_STATUSES]
+    : filters.status ? [filters.status]
+    : null;
 
   return sql<Row[]>`
     SELECT po.*, s.code AS site_code, s.name AS site_name, v.legal_name AS vendor_name, v.vendor_code,
@@ -354,15 +372,20 @@ export function listPos(principal: Principal, filters: { status?: string; vendor
            (SELECT coalesce(sum(round(l.qty_ordered * l.rate * (1 + l.gst_rate / 100), 2)), 0)
               FROM po_lines l WHERE l.po_id = po.id) + po.freight_amount                 AS total_incl_gst,
            (SELECT coalesce(sum(r.qty_outstanding), 0) FROM v_po_line_receipt r
-             WHERE r.po_id = po.id)                                                      AS qty_outstanding
+             WHERE r.po_id = po.id)                                                      AS qty_outstanding,
+           (SELECT count(*) FROM documents d
+             WHERE d.entity_type = 'PO' AND d.entity_id = po.id)                         AS document_count
       FROM purchase_orders po
       JOIN sites s              ON s.id = po.site_id
       JOIN vendors v            ON v.id = po.vendor_id
       JOIN purchase_requests pr ON pr.id = po.pr_id
       JOIN app_users u          ON u.id = po.buyer_id
      WHERE (${siteIds}::bigint[] IS NULL OR po.site_id = ANY(${siteIds}))
-       AND (${filters.status ?? null}::text IS NULL OR po.status = ${filters.status ?? null}::po_status)
+       AND (${statuses}::text[] IS NULL OR po.status::text = ANY(${statuses}))
        AND (${filters.vendorId ?? null}::bigint IS NULL OR po.vendor_id = ${filters.vendorId ?? null})
+       AND (${filters.needsFile ?? false} IS NOT TRUE
+            OR NOT EXISTS (SELECT 1 FROM documents d
+                            WHERE d.entity_type = 'PO' AND d.entity_id = po.id))
      ORDER BY po.created_at DESC`;
 }
 

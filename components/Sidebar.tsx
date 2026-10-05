@@ -54,6 +54,12 @@ function NavIcon({ name }: { name?: NavIconName }) {
           <path d="M12 2.8 20 6v6c0 4.6-3.3 8.1-8 9.2-4.7-1.1-8-4.6-8-9.2V6Z" />
         </svg>
       );
+    case 'upload':
+      return (
+        <svg {...common}>
+          <path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
+        </svg>
+      );
     case 'person':
       return (
         <svg {...common}>

@@ -12,7 +12,7 @@
 import type { PermissionKey } from '@/lib/auth/permissions';
 
 /** The marks a shortcut may carry. Decorative — the label always says it too. */
-export type NavIconName = 'plus' | 'check' | 'shield' | 'person';
+export type NavIconName = 'plus' | 'check' | 'shield' | 'person' | 'upload';
 
 export interface NavItem {
   href: string;
@@ -94,7 +94,17 @@ export const NAV: NavGroup[] = [
         ],
       },
       { href: '/quotations', label: 'Vendor quotations', permission: 'QUOTATION.VIEW' },
-      { href: '/po', label: 'Purchase orders', permission: 'PO.VIEW' },
+      {
+        href: '/po',
+        label: 'Purchase orders',
+        permission: 'PO.VIEW',
+        children: [
+          // The queue, not a form: you upload against a particular order, so
+          // the shortcut lands on the ones that have no file yet.
+          { href: '/po?needs_file=1', label: 'Upload a signed order', permission: 'PO.EDIT', icon: 'upload' },
+          { href: '/po?stage=ACTIVE', label: 'Active orders', permission: 'PO.VIEW', icon: 'check' },
+        ],
+      },
     ],
   },
   {

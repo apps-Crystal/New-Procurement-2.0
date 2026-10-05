@@ -10,8 +10,9 @@
  * "Outstanding" is `v_po_line_receipt`, which nets receipts against the order.
  * It is the same figure the receiving queue works from.
  */
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import Link from 'next/link';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
   Card, EmptyState, ErrorState, Kpi, Kpis, LoadingState, StatusChip, fmtDate, fmtMoney, fmtQty,
 } from '@/components/ui';
@@ -30,6 +31,7 @@ interface Po {
   expected_delivery: string;
   total_incl_gst: string | null;
   qty_outstanding: string | null;
+  document_count: string | number;
   tally_po_ref: string | null;
   created_at: string;
 }
@@ -38,6 +40,8 @@ const COLS = '150px 1fr 150px 130px 140px 140px';
 
 const FILTERS = [
   { label: 'All', value: '' },
+  // Not a status of its own — the service expands it to issued + part received.
+  { label: 'Active', value: 'ACTIVE' },
   { label: 'Draft', value: 'PO_DRAFT' },
   { label: 'Issued', value: 'PO_CREATED' },
   { label: 'Part received', value: 'PO_PARTIALLY_RECEIVED' },
@@ -45,9 +49,36 @@ const FILTERS = [
 ];
 
 export function PoRegister() {
-  const [status, setStatus] = useState('');
-  const url = `/api/po${qs({ status })}`;
-  const { data, loading, error, reload } = useResource<Po[]>(url, [status]);
+  /**
+   * Derived from the URL, not seeded from it. A sidebar shortcut is a
+   * client-side navigation: the component does not remount, so a useState
+   * initialiser would run once and never again, and the address bar would
+   * change while the screen sat still.
+   */
+  const params = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  const status = params.get('stage') ?? '';
+  const needsFile = params.get('needs_file') === '1';
+
+  const setParams = (patch: Record<string, string | null>) => {
+    const next = new URLSearchParams(params.toString());
+    for (const [k, v] of Object.entries(patch)) {
+      if (v === null || v === '') next.delete(k);
+      else next.set(k, v);
+    }
+    const query = next.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+  };
+
+  const setStatus = (v: string) => setParams({ stage: v || null });
+  const setNeedsFile = (v: boolean) => setParams({ needs_file: v ? '1' : null });
+
+  const url = `/api/po${qs({ status, needs_file: needsFile ? '1' : '' })}`;
+  const { data, loading, error, reload } = useResource<Po[]>(url, [status, needsFile]);
+
+  const filtered = status !== '' || needsFile;
 
   const counts = useMemo(() => {
     const rows = data ?? [];
@@ -86,6 +117,18 @@ export function PoRegister() {
             ))}
           </div>
         </div>
+
+        <div className="field">
+          <label htmlFor="po-needs-file" style={{ display: 'flex', gap: 8, alignItems: 'center', cursor: 'pointer' }}>
+            <input
+              id="po-needs-file"
+              type="checkbox"
+              checked={needsFile}
+              onChange={e => setNeedsFile(e.target.checked)}
+            />
+            Only those with no file attached
+          </label>
+        </div>
       </section>
 
       {loading && <LoadingState rows={6} label="Loading purchase orders" />}
@@ -96,17 +139,21 @@ export function PoRegister() {
 
       {!loading && !error && data?.length === 0 && (
         <EmptyState
-          title={status ? 'No orders match that' : 'No purchase orders yet'}
+          title={filtered ? 'No orders match that' : 'No purchase orders yet'}
           action={
-            status ? (
-              <button type="button" className="btn" onClick={() => setStatus('')}>Clear filter</button>
+            filtered ? (
+              <button type="button" className="btn" onClick={() => setParams({ stage: null, needs_file: null })}>
+                Clear filters
+              </button>
             ) : (
               <Link className="btn" href="/pr">Go to purchase requests</Link>
             )
           }
         >
-          {status
-            ? 'Try a different status.'
+          {filtered
+            ? needsFile
+              ? 'Every order matching has its paperwork on file.'
+              : 'Try a different status.'
             : 'An order is drafted from the awarded quotation on an approved purchase request.'}
         </EmptyState>
       )}
@@ -129,6 +176,13 @@ export function PoRegister() {
                   {p.vendor_name}
                   <div className="sub">
                     {p.site_name} · from <span className="mono">{p.pr_no}</span>
+                  </div>
+                  {/* Stated here so the queue of orders missing paperwork can be
+                      read without opening each one. */}
+                  <div className="sub">
+                    {Number(p.document_count ?? 0) === 0
+                      ? 'No file attached'
+                      : `${p.document_count} file${Number(p.document_count) === 1 ? '' : 's'} attached`}
                   </div>
                 </div>
                 <div>{fmtDate(p.expected_delivery)}</div>

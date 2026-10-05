@@ -1,5 +1,5 @@
 /**
- * GET  /api/po?status=&vendor_id=
+ * GET  /api/po?status=&vendor_id=&needs_file=1
  * POST /api/po   draft an order from the awarded quotation
  *
  * The PO is assembled from the award, not from the body: quantities from the
@@ -18,8 +18,11 @@ export const dynamic = 'force-dynamic';
 export const GET = handler(async ({ req, principal }) => {
   const p = req.nextUrl.searchParams;
   return listPos(principal, {
+    // 'ACTIVE' is accepted here as a status the way the register offers it —
+    // the service expands it, so one place decides what active means.
     status: p.get('status') ?? undefined,
     vendorId: p.get('vendor_id') ? Number(p.get('vendor_id')) : undefined,
+    needsFile: p.get('needs_file') === '1',
   });
 });
 

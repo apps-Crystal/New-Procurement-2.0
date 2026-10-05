@@ -20,6 +20,7 @@ import {
 } from '@/components/ui';
 import { api } from '@/lib/client/api';
 import { useMutation, useResource } from '@/lib/client/use-resource';
+import { Documents } from '@/components/Documents';
 
 interface Row { [k: string]: unknown }
 
@@ -221,6 +222,19 @@ export function PoDetail({ id, granted }: { id: number; granted: string[] }) {
           )}
         </div>
       </Card>
+
+      {/*
+        PO has been an allowed document entity since the first migration; no
+        screen ever offered it, so the signed order and any amendment had
+        nowhere to live. Attaching is PO.EDIT — the buyer who owns the order,
+        not everybody who may read it.
+      */}
+      <Documents
+        entityType="PO"
+        entityId={po.id}
+        offered={['PO', 'SIGNED_PO', 'AMENDMENT']}
+        canAttach={granted.includes('PO.EDIT')}
+      />
     </>
   );
 }
