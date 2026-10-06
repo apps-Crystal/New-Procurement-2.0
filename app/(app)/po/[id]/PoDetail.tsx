@@ -233,7 +233,11 @@ export function PoDetail({ id, granted }: { id: number; granted: string[] }) {
         entityType="PO"
         entityId={po.id}
         offered={['PO', 'SIGNED_PO', 'AMENDMENT']}
-        canAttach={granted.includes('PO.EDIT')}
+        // PO.CREATE, not PO.EDIT: that is the key the documents service
+        // actually checks for a PO. Both are CG_BUY today, so testing the wrong
+        // one looked identical — until the matrix moved, when the control would
+        // have rendered and the upload would have 403'd.
+        canAttach={granted.includes('PO.CREATE')}
       />
     </>
   );
