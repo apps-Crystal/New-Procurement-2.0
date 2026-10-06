@@ -65,6 +65,26 @@ const SLA_HOURS_AMBIENT = 48;
  */
 const NOT_YET_INSPECTED = 'PENDING_INSPECTION';
 
+/**
+ * An inspection belongs to the person who claimed it.
+ *
+ * QC.EDIT says you may inspect goods at this site; it does not say you may
+ * write on somebody else's inspection. Without this, anyone holding the key —
+ * or an API token acting as them — could record a verdict on an inspection
+ * assigned to another inspector, and the audit trail would show it under that
+ * inspection as though they had done the looking.
+ *
+ * The screen has always enforced this (InspectionDetail gates on isInspector),
+ * so the button was hidden while the endpoint stayed open. The hold decision
+ * already refuses the mirror case — the inspector may not decide their own
+ * hold — and this is the same rule from the other side.
+ */
+function requireAssignedInspector(actor: Actor, qc: Row): void {
+  if (Number(qc.inspector_id) !== actor.principal.userId) {
+    throw forbidden('This inspection is assigned to somebody else. Only they can record a verdict on it.');
+  }
+}
+
 function requirePermission(actor: Actor, key: Parameters<typeof can>[1], siteId: number | null) {
   if (!can(actor.principal, key, siteId)) {
     throw forbidden('You do not have permission to do that with inspections.');
@@ -213,6 +233,7 @@ export async function recordVerdict(actor: Actor, qcId: number, verdict: QcLineV
     const [gi] = await tx<Row[]>`SELECT * FROM gate_inwards WHERE id = ${qc.gate_inward_id as number}`;
     const siteId = Number(gi.site_id);
     requirePermission(actor, 'QC.EDIT', siteId);
+    requireAssignedInspector(actor, qc);
 
     if (qc.completed_at !== null) {
       throw conflict('This inspection is complete. Open a re-inspection to change a verdict.');
@@ -314,6 +335,7 @@ export async function completeInspection(actor: Actor, qcId: number): Promise<Ro
       { entityType: ENTITY, from: String(gi.status), to: 'QC_COMPLETED', principal: actor.principal, siteId },
       tx,
     );
+    requireAssignedInspector(actor, qc);
 
     if (qc.completed_at !== null) {
       throw conflict('This inspection is already complete.');
