@@ -28,6 +28,8 @@ interface Check {
   label: string;
   passed: boolean;
   detail?: string;
+  /** Shown, but it does not stop the order — see issueChecks(). */
+  advisory?: boolean;
 }
 
 interface PoView {
@@ -75,7 +77,9 @@ export function PoDetail({ id, granted }: { id: number; granted: string[] }) {
 
   const canIssue = po.status === 'PO_DRAFT' && granted.includes('PO.ISSUE');
   // Every gate except the Tally reference itself, which is being typed now.
-  const blocking = checks.filter(c => !c.passed && !/tally/i.test(c.label));
+  // The Tally reference is excluded because it is being typed in the form just
+  // below; advisory checks are excluded because they never block.
+  const blocking = checks.filter(c => !c.passed && !c.advisory && !/tally/i.test(c.label));
 
   return (
     <>
@@ -160,7 +164,10 @@ export function PoDetail({ id, granted }: { id: number; granted: string[] }) {
           {checks.map(c => (
             <div key={c.label} className="tr" style={{ gridTemplateColumns: '40px 1fr' }}>
               <div>
-                <span className={c.passed ? 'chip ok' : 'chip bad'}>{c.passed ? '✓' : '×'}</span>
+                {/* Three states, not two: passed, advisory, refused. */}
+                <span className={c.passed ? 'chip ok' : c.advisory ? 'chip warn' : 'chip bad'}>
+                  {c.passed ? '✓' : c.advisory ? '!' : '×'}
+                </span>
               </div>
               <div>
                 {c.label}

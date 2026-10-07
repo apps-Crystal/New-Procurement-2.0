@@ -157,6 +157,15 @@ export interface IssueChecks {
   label: string;
   passed: boolean;
   detail?: string;
+  /**
+   * Worth knowing, but it does not stop the order.
+   *
+   * An advisory check that fails is shown amber rather than as a refusal, and
+   * the issue button ignores it. Keep this for things the schema itself
+   * permits — blocking on those would mean the application forbids a record
+   * the database was designed to hold.
+   */
+  advisory?: boolean;
 }
 
 /**
@@ -194,9 +203,24 @@ export async function issueChecks(poId: number): Promise<IssueChecks[]> {
       detail: po.vendor_status === 'VENDOR_APPROVED' ? undefined : `${po.legal_name} is ${po.vendor_status}`,
     },
     {
-      label: 'PAN and GSTIN recorded in the vendor master',
-      passed: !!po.pan && !!po.gstin,
-      detail: po.gstin ? undefined : 'No GSTIN — this vendor is unregistered',
+      /**
+       * Advisory, not a gate.
+       *
+       * `vendors.gstin` is NULLABLE and every constraint on it reads
+       * "gstin IS NULL OR …" — the schema was built to hold an unregistered
+       * supplier on purpose, because small vendors genuinely are not
+       * registered and are bought from under reverse charge. Failing the issue
+       * on it meant a vendor the database permits, and that Finance had
+       * already approved, could never receive an order.
+       *
+       * PAN is not tested: the column is NOT NULL, so it cannot be absent.
+       */
+      label: 'GSTIN recorded in the vendor master',
+      passed: !!po.gstin,
+      advisory: true,
+      detail: po.gstin
+        ? undefined
+        : 'Unregistered vendor — no GST on their invoice, and reverse charge may apply. The order can still be issued.',
     },
     {
       label: 'Quantities match the approved purchase request',
@@ -229,7 +253,7 @@ export async function issueChecks(poId: number): Promise<IssueChecks[]> {
  * attached to two orders.
  */
 export async function issuePo(actor: Actor, poId: number, tallyPoRef: string): Promise<Row> {
-  return inTransaction(async tx => {
+  const issued = await inTransaction(async tx => {
     const po = await loadPo(tx, poId, true);
     const siteId = Number(po.site_id);
 
@@ -284,6 +308,22 @@ export async function issuePo(actor: Actor, poId: number, tallyPoRef: string): P
 
     return updated;
   });
+  /**
+   * The copy is rendered AFTER the commit, on purpose.
+   *
+   * Inside the transaction, a broken font or a full disk would roll back an
+   * order that was otherwise perfectly valid. The order is the fact; the PDF is
+   * a rendering of it. So a failure here leaves the order issued and the copy
+   * missing, which POST /api/po/[id]/copy exists to repair.
+   */
+  try {
+    const { filePoCopy } = await import('@/lib/services/po-copy');
+    await filePoCopy(actor, poId);
+  } catch (err) {
+    console.error(`Could not file the system copy for purchase order ${poId}:`, err);
+  }
+
+  return issued;
 }
 
 export async function shortClosePo(actor: Actor, poId: number, reason: string): Promise<Row> {
