@@ -10,7 +10,7 @@ export default async function Page() {
 
   return (
     <>
-      <PageHead crumb="Inventory" title="Asset register" />
+      <PageHead crumb="Inventory" title="Assets in stock" />
       <AssetRegister granted={grantedKeys(principal)} />
     </>
   );

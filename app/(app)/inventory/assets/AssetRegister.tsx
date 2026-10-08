@@ -147,7 +147,7 @@ export function AssetRegister({ granted }: { granted: string[] }) {
         <Card
           title="Units"
           subtitle="The state follows the stock ledger and is not editable here."
-          label="Asset register"
+          label="Assets in stock"
         >
           <div className="tbl">
             <div className="tr th" style={{ gridTemplateColumns: COLS }}>

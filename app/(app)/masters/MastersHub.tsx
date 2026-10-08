@@ -15,6 +15,7 @@ import { stateName } from '@/lib/validate';
 import { label, CATEGORY_LABELS, SITE_TYPE_LABELS, ROLE_LABELS } from '@/lib/labels';
 import { NewSiteForm } from '@/app/(app)/masters/NewSiteForm';
 import { NewItemForm } from '@/app/(app)/masters/NewItemForm';
+import { NewItemClassForm } from '@/app/(app)/masters/NewItemClassForm';
 import { GrantRoleForm } from '@/app/(app)/masters/GrantRoleForm';
 import { ApiTokens } from '@/app/(app)/masters/ApiTokens';
 import { api } from '@/lib/client/api';
@@ -51,7 +52,17 @@ export function MastersHub({ granted }: { granted: string[] }) {
   const canManage = granted.includes(tab.manage);
   // The API tokens tab renders its own create panel and its own table, so the
   // hub's generic add button has nothing to do there.
-  const canAdd = canManage && (active === 'sites' || active === 'items' || active === 'user-roles');
+  const canAdd =
+    canManage &&
+    (active === 'sites' || active === 'items' || active === 'item-classes' || active === 'user-roles');
+
+  /** What the add button says. Each tab names its own thing. */
+  const ADD_LABEL: Partial<Record<TabKey, string>> = {
+    sites: 'Add site',
+    items: 'Add item',
+    'item-classes': 'Add item class',
+    'user-roles': 'Grant a role',
+  };
 
   return (
     <>
@@ -74,13 +85,22 @@ export function MastersHub({ granted }: { granted: string[] }) {
         ))}
         {canAdd && (
           <button type="button" className="btn btn-primary" style={{ marginLeft: 'auto' }} onClick={() => setAdding(v => !v)}>
-            {active === 'user-roles' ? 'Grant a role' : `Add ${active === 'sites' ? 'site' : 'item'}`}
+            {ADD_LABEL[active]}
           </button>
         )}
       </div>
 
       {adding && active === 'sites' && (
         <NewSiteForm
+          onClose={() => setAdding(false)}
+          onCreated={() => {
+            setAdding(false);
+            reload();
+          }}
+        />
+      )}
+      {adding && active === 'item-classes' && (
+        <NewItemClassForm
           onClose={() => setAdding(false)}
           onCreated={() => {
             setAdding(false);

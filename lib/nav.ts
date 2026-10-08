@@ -65,7 +65,7 @@ export const NAV: NavGroup[] = [
       { href: '/inventory', label: 'Warehouse stock', permission: 'INVENTORY.VIEW' },
       { href: '/inventory/ledger', label: 'Stock ledger', permission: 'INVENTORY.VIEW' },
       { href: '/inventory/issues', label: 'Stock issues', permission: 'INVENTORY.VIEW' },
-      { href: '/inventory/assets', label: 'Asset register', permission: 'ASSET.VIEW' },
+      { href: '/inventory/assets', label: 'Assets in stock', permission: 'ASSET.VIEW' },
       { href: '/damage', label: 'Damaged & missing', permission: 'DAMAGE.VIEW' },
     ],
   },
